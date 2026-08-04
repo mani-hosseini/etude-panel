@@ -1,26 +1,94 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tw-animate-css";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #f4f7ff;
+  --color-foreground: #0b1220;
+  --color-card: #ffffff;
+  --color-card-foreground: #0b1220;
+  --color-primary: #0047ff;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e8eeff;
+  --color-secondary-foreground: #0036c4;
+  --color-muted: #eef2fb;
+  --color-muted-foreground: #5b6b86;
+  --color-accent: #dbe6ff;
+  --color-accent-foreground: #0036c4;
+  --color-destructive: #dc2626;
+  --color-border: #d7e0f5;
+  --color-input: #d7e0f5;
+  --color-ring: #0047ff;
+  --color-brand: #0047ff;
+  --color-brand-50: #eef3ff;
+  --color-brand-100: #dbe6ff;
+  --color-brand-200: #b8ccff;
+  --color-brand-300: #85a6ff;
+  --color-brand-400: #4d75ff;
+  --color-brand-500: #0047ff;
+  --color-brand-600: #0036c4;
+  --color-brand-700: #002a98;
+  --color-brand-800: #001f70;
+  --color-brand-900: #00144a;
+  --color-ink: #0a0a0a;
+  --font-sans: var(--font-vazirmatn), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-outfit), var(--font-vazirmatn), sans-serif;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply antialiased;
+    color-scheme: light;
+    scrollbar-width: thin;
+    scrollbar-color: #b8ccff transparent;
+  }
+
+  body {
+    @apply min-h-screen bg-background font-sans text-foreground;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .piano-stripe {
+    background-image: repeating-linear-gradient(
+      90deg,
+      #0a0a0a 0 10px,
+      #ffffff 10px 18px,
+      #0a0a0a 18px 24px,
+      #ffffff 24px 34px,
+      #0a0a0a 34px 40px,
+      #ffffff 40px 52px
+    );
+  }
+
+  .login-atmosphere {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 20%, rgba(0, 71, 255, 0.18), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 85% 15%, rgba(0, 54, 196, 0.12), transparent 50%),
+      radial-gradient(ellipse 60% 40% at 70% 90%, rgba(0, 71, 255, 0.1), transparent 45%),
+      linear-gradient(165deg, #f7f9ff 0%, #e8efff 45%, #f4f7ff 100%);
+  }
+
+  .staff-lines {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgba(0, 71, 255, 0.06) 27px,
+      rgba(0, 71, 255, 0.06) 28px
+    );
+  }
 }

@@ -1,0 +1,30 @@
+export const copy = {
+  brand: "ETUDE",
+  brandFa: "اتود",
+  tagline: "آموزشگاه موسیقی اتود",
+  login: {
+    title: "ورود به پنل هنرجو",
+    subtitle: "با نام کاربری و رمز عبور خود وارد شوید",
+    username: "نام کاربری",
+    password: "رمز عبور",
+    submit: "ورود به پنل",
+    submitting: "در حال ورود…",
+    demoHint: "برای دمو: student / etude123",
+    error: "نام کاربری یا رمز عبور نادرست است",
+  },
+  nav: {
+    dashboard: "پیشخوان",
+    courses: "دوره‌های من",
+    schedule: "برنامه کلاس‌ها",
+    profile: "پروفایل",
+    logout: "خروج",
+  },
+  dashboard: {
+    welcome: "خوش آمدید",
+    nextLesson: "جلسه بعدی",
+    myCourses: "دوره‌های من",
+    weekSchedule: "برنامه هفته",
+    practice: "نکته تمرین",
+    seeAll: "مشاهده همه",
+  },
+} as const;
