@@ -1,29 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useSyncExternalStore } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { PanelShell } from "@/components/panel/PanelShell";
-import { getSession, type EtudeSession } from "@/lib/auth";
-import { studentProfile } from "@/lib/mock-data";
+import { SessionProvider } from "@/components/panel/SessionProvider";
+import {
+  getServerSession,
+  getSession,
+  subscribeSession,
+} from "@/lib/auth";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [session, setSession] = useState<EtudeSession | null>(null);
-  const [ready, setReady] = useState(false);
+  const pathname = usePathname();
+  const session = useSyncExternalStore(
+    subscribeSession,
+    getSession,
+    getServerSession,
+  );
+  const isSlidePlay = pathname.includes("/play");
 
   useEffect(() => {
-    const current = getSession();
-    if (!current) {
+    if (!session) {
       router.replace("/");
-      return;
     }
-    setSession(current);
-    setReady(true);
-  }, [router]);
+  }, [session, router]);
 
-  if (!ready || !session) {
+  if (!session) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -34,15 +39,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (isSlidePlay) {
+    return <SessionProvider session={session}>{children}</SessionProvider>;
+  }
+
   return (
-    <PanelShell
-      studentName={
-        session.username === "student"
-          ? studentProfile.fullName
-          : session.displayName
-      }
-    >
-      {children}
-    </PanelShell>
+    <SessionProvider session={session}>
+      <PanelShell studentName={session.displayName}>{children}</PanelShell>
+    </SessionProvider>
   );
 }

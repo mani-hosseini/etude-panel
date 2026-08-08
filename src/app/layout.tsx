@@ -16,11 +16,20 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "ETUDE Panel | پنل هنرجویان آموزشگاه موسیقی اتود",
+  title: {
+    default: "ETUDE | پنل مسترکلاس تئوری موسیقی",
+    template: "%s | ETUDE Masterclass",
+  },
   description:
-    "پنل اختصاصی هنرجویان آموزشگاه موسیقی اتود — ورود، دوره‌ها، برنامه کلاس و پیشرفت",
+    "پنل اختصاصی هنرجویان مسترکلاس تئوری موسیقی استاد بهرام دهقانیار — پنجشنبه‌ها ۱۱ تا ۱۳",
+  applicationName: "ETUDE Masterclass",
   icons: {
-    icon: "/logo.png",
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "any" },
+      { url: "/etude-logo.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+    shortcut: ["/favicon.png"],
   },
 };
 

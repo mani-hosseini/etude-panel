@@ -1,4 +1,7 @@
+import { TOTAL_SLIDES } from "@/lib/session-1-slides";
+
 export type CourseStatus = "active" | "upcoming" | "completed";
+export type SessionStatus = "available" | "upcoming" | "locked";
 
 export type Course = {
   id: string;
@@ -11,6 +14,8 @@ export type Course = {
   status: CourseStatus;
   sessionsDone: number;
   sessionsTotal: number;
+  focus: string;
+  weeklyHours: number;
 };
 
 export type Lesson = {
@@ -19,9 +24,13 @@ export type Lesson = {
   course: string;
   teacher: string;
   day: string;
+  dateLabel: string;
   time: string;
   room: string;
   type: "private" | "group" | "theory";
+  duration: string;
+  note?: string;
+  status?: "done" | "next" | "planned";
 };
 
 export type Stat = {
@@ -31,139 +40,211 @@ export type Stat = {
   hint: string;
 };
 
+export type CourseSession = {
+  id: string;
+  number: number;
+  title: string;
+  summary: string;
+  topics: string[];
+  status: SessionStatus;
+  slideCount: number;
+  durationLabel: string;
+  dateLabel: string;
+};
+
+/** پنل اختصاصی مسترکلاس تئوری موسیقی — استاد بهرام دهقانیار */
+export const masterclass = {
+  id: "mc-theory-01",
+  title: "مسترکلاس تئوری موسیقی",
+  subtitle: "سطح پایه · مخصوص هنرجویان این دوره",
+  teacher: "استاد بهرام دهقانیار",
+  teacherShort: "بهرام دهقانیار",
+  day: "پنجشنبه",
+  time: "۱۱:۰۰ — ۱۳:۰۰",
+  timeShort: "۱۱ تا ۱",
+  duration: "۱۲۰ دقیقه",
+  room: "سالن مسترکلاس اتود",
+  level: "پایه",
+  focus: "حامل، کلید سل، ارزش زمانی و میزان‌های ساده",
+  sessionsTotal: 10,
+  sessionsDone: 1,
+  progress: 10,
+  accessNote: "دسترسی فقط برای هنرجویان ثبت‌نام‌شده در این مسترکلاس",
+  certificateReady: false,
+} as const;
+
 export const studentProfile = {
   fullName: "آوا محمدی",
-  studentCode: "ET-1404-0821",
+  firstName: "آوا",
+  studentCode: "ET-MC-1405-01",
   instrument: "پیانو",
-  level: "متوسط",
-  joinedAt: "مهر ۱۴۰۳",
+  level: "پایه",
+  joinedAt: "مرداد ۱۴۰۵",
   phone: "۰۹۱۲ *** **۴۵",
   email: "ava@etude.academy",
+  branch: "آموزشگاه موسیقی اتود",
+  mentor: "استاد بهرام دهقانیار",
+  birthDate: "۱۳۸۵/۰۴/۱۲",
+  nationalId: "۰۰۱******۴۲",
+  address: "تهران، خیابان ولیعصر",
+  practiceGoal: "مرور اسلایدهای جلسهٔ جاری",
+  attendanceRate: "۱۰۰٪",
+  totalHours: "۲",
+  activeCourses: "۱",
+  program: masterclass.title,
 };
+
+export const profileAchievements = [
+  {
+    id: "a1",
+    title: "ورود به مسترکلاس",
+    desc: "ثبت‌نام در دورهٔ اختصاصی تئوری موسیقی",
+  },
+  {
+    id: "a2",
+    title: "جلسهٔ اول برگزار شد",
+    desc: "تاریخ برگزاری: ۱۴۰۵/۰۵/۱۵",
+  },
+  {
+    id: "a3",
+    title: "هنرجوی اختصاصی",
+    desc: "دسترسی پنل فقط برای شرکت‌کنندگان این دوره",
+  },
+];
 
 export const dashboardStats: Stat[] = [
   {
-    id: "courses",
-    label: "دوره‌های فعال",
-    value: "۳",
-    hint: "پیانو، سلفژ، تئوری",
+    id: "course",
+    label: "دورهٔ فعال",
+    value: "۱",
+    hint: masterclass.title,
   },
   {
-    id: "hours",
-    label: "ساعت تمرین این ماه",
-    value: "۱۸",
-    hint: "۴ ساعت بیشتر از ماه قبل",
+    id: "schedule",
+    label: "زمان کلاس",
+    value: "پنجشنبه",
+    hint: `${masterclass.timeShort} · استاد دهقانیار`,
   },
   {
-    id: "attendance",
-    label: "حضور در کلاس",
-    value: "۹۶٪",
-    hint: "۱۲ از ۱۳ جلسه",
+    id: "session",
+    label: "جلسات برگزارشده",
+    value: String(masterclass.sessionsDone),
+    hint: `از ${masterclass.sessionsTotal} جلسه`,
   },
   {
-    id: "next",
-    label: "جلسه بعدی",
-    value: "فردا",
-    hint: "۱۷:۳۰ — کلاس پیانو",
+    id: "progress",
+    label: "پیشرفت دوره",
+    value: `${masterclass.progress}٪`,
+    hint: `${masterclass.sessionsDone} از ${masterclass.sessionsTotal} جلسه`,
   },
 ];
 
 export const courses: Course[] = [
   {
-    id: "1",
-    title: "پیانو کلاسیک",
-    instrument: "پیانو",
-    teacher: "استاد رضایی",
-    level: "متوسط",
-    progress: 68,
-    nextLesson: "فردا ۱۷:۳۰",
+    id: masterclass.id,
+    title: masterclass.title,
+    instrument: "تئوری",
+    teacher: masterclass.teacher,
+    level: masterclass.level,
+    progress: masterclass.progress,
+    nextLesson: `پنجشنبه ${masterclass.timeShort}`,
     status: "active",
-    sessionsDone: 14,
-    sessionsTotal: 20,
+    sessionsDone: masterclass.sessionsDone,
+    sessionsTotal: masterclass.sessionsTotal,
+    focus: masterclass.focus,
+    weeklyHours: 2,
+  },
+];
+
+function lockedSession(number: number): CourseSession {
+  return {
+    id: String(number),
+    number,
+    title: "",
+    summary: "محتوای این جلسه پس از برگزاری کلاس فعال می‌شود.",
+    topics: [],
+    status: "locked",
+    slideCount: 0,
+    durationLabel: "۱۲۰ دقیقه",
+    dateLabel: "قفل",
+  };
+}
+
+export const courseSessions: CourseSession[] = [
+  {
+    id: "1",
+    number: 1,
+    title: "پایه‌های نت‌خوانی و ریتم",
+    summary:
+      "آشنایی با ارتعاش و صدا، حامل، کلید سل، نت‌خوانی، علائم تغییردهنده، ارزش زمانی و میزان‌نما.",
+    topics: [
+      "صدا و ارتعاش",
+      "حامل و کلید سل",
+      "نت‌خوانی روی خط و بین خط",
+      "ریتم و میزان‌نما",
+    ],
+    status: "available",
+    slideCount: TOTAL_SLIDES,
+    durationLabel: "۱۲۰ دقیقه",
+    dateLabel: "۱۴۰۵/۰۵/۱۵",
   },
   {
     id: "2",
-    title: "سلفژ و گوش‌ورزی",
-    instrument: "صدا",
-    teacher: "استاد کریمی",
-    level: "مقدماتی",
-    progress: 42,
-    nextLesson: "چهارشنبه ۱۶:۰۰",
-    status: "active",
-    sessionsDone: 8,
-    sessionsTotal: 16,
-  },
-  {
-    id: "3",
-    title: "تئوری موسیقی",
-    instrument: "تئوری",
-    teacher: "استاد نوری",
-    level: "پایه",
-    progress: 55,
-    nextLesson: "پنجشنبه ۱۸:۱۵",
-    status: "active",
-    sessionsDone: 10,
-    sessionsTotal: 18,
-  },
-  {
-    id: "4",
-    title: "کارگاه آنسامبل",
-    instrument: "گروهی",
-    teacher: "استاد احمدی",
-    level: "متوسط",
-    progress: 0,
-    nextLesson: "شروع از مهر",
+    number: 2,
+    title: "",
+    summary: "محتوای این جلسه پس از برگزاری کلاس فعال می‌شود.",
+    topics: [],
     status: "upcoming",
-    sessionsDone: 0,
-    sessionsTotal: 12,
+    slideCount: 0,
+    durationLabel: "۱۲۰ دقیقه",
+    dateLabel: "پنجشنبهٔ بعد",
   },
+  ...Array.from({ length: 8 }, (_, i) => lockedSession(i + 3)),
 ];
 
 export const schedule: Lesson[] = [
   {
     id: "l1",
-    title: "تمرین سونات پاتهتیک",
-    course: "پیانو کلاسیک",
-    teacher: "استاد رضایی",
-    day: "سه‌شنبه",
-    time: "۱۷:۳۰ — ۱۸:۳۰",
-    room: "استودیو ۱",
-    type: "private",
+    title: "جلسهٔ اول — پایه‌های نت‌خوانی و ریتم",
+    course: masterclass.title,
+    teacher: masterclass.teacher,
+    day: "پنجشنبه",
+    dateLabel: "۱۴۰۵/۰۵/۱۵",
+    time: masterclass.time,
+    room: masterclass.room,
+    type: "theory",
+    duration: masterclass.duration,
+    note: "برگزار شده · اسلایدها در بخش جلسات آماده است",
+    status: "done",
   },
   {
     id: "l2",
-    title: "فاصله‌ها و آکوردها",
-    course: "سلفژ و گوش‌ورزی",
-    teacher: "استاد کریمی",
-    day: "چهارشنبه",
-    time: "۱۶:۰۰ — ۱۷:۰۰",
-    room: "کلاس B",
-    type: "group",
-  },
-  {
-    id: "l3",
-    title: "هارمونی پایه",
-    course: "تئوری موسیقی",
-    teacher: "استاد نوری",
+    title: "جلسهٔ دوم",
+    course: masterclass.title,
+    teacher: masterclass.teacher,
     day: "پنجشنبه",
-    time: "۱۸:۱۵ — ۱۹:۱۵",
-    room: "کلاس A",
+    dateLabel: "جلسهٔ بعدی",
+    time: masterclass.time,
+    room: masterclass.room,
     type: "theory",
-  },
-  {
-    id: "l4",
-    title: "مرور اتود شوپن",
-    course: "پیانو کلاسیک",
-    teacher: "استاد رضایی",
-    day: "شنبه",
-    time: "۱۰:۰۰ — ۱۱:۰۰",
-    room: "استودیو ۱",
-    type: "private",
+    duration: masterclass.duration,
+    note: "محتوا پس از برگزاری جلسه فعال می‌شود",
+    status: "next",
   },
 ];
 
+export const weekDays = [
+  "شنبه",
+  "یکشنبه",
+  "دوشنبه",
+  "سه‌شنبه",
+  "چهارشنبه",
+  "پنجشنبه",
+  "جمعه",
+] as const;
+
 export const practiceTips = [
-  "هر روز ۲۰ دقیقه با مترونوم تمرین کنید.",
-  "قبل از جلسه بعدی، میزان‌های ۱۲ تا ۲۴ را مرور کنید.",
-  "ضبط کوتاه از تمرین‌تان بفرستید تا بازخورد بگیرید.",
+  "اسلایدهای جلسهٔ اول را یک‌بار مرور کنید.",
+  "نام نت‌های روی خط و بین خط را بلند تکرار کنید.",
+  "با مترونوم، الگوی قوی/ضعیف ۲، ۳ و ۴ ضربی را دست بزنید.",
 ];

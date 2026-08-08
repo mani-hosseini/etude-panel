@@ -1,5 +1,5 @@
-import { CoursesPage } from "@/components/panel/CoursesPage";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <CoursesPage />;
+export default function CoursesRedirect() {
+  redirect("/dashboard/sessions");
 }

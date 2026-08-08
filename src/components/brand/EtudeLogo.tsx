@@ -17,12 +17,13 @@ export function EtudeLogo({
 }: EtudeLogoProps) {
   return (
     <Image
-      src="/logo.png"
+      src="/etude-logo.png"
       alt="ETUDE"
       width={size}
       height={size}
       priority={priority}
-      className={cn("select-none object-contain", className)}
+      sizes={`${size}px`}
+      className={cn("select-none object-contain bg-transparent", className)}
     />
   );
 }

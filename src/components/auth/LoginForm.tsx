@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Music2, UserRound } from "lucide-react";
@@ -16,16 +16,27 @@ import { Label } from "@/components/ui/label";
 import { copy } from "@/constants/copy";
 import {
   createSession,
-  DEMO_CREDENTIALS,
+  getServerSession,
   getSession,
+  isPersianName,
   saveSession,
-  validateCredentials,
+  subscribeSession,
+  validateLogin,
 } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
-  username: z.string().min(3, "نام کاربری حداقل ۳ کاراکتر باشد"),
-  password: z.string().min(4, "رمز عبور حداقل ۴ کاراکتر باشد"),
+  firstName: z
+    .string()
+    .trim()
+    .min(2, "نام حداقل ۲ حرف باشد")
+    .refine(isPersianName, "نام را فارسی وارد کنید"),
+  lastName: z
+    .string()
+    .trim()
+    .min(2, "نام خانوادگی حداقل ۲ حرف باشد")
+    .refine(isPersianName, "نام خانوادگی را فارسی وارد کنید"),
+  password: z.string().min(1, "رمز عبور را وارد کنید"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -33,8 +44,12 @@ type FormValues = z.infer<typeof schema>;
 export function LoginForm() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const existingSession = useSyncExternalStore(
+    subscribeSession,
+    getSession,
+    getServerSession,
+  );
   const [showPassword, setShowPassword] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const {
@@ -44,34 +59,32 @@ export function LoginForm() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      username: DEMO_CREDENTIALS.username,
-      password: DEMO_CREDENTIALS.password,
+      firstName: "",
+      lastName: "",
+      password: "",
     },
   });
 
   useEffect(() => {
-    const session = getSession();
-    if (session) {
+    if (existingSession) {
       router.replace("/dashboard");
-      return;
     }
-    setChecking(false);
-  }, [router]);
+  }, [existingSession, router]);
 
   const onSubmit = async (values: FormValues) => {
     setAuthError(null);
-    await new Promise((r) => setTimeout(r, 650));
+    await new Promise((r) => setTimeout(r, 450));
 
-    if (!validateCredentials(values.username, values.password)) {
+    if (!validateLogin(values.firstName, values.lastName, values.password)) {
       setAuthError(copy.login.error);
       return;
     }
 
-    saveSession(createSession(values.username));
+    saveSession(createSession(values.firstName, values.lastName));
     router.push("/dashboard");
   };
 
-  if (checking) {
+  if (existingSession) {
     return (
       <div className="flex min-h-dvh items-center justify-center login-atmosphere">
         <div className="flex flex-col items-center gap-4">
@@ -108,14 +121,14 @@ export function LoginForm() {
           </p>
           <p className="mt-3 text-lg font-medium text-brand-700">{copy.tagline}</p>
           <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
-            پنل اختصاصی هنرجویان برای پیگیری دوره‌ها، برنامه کلاس‌ها و مسیر
-            پیشرفت موسیقایی.
+            پنل اختصاصی هنرجویان مسترکلاس تئوری موسیقی استاد بهرام دهقانیار —
+            پنجشنبه‌ها از ساعت ۱۱ تا ۱۳.
           </p>
           <div className="mt-8 hidden items-center gap-3 text-sm text-brand-600 lg:flex">
             <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white">
               <Music2 className="size-4" strokeWidth={1.75} />
             </span>
-            <span>از اتود تا اجرا — مسیر یادگیری شما اینجاست</span>
+            <span>دسترسی فقط برای هنرجویان این دوره</span>
           </div>
         </motion.aside>
 
@@ -137,26 +150,51 @@ export function LoginForm() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="username">{copy.login.username}</Label>
-                <div className="relative">
-                  <UserRound
-                    className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    strokeWidth={1.75}
-                  />
-                  <Input
-                    id="username"
-                    autoComplete="username"
-                    className="pr-10"
-                    {...register("username")}
-                  />
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">{copy.login.firstName}</Label>
+                  <div className="relative">
+                    <UserRound
+                      className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                      strokeWidth={1.75}
+                    />
+                    <Input
+                      id="firstName"
+                      autoComplete="given-name"
+                      placeholder="مثلاً آوا"
+                      className="pr-10"
+                      {...register("firstName")}
+                    />
+                  </div>
+                  {errors.firstName ? (
+                    <p className="text-xs text-destructive">
+                      {errors.firstName.message}
+                    </p>
+                  ) : null}
                 </div>
-                {errors.username ? (
-                  <p className="text-xs text-destructive">
-                    {errors.username.message}
-                  </p>
-                ) : null}
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">{copy.login.lastName}</Label>
+                  <div className="relative">
+                    <UserRound
+                      className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                      strokeWidth={1.75}
+                    />
+                    <Input
+                      id="lastName"
+                      autoComplete="family-name"
+                      placeholder="مثلاً محمدی"
+                      className="pr-10"
+                      {...register("lastName")}
+                    />
+                  </div>
+                  {errors.lastName ? (
+                    <p className="text-xs text-destructive">
+                      {errors.lastName.message}
+                    </p>
+                  ) : null}
+                </div>
               </div>
 
               <div className="space-y-2">

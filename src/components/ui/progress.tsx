@@ -19,7 +19,7 @@ export function Progress({ value, className }: ProgressProps) {
       aria-valuemax={100}
     >
       <div
-        className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
+        className="h-full rounded-full bg-gradient-to-l from-brand to-brand-600 transition-[width] duration-500 ease-out"
         style={{ width: `${clamped}%` }}
       />
     </div>
