@@ -1,46 +1,47 @@
 # ETUDE Panel
 
-پنل هنرجویان آموزشگاه موسیقی **اتود** — ساخته‌شده با Next.js، TypeScript و Tailwind CSS.
+پنل هنرجویان آموزشگاه موسیقی **اتود**.
 
-## ویژگی‌ها
+## ساختار
 
-- فرم ورود حرفه‌ای با نام کاربری و رمز عبور (صفحه اصلی `/`)
-- داشبورد هنرجو با تم رنگی لوگو اتود (`#0047FF`)
-- بخش‌های دوره‌ها، برنامه کلاس‌ها و پروفایل
-- داده و احراز هویت فعلاً **استاتیک** (localStorage)
-- انیمیشن با Motion، فرم با React Hook Form + Zod
+```
+etude-panel/
+├── front-end/   # Next.js student panel
+└── backend/     # NestJS REST API + Prisma + PostgreSQL
+```
 
-## اجرای پروژه
+## Frontend
 
 ```bash
+cd front-end
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-باز کردن: [http://localhost:3000](http://localhost:3000)
+- App: http://localhost:3000
+- نیاز به Backend روی `NEXT_PUBLIC_API_URL` (پیش‌فرض `http://localhost:4000/api/v1`)
 
-### ورود دمو
+### ورود دمو (پس از seed)
 
-- نام کاربری: `student`
-- رمز عبور: `etude123`
+- نام: `آوا`
+- نام خانوادگی: `محمدی`
+- رمز: `etudepiano123`
 
-## اسکریپت‌ها
+## Backend
 
-| دستور | توضیح |
-| --- | --- |
-| `npm run dev` | سرور توسعه |
-| `npm run build` | بیلد production |
-| `npm run start` | اجرای بیلد |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
+مستندات کامل: [backend/README.md](backend/README.md)
 
-## استک
+```bash
+cd backend
+npm install
+cp .env.example .env
+# PostgreSQL لازم است (Docker Compose داخل backend)
+npm run db:up
+npx prisma migrate deploy
+npm run prisma:seed
+npm run start:dev
+```
 
-- Next.js 16 (App Router)
-- React 19 + TypeScript
-- Tailwind CSS v4
-- Radix UI primitives
-- Lucide icons
-- Motion
-- React Hook Form + Zod
-- Vazirmatn + Outfit fonts
+- API: http://localhost:4000/api/v1
+- Swagger: http://localhost:4000/docs
