@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Etude Panel API — مستندات</title>
+  <style>
+    :root {
+      --brand: #0047ff;
+      --brand-dark: #0038d6;
+      --navy: #0b1a3d;
+      --bg: #f3f5f9;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --muted: #667085;
+      --ok: #0f8a5f;
+      --warn: #b45309;
+      --get: #0369a1;
+      --post: #0f8a5f;
+      --shadow: 0 10px 40px -24px rgba(11, 26, 61, 0.28);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Tahoma, "Segoe UI", Vazirmatn, sans-serif;
+      background:
+        radial-gradient(ellipse 90% 50% at 100% 0%, rgba(0, 71, 255, 0.07), transparent 55%),
+        var(--bg);
+      color: #121826;
+      line-height: 1.7;
+    }
+
+    .hero {
+      background: linear-gradient(145deg, #0047ff 0%, #0038d6 48%, #0b1a3d 100%);
+      color: #fff;
+      padding: 48px 24px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+      bottom: 0;
+      height: 6px;
+      background-image: repeating-linear-gradient(
+        90deg,
+        #0a0a0a 0 10px,
+        #fff 10px 18px,
+        #0a0a0a 18px 24px,
+        #fff 24px 34px
+      );
+      opacity: 0.85;
+    }
+
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px 64px;
+    }
+
+    .hero .wrap { padding-bottom: 0; }
+
+    .brand {
+      font-size: 13px;
+      letter-spacing: 0.2em;
+      opacity: 0.8;
+      margin: 0 0 8px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: 0.9;
+      max-width: 560px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .chip {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      backdrop-filter: blur(6px);
+    }
+
+    .chip a { color: #fff; text-decoration: none; }
+
+    section {
+      margin-top: 36px;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      color: var(--navy);
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #dde6ff;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+
+    .endpoint {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .method {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border-radius: 8px;
+      padding: 4px 10px;
+      color: #fff;
+      min-width: 58px;
+      text-align: center;
+    }
+
+    .method.get { background: var(--get); }
+    .method.post { background: var(--post); }
+
+    .path {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 14px;
+      color: var(--navy);
+      direction: ltr;
+      text-align: left;
+      background: #f0f4ff;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    .auth {
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 3px 10px;
+      margin-right: auto;
+    }
+
+    .auth.public {
+      background: #e8f7f0;
+      color: var(--ok);
+    }
+
+    .auth.bearer {
+      background: #fff7ed;
+      color: var(--warn);
+    }
+
+    .auth.admin {
+      background: #edf2ff;
+      color: var(--brand-dark);
+    }
+
+    .desc {
+      margin: 0 0 10px;
+      color: #334155;
+      font-size: 14px;
+    }
+
+    .label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      margin: 12px 0 6px;
+    }
+
+    pre {
+      margin: 0;
+      background: #0b1a3d;
+      color: #e2e8f0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.55;
+      direction: ltr;
+      text-align: left;
+    }
+
+    .note {
+      background: #edf2ff;
+      border: 1px solid #c2d0ff;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--navy);
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 14px;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.3rem;
+      color: var(--brand);
+    }
+
+    .stat span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    footer {
+      margin-top: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    code.inline {
+      font-family: Consolas, monospace;
+      background: #f0f4ff;
+      padding: 1px 6px;
+      border-radius: 6px;
+      direction: ltr;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="brand">ETUDE PANEL API</p>
+      <h1>مستندات API پنل هنرجویی اتود</h1>
+      <p>
+        Backend روی NestJS + PostgreSQL آماده است. Base URL همه درخواست‌ها:
+        <code class="inline" style="background:rgba(255,255,255,.15);color:#fff">http://localhost:4000/api/v1</code>
+      </p>
+      <div class="meta">
+        <span class="chip"><a href="http://localhost:4000/docs" target="_blank">Swagger زنده</a></span>
+        <span class="chip"><a href="http://localhost:4000/api/v1/health" target="_blank">Health Check</a></span>
+        <span class="chip">JWT Bearer Auth</span>
+        <span class="chip">چنددوره‌ای</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>خلاصه</h2>
+      <div class="grid">
+        <div class="stat"><strong>۷</strong><span>Endpoint احراز هویت</span></div>
+        <div class="stat"><strong>۱۱</strong><span>Endpoint محتوا / کاتالوگ</span></div>
+        <div class="stat"><strong>۱</strong><span>Health</span></div>
+      </div>
+      <div class="note" style="margin-top:16px">
+        پاسخ‌های موفق همیشه این شکل را دارند:
+        <pre style="margin-top:10px">{
+  "success": true,
+  "data": { ... },
+  "meta": { "page": 1, "limit": 20, "total": 10 }
+}</pre>
+        خطاها:
+        <pre style="margin-top:10px">{
+  "success": false,
+  "error": { "code": "UNAUTHORIZED", "message": "..." }
+}</pre>
+      </div>
+    </section>
+
+    <section>
+      <h2>۱) احراز هویت (Auth)</h2>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/register</span>
+          <span class="auth public">Public</span>
+        </div>
+        <p class="desc">ثبت‌نام هنرجو. بعد از ثبت، توکن‌ها برمی‌گردد و کاربر در همه دوره‌های فعال enroll می‌شود.</p>
+        <div class="label">Body</div>
+        <pre>{
+  "firstName": "آوا",
+  "lastName": "محمدی",
+  "password": "etudepiano123",
+  "confirmPassword": "etudepiano123"
+}</pre>
+        <div class="label">Response (خلاصه)</div>
+        <pre>{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "tokenType": "Bearer",
+  "expiresIn": "15m",
+  "user": { "id": "...", "displayName": "آوا محمدی", "studentCode": "ET-..." },
+  "session": { "firstName": "آوا", "lastName": "محمدی", "displayName": "آوا محمدی", "loggedInAt": "..." }
+}</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/login</span>
+          <span class="auth public">Public</span>
+        </div>
+        <p class="desc">ورود هنرجو با نام و نام‌خانوادگی فارسی + رمز عبور.</p>
+        <div class="label">Body</div>
+        <pre>{
+  "firstName": "آوا",
+  "lastName": "محمدی",
+  "password": "etudepiano123"
+}</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/admin/login</span>
+          <span class="auth public">Public</span>
+        </div>
+        <p class="desc">ورود ادمین با ایمیل و رمز.</p>
+        <div class="label">Body</div>
+        <pre>{
+  "email": "admin@etude.academy",
+  "password": "AdminEtude!2026"
+}</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/register/student</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">ثبت هنرجو توسط ادمین (اختیاری: studentCode).</p>
+        <pre>{
+  "firstName": "سارا",
+  "lastName": "احمدی",
+  "password": "SecretPass1",
+  "studentCode": "ET-1405-ABCD"
+}</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/refresh</span>
+          <span class="auth public">Public</span>
+        </div>
+        <p class="desc">گرفتن Access Token جدید با Refresh Token.</p>
+        <pre>{ "refreshToken": "..." }</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/logout</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">خروج و ابطال Refresh Token.</p>
+        <pre>{ "refreshToken": "..." }</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/auth/me</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">اطلاعات کاربر و نشست جاری.</p>
+      </article>
+    </section>
+
+    <section>
+      <h2>۲) داشبورد و دوره‌ها (Catalog)</h2>
+      <div class="note">همه این Endpointها به <strong>Authorization: Bearer &lt;accessToken&gt;</strong> نیاز دارند.</div>
+
+      <article class="card" style="margin-top:14px">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/dashboard</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">داده تجمیعی پیشخوان: لیست دوره‌ها، آمار، جلسه بعدی، تمرین‌ها، جلسه جاری.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/courses</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">فهرست دوره‌های ثبت‌شده هنرجو. پشتیبانی از <code class="inline">page</code>, <code class="inline">limit</code>, <code class="inline">search</code>.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/courses/:id</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">جزئیات یک دوره (slug یا uuid). مثال: <code class="inline">/courses/theory-basics</code></p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/courses/:id/certificate</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">وضعیت آماده‌بودن مدرک پایان دوره.</p>
+        <pre>{ "courseId": "theory-basics", "ready": false, "downloadUrl": null }</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/sessions?courseId=theory-basics</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">لیست جلسات یک دوره. بدون <code class="inline">courseId</code> دوره اصلی (اولین دوره فعال) استفاده می‌شود.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/sessions/:id</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">جزئیات جلسه. <code class="inline">id</code> می‌تواند شماره جلسه (<code class="inline">1</code>) یا UUID باشد. Query اختیاری: <code class="inline">courseId</code></p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/sessions/:id/slides</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">اسلایدهای جلسه — فقط اگر وضعیت جلسه <code class="inline">available</code> باشد.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/schedule?courseId=...</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">برنامه کلاس‌ها + شبکه پیشرفت جلسات دوره.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/profile</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">پروفایل هنرجو، دوره‌ها و دستاوردها.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/masterclass</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">Legacy: برمی‌گرداند همان دوره اصلی (primaryCourse) برای سازگاری با کلاینت قدیمی.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/masterclass/certificate</span>
+          <span class="auth bearer">Bearer</span>
+        </div>
+        <p class="desc">Legacy: وضعیت گواهی دوره اصلی.</p>
+      </article>
+    </section>
+
+    <section>
+      <h2>۳) مدیریت کاربران (فقط ادمین)</h2>
+      <div class="note">همه این‌ها نیاز به توکن ادمین دارند. اول با <code class="inline">POST /auth/admin/login</code> وارد شو.</div>
+
+      <article class="card" style="margin-top:14px">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/users?page=1&amp;limit=20&amp;role=STUDENT&amp;search=آوا</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">لیست کاربران ثبت‌نام‌شده. فیلترها: <code class="inline">role</code>, <code class="inline">isActive</code>, <code class="inline">search</code>, <code class="inline">sort</code>.</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/users/stats</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">آمار: total / students / admins / active / inactive</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/users/:id</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">جزئیات کاربر + enrollments + achievements</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">PATCH</span>
+          <span class="path">/users/:id</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">ویرایش نام، ایمیل، سطح، کد هنرجو، isActive</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/users/:id/reset-password</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">ریست رمز و باطل کردن همه refresh tokenها</p>
+        <pre>{ "password": "NewPass123!" }</pre>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/users/:id/activate | /users/:id/deactivate</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">فعال / غیرفعال کردن حساب</p>
+      </article>
+
+      <article class="card">
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/users/:id/enrollments</span>
+          <span class="auth admin">Admin Bearer</span>
+        </div>
+        <p class="desc">ثبت کاربر در دوره</p>
+        <pre>{ "courseId": "theory-basics" }</pre>
+      </article>
+    </section>
+
+    <section>
+      <h2>۴) سلامت سرویس</h2>
+      <article class="card">
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="path">/health</span>
+          <span class="auth public">Public</span>
+        </div>
+        <p class="desc">چک اتصال به دیتابیس.</p>
+        <pre>{ "status": "ok", "timestamp": "2026-08-09T..." }</pre>
+      </article>
+    </section>
+
+    <section>
+      <h2>۵) داده Seed (دمو)</h2>
+      <div class="card">
+        <p class="desc" style="margin:0">
+          <strong>هنرجو:</strong> آوا محمدی / رمز <code class="inline">etudepiano123</code><br />
+          <strong>ادمین:</strong> admin@etude.academy / رمز <code class="inline">AdminEtude!2026</code><br />
+          <strong>دوره‌ها:</strong> theory-basics · piano-beginner · solfege-intro
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>۶) نحوه فراخوانی از Frontend</h2>
+      <div class="card">
+        <pre>Authorization: Bearer &lt;accessToken&gt;
+Content-Type: application/json
+
+BASE = http://localhost:4000/api/v1</pre>
+        <p class="desc" style="margin-top:12px;margin-bottom:0">
+          در فرانت، متغیر <code class="inline">NEXT_PUBLIC_API_URL</code> همین Base را دارد.
+          صفحه ورود: <code class="inline">/</code> — ثبت‌نام: <code class="inline">/register</code>
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      Etude Panel API · NestJS + Prisma + PostgreSQL · ساخته‌شده برای پنل هنرجویی اتود
+    </footer>
+  </main>
+</body>
+</html>

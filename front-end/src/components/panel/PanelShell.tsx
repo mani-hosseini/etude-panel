@@ -92,7 +92,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
               </div>
               <div className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
                 <span className="size-1.5 animate-pulse rounded-full bg-brand" />
-                جلسه بعدی: پنجشنبه ۱۱ تا ۱
+                جلسه بعدی: پنجشنبه ۱۱ تا ۱۳
               </div>
             </div>
           </header>

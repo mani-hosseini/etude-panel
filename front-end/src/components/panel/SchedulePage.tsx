@@ -86,7 +86,6 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
         animate={{ opacity: 1, y: 0 }}
         className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-7"
       >
-        <div className="absolute inset-x-0 bottom-0 h-1.5 piano-stripe opacity-80" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs text-white/70">برنامه هفتگی این دوره</p>
