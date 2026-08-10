@@ -165,7 +165,7 @@ model Slide {
   terms     Json
   mistakes  String[]
   imageHint String?   @db.VarChar(500)
-  imageId   String?   @db.VarChar(64)
+  imageId   String?   @db.VarChar(512)
   funFact   String?   @db.VarChar(1000)
   kind      SlideKind @default(LESSON)
   createdAt DateTime  @default(now())

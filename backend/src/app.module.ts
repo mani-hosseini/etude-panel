@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
+import { AdminCatalogModule } from './admin-catalog/admin-catalog.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     CatalogModule,
+    AdminCatalogModule,
     HealthModule,
   ],
   providers: [

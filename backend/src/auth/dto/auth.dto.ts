@@ -56,6 +56,9 @@ export class RegisterDto {
   @ApiProperty({ example: 'etudepiano123' })
   @IsString()
   @MinLength(8, { message: 'رمز عبور حداقل ۸ کاراکتر باشد.' })
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+    message: 'رمز عبور باید شامل حروف و اعداد باشد.',
+  })
   @MaxLength(128)
   password!: string;
 
@@ -86,7 +89,10 @@ export class RegisterStudentDto {
 
   @ApiProperty({ example: 'etudepiano123' })
   @IsString()
-  @MinLength(8)
+  @MinLength(8, { message: 'رمز عبور حداقل ۸ کاراکتر باشد.' })
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+    message: 'رمز عبور باید شامل حروف و اعداد باشد.',
+  })
   @MaxLength(128)
   password!: string;
 

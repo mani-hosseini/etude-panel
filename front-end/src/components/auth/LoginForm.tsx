@@ -57,6 +57,8 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -103,28 +105,22 @@ export function LoginForm() {
 
   return (
     <div className="relative min-h-dvh overflow-hidden login-atmosphere staff-lines">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-1.5 piano-stripe opacity-90"
-      />
-
       <div className="relative mx-auto flex min-h-dvh w-full max-w-6xl flex-col items-center justify-center px-4 py-10 lg:flex-row lg:gap-16 lg:px-8">
         <motion.aside
-          className="mb-10 flex w-full max-w-md flex-col items-center text-center lg:mb-0 lg:items-start lg:text-right"
+          className="mb-10 flex w-full max-w-md flex-col items-center text-center lg:mb-0"
           initial={reduceMotion ? false : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
           <EtudeLogo size={148} priority className="mb-6 drop-shadow-sm" />
-          <p className="font-display text-4xl font-bold tracking-[0.18em] text-brand md:text-5xl">
-            {copy.brand}
+          <p className="font-display text-3xl font-bold tracking-[0.08em] text-brand lowercase md:text-4xl">
+            {copy.brandFull}
           </p>
           <p className="mt-3 text-lg font-medium text-brand-700">{copy.tagline}</p>
           <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
-            پنل هنرجویی آموزشگاه موسیقی اتود — دسترسی به همه دوره‌ها، جلسات و
-            برنامه کلاس‌های شما در یکجا.
+            {copy.brandBlurb}
           </p>
-          <div className="mt-8 hidden items-center gap-3 text-sm text-brand-600 lg:flex">
+          <div className="mt-8 hidden items-center justify-center gap-3 text-sm text-brand-600 lg:flex">
             <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white">
               <Music2 className="size-4" strokeWidth={1.75} />
             </span>
@@ -141,7 +137,7 @@ export function LoginForm() {
           <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 p-7 shadow-[0_30px_80px_-40px_rgba(0,54,196,0.45)] backdrop-blur-md sm:p-9">
             <PianoKeysBar className="absolute inset-x-0 top-0 h-1.5 rounded-none" />
 
-            <div className="mb-7">
+            <div className="mb-7 pt-2">
               <h1 className="text-2xl font-bold text-foreground">
                 {copy.login.title}
               </h1>
@@ -150,7 +146,7 @@ export function LoginForm() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">{copy.login.firstName}</Label>
@@ -163,7 +159,12 @@ export function LoginForm() {
                       id="firstName"
                       autoComplete="given-name"
                       placeholder="مثلاً آوا"
-                      className="pr-10"
+                      className={cn(
+                        "pr-10",
+                        errors.firstName &&
+                          "border-destructive focus-visible:ring-destructive/30",
+                      )}
+                      aria-invalid={Boolean(errors.firstName)}
                       {...register("firstName")}
                     />
                   </div>
@@ -185,7 +186,12 @@ export function LoginForm() {
                       id="lastName"
                       autoComplete="family-name"
                       placeholder="مثلاً محمدی"
-                      className="pr-10"
+                      className={cn(
+                        "pr-10",
+                        errors.lastName &&
+                          "border-destructive focus-visible:ring-destructive/30",
+                      )}
+                      aria-invalid={Boolean(errors.lastName)}
                       {...register("lastName")}
                     />
                   </div>
@@ -208,7 +214,12 @@ export function LoginForm() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    className="pr-10 pl-11"
+                    className={cn(
+                      "pr-10 pl-11",
+                      errors.password &&
+                        "border-destructive focus-visible:ring-destructive/30",
+                    )}
+                    aria-invalid={Boolean(errors.password)}
                     {...register("password")}
                   />
                   <button

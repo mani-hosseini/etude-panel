@@ -10,7 +10,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { PianoKeysBar } from "@/components/brand/PianoKeysBar";
 import { StatCard } from "@/components/panel/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -71,7 +70,6 @@ export function DashboardHome() {
           aria-hidden
           className="pointer-events-none absolute -right-8 bottom-0 h-36 w-36 rounded-full bg-black/10 blur-2xl"
         />
-        <PianoKeysBar className="absolute inset-x-0 bottom-0 h-1.5 rounded-none opacity-80" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -82,8 +80,7 @@ export function DashboardHome() {
             <p className="mt-2 text-sm text-white/80">
               {data.primaryCourse
                 ? `${data.primaryCourse.title} · ${data.primaryCourse.teacher}`
-                : "هنرجوی اتود"}{" "}
-              · کد {toFa(data.student.studentCode ?? "—")}
+                : "هنرجوی اتود"}
             </p>
           </div>
           {nextLesson ? (

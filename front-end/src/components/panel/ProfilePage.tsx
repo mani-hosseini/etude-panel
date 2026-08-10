@@ -3,7 +3,6 @@
 import { motion, useReducedMotion } from "motion/react";
 import { Award, BadgeCheck, Music2 } from "lucide-react";
 
-import { PianoKeysBar } from "@/components/brand/PianoKeysBar";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudentSession } from "@/hooks/useStudentSession";
@@ -70,7 +69,6 @@ export function ProfilePage() {
           aria-hidden
           className="pointer-events-none absolute -left-8 bottom-0 h-36 w-36 rounded-full bg-black/15 blur-2xl"
         />
-        <PianoKeysBar className="absolute inset-x-0 bottom-0 h-1.5 rounded-none opacity-85" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

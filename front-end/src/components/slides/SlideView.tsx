@@ -12,6 +12,7 @@ import {
   Title,
 } from "@/components/slides/SlidePrimitives";
 import type { Slide, Term } from "@/lib/session-1-slides";
+import { resolveMediaUrl } from "@/lib/api/http";
 
 const logo = "/etude-logo.png";
 
@@ -68,13 +69,16 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function LargeImage({ slideId, hint }: { slideId: string; hint: string }) {
-  const candidates = [
-    `/slides/main1/${slideId}.png`,
-    `/slides/main1/${slideId}.jpg`,
-    `/slides/${slideId}.jpg`,
-    `/slides/${slideId}.png`,
-    `/slides/${slideId}.webp`,
-  ];
+  const uploaded = resolveMediaUrl(slideId);
+  const candidates = uploaded
+    ? [uploaded]
+    : [
+        `/slides/main1/${slideId}.png`,
+        `/slides/main1/${slideId}.jpg`,
+        `/slides/${slideId}.jpg`,
+        `/slides/${slideId}.png`,
+        `/slides/${slideId}.webp`,
+      ];
   const [srcIndex, setSrcIndex] = useState(0);
   const [failed, setFailed] = useState(false);
 
@@ -191,12 +195,14 @@ function LessonSlide({ slide }: { slide: Slide }) {
 }
 
 function VisualSlide({ slide }: { slide: Slide }) {
+  // فقط اسلاید تصویری عکس نشان می‌دهد — از imageId آپلودشده یا شناسه استاتیک
+  const imageKey = slide.imageId?.trim() || slide.id;
   return (
     <SlideShell wide className="pb-0!">
       <Anim className="flex h-full min-h-0 w-full flex-1">
         <LargeImage
-          slideId={slide.imageId ?? slide.id}
-          hint={slide.imageHint ?? slide.body}
+          slideId={imageKey}
+          hint={slide.imageHint ?? slide.title ?? slide.body}
         />
       </Anim>
     </SlideShell>
@@ -251,8 +257,9 @@ function OutroSlide({ slide }: { slide: Slide }) {
 }
 
 export function SlideView({ slide }: { slide: Slide }) {
-  if (slide.kind === "cover") return <CoverSlide slide={slide} />;
-  if (slide.kind === "visual") return <VisualSlide slide={slide} />;
-  if (slide.kind === "outro") return <OutroSlide slide={slide} />;
+  const kind = (slide.kind ?? "lesson").toLowerCase();
+  if (kind === "cover") return <CoverSlide slide={slide} />;
+  if (kind === "visual") return <VisualSlide slide={slide} />;
+  if (kind === "outro") return <OutroSlide slide={slide} />;
   return <LessonSlide slide={slide} />;
 }

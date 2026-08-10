@@ -20,6 +20,20 @@ export const routes = {
   register: "/",
 } as const;
 
+export const adminRoutes = {
+  root: "/admin",
+  login: "/admin/login",
+  users: "/admin/users",
+  courses: "/admin/courses",
+  courseNew: "/admin/courses/new",
+  /** Prefer course slug in URLs, e.g. theory-basics */
+  course: (slug: string) => `/admin/courses/${slug}`,
+  courseEdit: (slug: string) => `/admin/courses/${slug}/edit`,
+  /** Session content by course slug + session number */
+  courseSession: (slug: string, sessionNumber: number | string) =>
+    `/admin/courses/${slug}/sessions/${sessionNumber}`,
+} as const;
+
 export function isNavActive(pathname: string, href: string): boolean {
   if (href === routes.dashboard) return pathname === routes.dashboard;
   if (href === routes.sessions) {
@@ -30,6 +44,9 @@ export function isNavActive(pathname: string, href: string): boolean {
   }
   if (href === routes.courses) {
     return pathname === routes.courses;
+  }
+  if (href === adminRoutes.root) {
+    return pathname === adminRoutes.root;
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

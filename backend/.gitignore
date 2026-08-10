@@ -19,9 +19,16 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
 
 # Prisma
 /generated/prisma
+
+# Uploaded media
+/uploads
 
 # Test
 *.tsbuildinfo

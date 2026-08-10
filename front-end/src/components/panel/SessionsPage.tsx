@@ -90,10 +90,6 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
         animate={{ opacity: 1, y: 0 }}
         className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-7"
       >
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-1.5 piano-stripe opacity-80"
-        />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs text-white/70">{course.subtitle}</p>
@@ -139,10 +135,6 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                 !clickable && "opacity-90",
               )}
             >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 top-0 h-1 piano-stripe opacity-70"
-              />
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -159,9 +151,9 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   </p>
                   {session.topics.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {session.topics.map((topic) => (
+                      {session.topics.map((topic, topicIndex) => (
                         <span
-                          key={topic}
+                          key={`${session.id}-topic-${topicIndex}`}
                           className="rounded-md bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700"
                         >
                           {topic}

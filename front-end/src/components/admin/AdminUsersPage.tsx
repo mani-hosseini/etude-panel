@@ -1,0 +1,252 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { adminApi } from "@/lib/api/admin-client";
+import {
+  adminQueryKeys,
+  useAdminUsersQuery,
+} from "@/lib/api/admin-queries";
+import { ApiError } from "@/lib/api/http";
+import { toFa } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+type RoleFilter = "ALL" | "STUDENT" | "ADMIN";
+
+export function AdminUsersPage() {
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState<RoleFilter>("STUDENT");
+
+  const params = useMemo(
+    () => ({
+      page,
+      limit: 20,
+      search: search || undefined,
+      role: role === "ALL" ? undefined : role,
+    }),
+    [page, search, role],
+  );
+
+  const query = useAdminUsersQuery(params);
+
+  const toggleActive = useMutation({
+    mutationFn: async (user: { id: string; isActive: boolean }) => {
+      if (user.isActive) return adminApi.deactivateUser(user.id);
+      return adminApi.activateUser(user.id);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
+    },
+  });
+
+  const applySearch = () => {
+    setPage(1);
+    setSearch(searchDraft.trim());
+  };
+
+  if (query.isPending) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-16 rounded-2xl" />
+        <Skeleton className="h-80 rounded-3xl" />
+      </div>
+    );
+  }
+
+  if (query.isError) {
+    const message =
+      query.error instanceof ApiError
+        ? query.error.message
+        : "خطا در دریافت کاربران";
+    return (
+      <div className="surface-panel p-8 text-center text-sm text-destructive">
+        {message}
+      </div>
+    );
+  }
+
+  const { users, meta } = query.data;
+  const totalPages = meta?.totalPages ?? 1;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-medium text-brand">مدیریت</p>
+        <h2 className="mt-1 text-2xl font-bold text-slate-900">کاربران</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          هنرجویان و مدیران ثبت‌شده در سیستم.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { id: "STUDENT", label: "هنرجو" },
+              { id: "ADMIN", label: "ادمین" },
+              { id: "ALL", label: "همه" },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setRole(item.id);
+                setPage(1);
+              }}
+              className={cn(
+                "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
+                role === item.id
+                  ? "bg-brand text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-brand/10 hover:text-brand",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex w-full gap-2 sm:max-w-sm">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              placeholder="جستجو نام، ایمیل، کد هنرجو…"
+              className="rounded-xl bg-white pe-3 ps-10"
+            />
+          </div>
+          <Button type="button" variant="outline" className="rounded-xl" onClick={applySearch}>
+            جستجو
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-slate-50 text-xs text-slate-500">
+              <tr>
+                <th className="px-4 py-3 text-right font-semibold">نام</th>
+                <th className="px-4 py-3 text-right font-semibold">نقش</th>
+                <th className="px-4 py-3 text-right font-semibold">کد / ایمیل</th>
+                <th className="px-4 py-3 text-right font-semibold">دوره‌ها</th>
+                <th className="px-4 py-3 text-right font-semibold">وضعیت</th>
+                <th className="px-4 py-3 text-right font-semibold">عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3 font-semibold text-slate-900">
+                    {user.displayName}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge
+                      variant={
+                        user.role === "ADMIN" ? "default" : "secondary"
+                      }
+                    >
+                      {user.role === "ADMIN" ? "ادمین" : "هنرجو"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500" dir="ltr">
+                    {user.role === "STUDENT"
+                      ? toFa(user.studentCode ?? "—")
+                      : (user.email ?? "—")}
+                  </td>
+                  <td className="px-4 py-3 font-sans tabular-nums">
+                    {toFa(user.enrollmentsCount)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={user.isActive ? "success" : "warning"}>
+                      {user.isActive ? "فعال" : "غیرفعال"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.role === "ADMIN" ? (
+                      <span className="text-xs text-slate-400">—</span>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl"
+                        disabled={toggleActive.isPending}
+                        onClick={() => toggleActive.mutate(user)}
+                      >
+                        {user.isActive ? "غیرفعال کردن" : "فعال کردن"}
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-slate-500"
+                  >
+                    کاربری پیدا نشد.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+
+        {meta ? (
+          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+            <span>
+              صفحه {toFa(meta.page)} از {toFa(totalPages)} · جمع{" "}
+              {toFa(meta.total)}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={!meta.hasPrevPage}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                قبلی
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={!meta.hasNextPage}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                بعدی
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {toggleActive.isError ? (
+        <p className="text-sm text-rose-600">
+          {toggleActive.error instanceof ApiError
+            ? toggleActive.error.message
+            : "عملیات ناموفق بود."}
+        </p>
+      ) : null}
+    </div>
+  );
+}
