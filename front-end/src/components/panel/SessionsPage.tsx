@@ -151,9 +151,9 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   </p>
                   {session.topics.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {session.topics.map((topic) => (
+                      {session.topics.map((topic, topicIndex) => (
                         <span
-                          key={topic}
+                          key={`${session.id}-topic-${topicIndex}`}
                           className="rounded-md bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700"
                         >
                           {topic}

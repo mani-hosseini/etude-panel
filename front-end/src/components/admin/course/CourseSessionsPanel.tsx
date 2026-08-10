@@ -316,9 +316,9 @@ export function CourseSessionsPanel({
                       ) : null}
                       {session.topics.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {session.topics.map((topic) => (
+                          {session.topics.map((topic, topicIndex) => (
                             <span
-                              key={topic}
+                              key={`${session.id}-topic-${topicIndex}`}
                               className="rounded-lg bg-brand/10 px-2 py-0.5 text-[11px] text-brand"
                             >
                               {topic}

@@ -24,9 +24,23 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
+  const isProd = config.get<string>('nodeEnv') === 'production';
+
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // Swagger UI needs inline scripts/styles in development
+      contentSecurityPolicy: isProd
+        ? undefined
+        : {
+            directives: {
+              defaultSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
+              scriptSrc: ["'self'", "'unsafe-inline'"],
+              scriptSrcAttr: ["'none'"],
+            },
+          },
     }),
   );
   app.use(cookieParser());
