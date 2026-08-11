@@ -12,6 +12,38 @@ export function toPersianDigits(value: string | number): string {
   return String(value).replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]!);
 }
 
+export function toAsciiDigits(value: string): string {
+  return value.replace(/[۰-۹]/g, (digit) =>
+    String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)),
+  );
+}
+
+/** Normalize Iranian mobile to 09xxxxxxxxx or null if empty. */
+export function normalizePhone(value?: string | null): string | null {
+  if (value === undefined || value === null) return null;
+  let digits = toAsciiDigits(value).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('98') && digits.length === 12) {
+    digits = `0${digits.slice(2)}`;
+  }
+  if (digits.startsWith('9') && digits.length === 10) {
+    digits = `0${digits}`;
+  }
+  return digits;
+}
+
+export function normalizeNationalId(value?: string | null): string | null {
+  if (value === undefined || value === null) return null;
+  const digits = toAsciiDigits(value).replace(/\D/g, '');
+  return digits || null;
+}
+
+export function normalizeAddress(value?: string | null): string | null {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  return trimmed || null;
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

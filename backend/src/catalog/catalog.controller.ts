@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Put, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -15,6 +15,8 @@ import {
   CourseScopedQueryDto,
   SessionsQueryDto,
 } from './dto/catalog-query.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateSessionProgressDto } from './dto/update-session-progress.dto';
 
 @ApiTags('Catalog')
 @ApiBearerAuth()
@@ -83,6 +85,23 @@ export class CatalogController {
     return this.catalog.getSessionSlides(user.id, id, query.courseId);
   }
 
+  @Put('sessions/:id/progress')
+  @ApiOperation({ summary: 'ذخیره پیشرفت مشاهده اسلایدهای جلسه' })
+  @ApiQuery({ name: 'courseId', required: false })
+  updateProgress(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query() query: CourseScopedQueryDto,
+    @Body() dto: UpdateSessionProgressDto,
+  ) {
+    return this.catalog.updateSessionProgress(
+      user.id,
+      id,
+      dto.lastSlideIndex,
+      query.courseId,
+    );
+  }
+
   @Get('schedule')
   @ApiOperation({ summary: 'برنامه کلاس‌ها' })
   @ApiQuery({ name: 'courseId', required: false })
@@ -97,6 +116,12 @@ export class CatalogController {
   @ApiOperation({ summary: 'پروفایل هنرجو و دوره‌ها' })
   getProfile(@CurrentUser() user: AuthUser) {
     return this.catalog.getProfile(user.id);
+  }
+
+  @Patch('profile')
+  @ApiOperation({ summary: 'ویرایش پروفایل هنرجو' })
+  updateProfile(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+    return this.catalog.updateProfile(user.id, dto);
   }
 
   @Get('masterclass')

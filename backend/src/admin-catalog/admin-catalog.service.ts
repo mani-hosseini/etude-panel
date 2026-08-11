@@ -125,7 +125,7 @@ export class AdminCatalogService {
         timeShort: dto.timeShort,
         duration: dto.duration,
         room: dto.room,
-        level: dto.level,
+        level: dto.level?.trim() || '',
         focus: dto.focus,
         sessionsTotal: dto.sessionsTotal,
         weeklyHours: dto.weeklyHours ?? 2,
@@ -187,7 +187,7 @@ export class AdminCatalogService {
         timeShort: dto.timeShort,
         duration: dto.duration,
         room: dto.room,
-        level: dto.level,
+        level: dto.level?.trim() || '',
         focus: dto.focus,
         sessionsTotal: dto.sessionsTotal,
         ...(dto.weeklyHours !== undefined
@@ -275,6 +275,9 @@ export class AdminCatalogService {
         },
         include: { _count: { select: { slides: true } } },
       });
+
+      await this.syncScheduleLessonForSession(session);
+
       return this.mapSession(session);
     } catch (error) {
       if (
@@ -593,6 +596,62 @@ export class AdminCatalogService {
       enrollmentsCount: course._count.enrollments,
       scheduleCount: course._count.lessons,
     };
+  }
+
+  private async syncScheduleLessonForSession(session: {
+    id: string;
+    courseId: string;
+    number: number;
+    title: string;
+    status: SessionStatus;
+    dateLabel: string;
+    durationLabel: string;
+  }) {
+    const linked = await this.prisma.scheduleLesson.findFirst({
+      where: { sessionId: session.id },
+    });
+    if (!linked) return;
+
+    const lessonStatus =
+      session.status === SessionStatus.AVAILABLE
+        ? LessonStatus.DONE
+        : session.status === SessionStatus.UPCOMING
+          ? LessonStatus.NEXT
+          : LessonStatus.PLANNED;
+
+    const ordinals = [
+      '',
+      'اول',
+      'دوم',
+      'سوم',
+      'چهارم',
+      'پنجم',
+      'ششم',
+      'هفتم',
+      'هشتم',
+      'نهم',
+      'دهم',
+    ];
+    const ordinal = ordinals[session.number] ?? String(session.number);
+    const title = session.title.trim()
+      ? `جلسهٔ ${ordinal} — ${session.title.trim()}`
+      : `جلسهٔ ${ordinal}`;
+
+    await this.prisma.scheduleLesson.update({
+      where: { id: linked.id },
+      data: {
+        status: lessonStatus,
+        dateLabel: session.dateLabel,
+        duration: session.durationLabel || linked.duration,
+        title: linked.title.includes('جلسه') ? linked.title : title,
+        note:
+          lessonStatus === LessonStatus.DONE
+            ? 'برگزار شده · اسلایدها آماده است'
+            : lessonStatus === LessonStatus.NEXT
+              ? 'محتوا پس از برگزاری جلسه فعال می‌شود'
+              : linked.note,
+      },
+    });
   }
 
   private mapSession(

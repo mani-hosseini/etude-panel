@@ -4,13 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { Prisma, Role, SessionStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildPaginationMeta,
 } from '../common/dto/pagination-query.dto';
-import { normalizeName, isUuid } from '../common/utils/mappers';
+import { isUuid } from '../common/utils/mappers';
 import {
   EnrollCourseDto,
   ListUsersQueryDto,
@@ -28,6 +28,9 @@ const userPublicSelect = {
   studentCode: true,
   level: true,
   avatarUrl: true,
+  phone: true,
+  nationalId: true,
+  address: true,
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -82,6 +85,18 @@ export class UsersService {
                   mode: 'insensitive',
                 },
               },
+              {
+                phone: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                nationalId: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
             ],
           }
         : {}),
@@ -100,9 +115,15 @@ export class UsersService {
       }),
     ]);
 
+    const progressByUser = await this.computeAvgViewProgress(
+      users.map((user) => user.id),
+    );
+
     return {
       data: {
-        users: users.map((user) => this.mapUser(user)),
+        users: users.map((user) =>
+          this.mapUser(user, progressByUser.get(user.id) ?? 0),
+        ),
       },
       meta: buildPaginationMeta(total, query.page, query.limit),
     };
@@ -139,11 +160,18 @@ export class UsersService {
       throw new NotFoundException('کاربر یافت نشد.');
     }
 
+    const courseIds = user.enrollments.map((e) => e.course.id);
+    const [avgViewProgress, courseProgress] = await Promise.all([
+      this.computeAvgViewProgress([id]).then((m) => m.get(id) ?? 0),
+      this.computeCourseViewProgress(id, courseIds),
+    ]);
+
     return {
-      ...this.mapUser(user),
+      ...this.mapUser(user, avgViewProgress),
       enrollments: user.enrollments.map((item) => ({
         id: item.id,
         joinedAt: item.joinedAt,
+        viewProgress: courseProgress.get(item.course.id) ?? 0,
         course: {
           id: item.course.slug,
           uuid: item.course.id,
@@ -168,71 +196,21 @@ export class UsersService {
       throw new NotFoundException('کاربر یافت نشد.');
     }
 
-    const firstName = dto.firstName
-      ? normalizeName(dto.firstName)
-      : existing.firstName;
-    const lastName = dto.lastName
-      ? normalizeName(dto.lastName)
-      : existing.lastName;
-
-    if (dto.firstName || dto.lastName) {
-      const duplicate = await this.prisma.user.findFirst({
-        where: {
-          firstName,
-          lastName,
-          NOT: { id },
-        },
-      });
-      if (duplicate) {
-        throw new ConflictException(
-          'کاربر دیگری با این نام و نام خانوادگی وجود دارد.',
-        );
-      }
-    }
-
-    if (dto.studentCode) {
-      const code = dto.studentCode.trim().toUpperCase();
-      const duplicateCode = await this.prisma.user.findFirst({
-        where: { studentCode: code, NOT: { id } },
-      });
-      if (duplicateCode) {
-        throw new ConflictException('کد هنرجو تکراری است.');
-      }
-    }
-
-    if (dto.email) {
-      const email = dto.email.trim().toLowerCase();
-      const duplicateEmail = await this.prisma.user.findFirst({
-        where: { email, NOT: { id } },
-      });
-      if (duplicateEmail) {
-        throw new ConflictException('ایمیل تکراری است.');
-      }
+    if (dto.isActive === undefined) {
+      throw new ForbiddenException(
+        'ادمین فقط می‌تواند رمز عبور را تغییر دهد یا وضعیت فعال بودن را تنظیم کند.',
+      );
     }
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: {
-        ...(dto.firstName || dto.lastName
-          ? {
-              firstName,
-              lastName,
-              displayName: `${firstName} ${lastName}`,
-            }
-          : {}),
-        ...(dto.email !== undefined
-          ? { email: dto.email.trim().toLowerCase() || null }
-          : {}),
-        ...(dto.level !== undefined ? { level: dto.level } : {}),
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        ...(dto.studentCode !== undefined
-          ? { studentCode: dto.studentCode.trim().toUpperCase() }
-          : {}),
-      },
+      data: { isActive: dto.isActive },
       select: userPublicSelect,
     });
 
-    return this.mapUser(updated);
+    const avgViewProgress =
+      (await this.computeAvgViewProgress([id])).get(id) ?? 0;
+    return this.mapUser(updated, avgViewProgress);
   }
 
   async resetPassword(id: string, dto: ResetPasswordDto) {
@@ -375,20 +353,26 @@ export class UsersService {
     return { [field]: dir } as Prisma.UserOrderByWithRelationInput;
   }
 
-  private mapUser(user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-    email: string | null;
-    role: Role;
-    studentCode: string | null;
-    level: string | null;
-    isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    _count?: { enrollments: number; achievements: number };
-  }) {
+  private mapUser(
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      displayName: string;
+      email: string | null;
+      role: Role;
+      studentCode: string | null;
+      level: string | null;
+      phone: string | null;
+      nationalId: string | null;
+      address: string | null;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+      _count?: { enrollments: number; achievements: number };
+    },
+    avgViewProgress = 0,
+  ) {
     return {
       id: user.id,
       firstName: user.firstName,
@@ -398,11 +382,181 @@ export class UsersService {
       role: user.role,
       studentCode: user.studentCode,
       level: user.level,
+      phone: user.phone,
+      nationalId: user.nationalId,
+      address: user.address,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       enrollmentsCount: user._count?.enrollments ?? 0,
       achievementsCount: user._count?.achievements ?? 0,
+      avgViewProgress,
     };
+  }
+
+  /** Mean slide-view progress across available sessions with slides. */
+  private async computeAvgViewProgress(userIds: string[]) {
+    const result = new Map<string, number>();
+    for (const id of userIds) result.set(id, 0);
+    if (userIds.length === 0) return result;
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, courseId: true },
+    });
+    if (enrollments.length === 0) return result;
+
+    const courseIds = [...new Set(enrollments.map((e) => e.courseId))];
+    const sessions = await this.prisma.courseSession.findMany({
+      where: {
+        courseId: { in: courseIds },
+        status: SessionStatus.AVAILABLE,
+      },
+      select: {
+        id: true,
+        courseId: true,
+        _count: { select: { slides: true } },
+      },
+    });
+    const sessionsWithSlides = sessions.filter((s) => s._count.slides > 0);
+    if (sessionsWithSlides.length === 0) return result;
+
+    const progressRows = await this.prisma.sessionProgress.findMany({
+      where: {
+        userId: { in: userIds },
+        sessionId: { in: sessionsWithSlides.map((s) => s.id) },
+      },
+      select: {
+        userId: true,
+        sessionId: true,
+        lastSlideIndex: true,
+        completedAt: true,
+      },
+    });
+
+    const progressMap = new Map(
+      progressRows.map((row) => [`${row.userId}:${row.sessionId}`, row]),
+    );
+
+    const coursesByUser = new Map<string, string[]>();
+    for (const enrollment of enrollments) {
+      const list = coursesByUser.get(enrollment.userId) ?? [];
+      list.push(enrollment.courseId);
+      coursesByUser.set(enrollment.userId, list);
+    }
+
+    const sessionsByCourse = new Map<string, typeof sessionsWithSlides>();
+    for (const session of sessionsWithSlides) {
+      const list = sessionsByCourse.get(session.courseId) ?? [];
+      list.push(session);
+      sessionsByCourse.set(session.courseId, list);
+    }
+
+    for (const userId of userIds) {
+      const userSessions = (coursesByUser.get(userId) ?? []).flatMap(
+        (courseId) => sessionsByCourse.get(courseId) ?? [],
+      );
+      if (userSessions.length === 0) {
+        result.set(userId, 0);
+        continue;
+      }
+
+      let sum = 0;
+      for (const session of userSessions) {
+        sum += this.sessionViewPercent(
+          progressMap.get(`${userId}:${session.id}`),
+          session._count.slides,
+        );
+      }
+      result.set(userId, Math.round(sum / userSessions.length));
+    }
+
+    return result;
+  }
+
+  private async computeCourseViewProgress(
+    userId: string,
+    courseIds: string[],
+  ) {
+    const result = new Map<string, number>();
+    for (const id of courseIds) result.set(id, 0);
+    if (courseIds.length === 0) return result;
+
+    const sessions = await this.prisma.courseSession.findMany({
+      where: {
+        courseId: { in: courseIds },
+        status: SessionStatus.AVAILABLE,
+      },
+      select: {
+        id: true,
+        courseId: true,
+        _count: { select: { slides: true } },
+      },
+    });
+    const sessionsWithSlides = sessions.filter((s) => s._count.slides > 0);
+    if (sessionsWithSlides.length === 0) return result;
+
+    const progressRows = await this.prisma.sessionProgress.findMany({
+      where: {
+        userId,
+        sessionId: { in: sessionsWithSlides.map((s) => s.id) },
+      },
+      select: {
+        sessionId: true,
+        lastSlideIndex: true,
+        completedAt: true,
+      },
+    });
+    const progressMap = new Map(
+      progressRows.map((row) => [row.sessionId, row]),
+    );
+
+    const byCourse = new Map<string, typeof sessionsWithSlides>();
+    for (const session of sessionsWithSlides) {
+      const list = byCourse.get(session.courseId) ?? [];
+      list.push(session);
+      byCourse.set(session.courseId, list);
+    }
+
+    for (const courseId of courseIds) {
+      const courseSessions = byCourse.get(courseId) ?? [];
+      if (courseSessions.length === 0) {
+        result.set(courseId, 0);
+        continue;
+      }
+      let sum = 0;
+      for (const session of courseSessions) {
+        sum += this.sessionViewPercent(
+          progressMap.get(session.id),
+          session._count.slides,
+        );
+      }
+      result.set(courseId, Math.round(sum / courseSessions.length));
+    }
+
+    return result;
+  }
+
+  private sessionViewPercent(
+    progress:
+      | {
+          lastSlideIndex: number;
+          completedAt: Date | null;
+        }
+      | undefined,
+    slideCount: number,
+  ) {
+    if (slideCount <= 0) return 0;
+    if (!progress) return 0;
+    if (
+      progress.completedAt ||
+      progress.lastSlideIndex >= slideCount - 1
+    ) {
+      return 100;
+    }
+    return Math.min(
+      100,
+      Math.round(((progress.lastSlideIndex + 1) / slideCount) * 100),
+    );
   }
 }

@@ -7,7 +7,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -31,44 +30,12 @@ export class ListUsersQueryDto extends PaginationQueryDto {
 }
 
 export class UpdateUserDto {
-  @ApiPropertyOptional({ example: 'آوا' })
-  @IsOptional()
-  @IsString()
-  @Matches(/^[\u0600-\u06FF\u200c\s]{2,40}$/, {
-    message: 'نام باید فارسی و بین ۲ تا ۴۰ کاراکتر باشد.',
+  @ApiPropertyOptional({
+    description: 'فقط وضعیت فعال/غیرفعال؛ مشخصات پروفایل توسط هنرجو ویرایش می‌شود.',
   })
-  firstName?: string;
-
-  @ApiPropertyOptional({ example: 'محمدی' })
-  @IsOptional()
-  @IsString()
-  @Matches(/^[\u0600-\u06FF\u200c\s]{2,40}$/, {
-    message: 'نام خانوادگی باید فارسی و بین ۲ تا ۴۰ کاراکتر باشد.',
-  })
-  lastName?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  email?: string;
-
-  @ApiPropertyOptional({ example: 'پایه' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  level?: string;
-
-  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ example: 'ET-1405-ABCD' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(32)
-  studentCode?: string;
 }
 
 export class ResetPasswordDto {

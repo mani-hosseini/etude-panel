@@ -80,9 +80,11 @@ export class UpsertCourseDto {
   @MaxLength(120)
   room!: string;
 
+  @ApiPropertyOptional({ example: 'مقدماتی', description: 'اختیاری' })
+  @IsOptional()
   @IsString()
   @MaxLength(64)
-  level!: string;
+  level?: string;
 
   @IsString()
   @MaxLength(300)

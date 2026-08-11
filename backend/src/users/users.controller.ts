@@ -52,7 +52,9 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'ویرایش کاربر' })
+  @ApiOperation({
+    summary: 'تغییر وضعیت فعال بودن کاربر (مشخصات پروفایل فقط توسط هنرجو)',
+  })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,

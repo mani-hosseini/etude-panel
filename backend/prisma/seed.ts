@@ -1,5 +1,6 @@
 import {
   CourseStatus,
+  LessonStatus,
   PrismaClient,
   Role,
   SessionStatus,
@@ -186,50 +187,67 @@ async function main() {
   });
 
   await prisma.scheduleLesson.createMany({
-    data: [
-      {
+    data: theorySessions.map((session, index) => {
+      const number = index + 1;
+      const status =
+        number === 1
+          ? LessonStatus.DONE
+          : number === 2
+            ? LessonStatus.NEXT
+            : LessonStatus.PLANNED;
+      const ordinals = [
+        '',
+        'اول',
+        'دوم',
+        'سوم',
+        'چهارم',
+        'پنجم',
+        'ششم',
+        'هفتم',
+        'هشتم',
+        'نهم',
+        'دهم',
+      ];
+      const ordinal = ordinals[number] ?? String(number);
+      return {
         courseId: theory.id,
-        sessionId: theorySessions[0]!.id,
-        title: 'جلسهٔ اول — پایه‌های نت‌خوانی و ریتم',
+        sessionId: session.id,
+        title: session.title
+          ? `جلسهٔ ${ordinal} — ${session.title}`
+          : `جلسهٔ ${ordinal}`,
         teacher: theory.teacher,
         day: theory.day,
-        dateLabel: '۱۴۰۵/۰۵/۱۵',
+        dateLabel: session.dateLabel,
         time: theory.time,
         room: theory.room,
         duration: theory.duration,
-        note: 'برگزار شده · اسلایدها آماده است',
-        status: 'DONE',
-        sortOrder: 1,
-      },
-      {
-        courseId: theory.id,
-        sessionId: theorySessions[1]!.id,
-        title: 'جلسهٔ دوم',
-        teacher: theory.teacher,
-        day: theory.day,
-        dateLabel: 'جلسهٔ بعدی',
-        time: theory.time,
-        room: theory.room,
-        duration: theory.duration,
-        note: 'محتوا پس از برگزاری جلسه فعال می‌شود',
-        status: 'NEXT',
-        sortOrder: 2,
-      },
-      {
-        courseId: piano.id,
-        title: 'پیانو — تمرین دست راست',
-        teacher: piano.teacher,
-        day: piano.day,
-        dateLabel: 'این هفته',
-        time: piano.time,
-        room: piano.room,
-        duration: piano.duration,
-        note: 'تمرکز روی انگشت‌گذاری',
-        status: 'NEXT',
-        sortOrder: 1,
-        type: 'PRIVATE',
-      },
-    ],
+        note:
+          status === LessonStatus.DONE
+            ? 'برگزار شده · اسلایدها آماده است'
+            : status === LessonStatus.NEXT
+              ? 'محتوا پس از برگزاری جلسه فعال می‌شود'
+              : 'برنامهٔ آینده',
+        status,
+        sortOrder: number,
+      };
+    }),
+  });
+
+  await prisma.scheduleLesson.create({
+    data: {
+      courseId: piano.id,
+      title: 'پیانو — تمرین دست راست',
+      teacher: piano.teacher,
+      day: piano.day,
+      dateLabel: 'این هفته',
+      time: piano.time,
+      room: piano.room,
+      duration: piano.duration,
+      note: 'تمرکز روی انگشت‌گذاری',
+      status: LessonStatus.NEXT,
+      sortOrder: 1,
+      type: 'PRIVATE',
+    },
   });
 
   for (let number = 1; number <= 12; number++) {
