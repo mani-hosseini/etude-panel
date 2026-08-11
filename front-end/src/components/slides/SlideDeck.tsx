@@ -226,22 +226,6 @@ export function SlideDeck({
             label="اسلاید بعدی"
             flip
           />
-
-          <label className="sr-only" htmlFor="slide-jump">
-            پرش به اسلاید
-          </label>
-          <select
-            id="slide-jump"
-            value={index}
-            onChange={(e) => goTo(Number(e.target.value))}
-            className="font-sans max-w-22 shrink-0 truncate rounded-full border border-white/10 bg-white/4 px-2 py-0.5 text-[10px] text-gray-400 outline-none hover:bg-white/7"
-          >
-            {slides.map((s, i) => (
-              <option key={s.id} value={i} className="bg-[#01040a] text-white">
-                {toFa(i + 1)} · {s.kind === "visual" ? "تصویر" : s.title}
-              </option>
-            ))}
-          </select>
         </div>
       </nav>
 

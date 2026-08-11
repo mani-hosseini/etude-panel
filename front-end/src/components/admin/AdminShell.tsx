@@ -11,7 +11,7 @@ import { adminRoutes, isNavActive } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 const mobileNav = [
-  { href: adminRoutes.root, label: "پیشخوان", icon: LayoutDashboard },
+  { href: adminRoutes.root, label: "صفحه اصلی", icon: LayoutDashboard },
   { href: adminRoutes.courses, label: "دوره‌ها", icon: BookOpen },
   { href: adminRoutes.users, label: "کاربران", icon: Users },
 ] as const;
@@ -25,7 +25,7 @@ function resolveTitle(pathname: string) {
   }
   return (
     mobileNav.find((item) => isNavActive(pathname, item.href))?.label ??
-    "پیشخوان"
+    "صفحه اصلی"
   );
 }
 

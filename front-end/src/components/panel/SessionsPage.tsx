@@ -123,7 +123,12 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
 
       <div className="grid gap-4">
         {sessions.map((session, index) => {
-          const meta = statusMeta[session.status];
+          const completed =
+            session.status === "available" &&
+            (session.progressPercent ?? 0) >= 100;
+          const meta = completed
+            ? { label: "مشاهده شد", variant: "success" as const }
+            : statusMeta[session.status];
           const clickable = session.status === "available";
           const href = routes.courseSession(course.id, session.id);
 

@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   {
     href: adminRoutes.root,
-    label: "پیشخوان",
+    label: "صفحه اصلی",
     description: "نمای کلی سیستم",
     icon: LayoutDashboard,
   },

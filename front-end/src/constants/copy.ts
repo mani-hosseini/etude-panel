@@ -38,7 +38,7 @@ export const copy = {
     error: "ثبت‌نام انجام نشد. دوباره تلاش کنید.",
   },
   nav: {
-    dashboard: "پیشخوان",
+    dashboard: "صفحه اصلی",
     courses: "دوره‌ها",
     sessions: "جلسات",
     certificates: "مدارک",

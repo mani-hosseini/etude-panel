@@ -54,7 +54,7 @@ export function AdminDashboardPage() {
     <div className="space-y-8">
       <div>
         <p className="text-xs font-medium text-brand">کنترل‌پنل اتود</p>
-        <h2 className="mt-1 text-2xl font-bold text-slate-900">پیشخوان ادمین</h2>
+        <h2 className="mt-1 text-2xl font-bold text-slate-900">صفحه اصلی ادمین</h2>
         <p className="mt-1 text-sm text-slate-500">
           مدیریت دوره‌ها، محتوا و کاربران از یک پنل حرفه‌ای.
         </p>
