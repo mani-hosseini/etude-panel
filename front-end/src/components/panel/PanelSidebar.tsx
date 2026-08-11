@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Award,
   BookOpen,
   CalendarDays,
   LayoutDashboard,
   LogOut,
-  Music2,
   UserRound,
 } from "lucide-react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { copy } from "@/constants/copy";
+import { useDashboardQuery } from "@/lib/api/queries";
+import { resolveMediaUrl } from "@/lib/api/http";
 import { logoutWithApi } from "@/lib/auth";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -20,8 +22,8 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: routes.dashboard, label: copy.nav.dashboard, icon: LayoutDashboard },
   { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
-  { href: routes.sessions, label: copy.nav.sessions, icon: Music2 },
   { href: routes.schedule, label: copy.nav.schedule, icon: CalendarDays },
+  { href: routes.certificates, label: copy.nav.certificates, icon: Award },
   { href: routes.profile, label: copy.nav.profile, icon: UserRound },
 ] as const;
 
@@ -38,6 +40,9 @@ export function PanelSidebar({
 }: PanelSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const dashboard = useDashboardQuery();
+  const avatarUrl = resolveMediaUrl(dashboard.data?.student.avatarUrl);
+  const initial = studentName.trim().charAt(0) || "ه";
 
   const logout = () => {
     void logoutWithApi().then(() => {
@@ -85,9 +90,23 @@ export function PanelSidebar({
       </nav>
 
       <div className="border-t border-white/10 p-4">
-        <div className="mb-3 rounded-xl bg-white/8 px-3 py-2.5 ring-1 ring-white/10">
-          <p className="text-[11px] text-white/55">هنرجو</p>
-          <p className="truncate text-sm font-semibold">{studentName}</p>
+        <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/8 px-3 py-2.5 ring-1 ring-white/10">
+          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-sm font-bold text-brand">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={studentName}
+                className="size-full object-cover"
+              />
+            ) : (
+              <span>{initial}</span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] text-white/55">هنرجو</p>
+            <p className="truncate text-sm font-semibold">{studentName}</p>
+          </div>
         </div>
         <button
           type="button"

@@ -158,13 +158,16 @@ function SessionFields({
         </p>
       </div>
       <div className="space-y-1.5">
-        <Label>برچسب تاریخ</Label>
+        <Label>تاریخ جلسه</Label>
         <Input
           value={form.dateLabel}
           onChange={(e) => set("dateLabel")(e.target.value)}
           className="rounded-xl text-right"
           placeholder="مثلاً ۱۴۰۵/۰۵/۱۵"
         />
+        <p className="text-[11px] text-slate-400">
+          این تاریخ در «پیشرفت جلسات» پنل هنرجو نمایش داده می‌شود.
+        </p>
       </div>
       <div className="space-y-1.5">
         <Label>مدت جلسه</Label>

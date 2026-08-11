@@ -108,4 +108,22 @@ export const api = {
         : "/schedule",
     ),
   profile: () => studentHttp.requestData<ProfilePayload>("/profile"),
+
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return studentHttp.upload<{
+      path: string;
+      avatarUrl: string;
+      filename: string;
+      mimeType: string;
+      size: number;
+    }>("/profile/avatar", formData);
+  },
+
+  deleteAvatar: () =>
+    studentHttp.requestData<{ deleted: boolean; avatarUrl: null }>(
+      "/profile/avatar",
+      { method: "DELETE" },
+    ),
 };

@@ -15,6 +15,7 @@ export const routes = {
   /** Nav default: primary enrolled course */
   sessions: "/dashboard/sessions",
   schedule: "/dashboard/schedule",
+  certificates: "/dashboard/certificates",
   profile: "/dashboard/profile",
   login: "/login",
   register: "/",
@@ -24,6 +25,7 @@ export const adminRoutes = {
   root: "/admin",
   login: "/admin/login",
   users: "/admin/users",
+  user: (id: string) => `/admin/users/${id}`,
   courses: "/admin/courses",
   courseNew: "/admin/courses/new",
   /** Prefer course slug in URLs, e.g. theory-basics */
@@ -41,6 +43,9 @@ export function isNavActive(pathname: string, href: string): boolean {
   }
   if (href === routes.schedule) {
     return pathname === routes.schedule || pathname.includes("/schedule");
+  }
+  if (href === routes.certificates) {
+    return pathname === routes.certificates || pathname.includes("/certificate");
   }
   if (href === routes.courses) {
     return pathname === routes.courses;

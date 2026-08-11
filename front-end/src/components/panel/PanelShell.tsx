@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Award,
   BookOpen,
   CalendarDays,
   LayoutDashboard,
   Menu,
-  Music2,
   UserRound,
   X,
 } from "lucide-react";
@@ -16,14 +16,16 @@ import { useEffect, useState } from "react";
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { PanelSidebar } from "@/components/panel/PanelSidebar";
 import { copy } from "@/constants/copy";
+import { useDashboardQuery } from "@/lib/api/queries";
+import { weekdayPlural } from "@/lib/format";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 const mobileNav = [
   { href: routes.dashboard, label: copy.nav.dashboard, icon: LayoutDashboard },
   { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
-  { href: routes.sessions, label: copy.nav.sessions, icon: Music2 },
   { href: routes.schedule, label: copy.nav.schedule, icon: CalendarDays },
+  { href: routes.certificates, label: copy.nav.certificates, icon: Award },
   { href: routes.profile, label: copy.nav.profile, icon: UserRound },
 ] as const;
 
@@ -36,6 +38,9 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pathForMenu, setPathForMenu] = useState(pathname);
+  const dashboard = useDashboardQuery();
+  const nextLesson = dashboard.data?.nextLesson;
+  const primary = dashboard.data?.primaryCourse;
 
   if (pathname !== pathForMenu) {
     setPathForMenu(pathname);
@@ -90,10 +95,16 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                   <h1 className="text-lg font-bold text-navy">{title}</h1>
                 </div>
               </div>
-              <div className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
-                <span className="size-1.5 animate-pulse rounded-full bg-brand" />
-                جلسه بعدی: پنجشنبه ۱۱ تا ۱۳
-              </div>
+              {nextLesson || primary ? (
+                <div className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
+                  <span className="size-1.5 animate-pulse rounded-full bg-brand" />
+                  {nextLesson
+                    ? `جلسه بعدی: ${nextLesson.day} ${nextLesson.time}`
+                    : primary
+                      ? `کلاس: ${weekdayPlural(primary.day)} ${primary.timeShort}`
+                      : null}
+                </div>
+              ) : null}
             </div>
           </header>
 
@@ -101,8 +112,12 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
             {children}
           </main>
 
+          <footer className="hidden border-t border-border/70 px-8 py-4 text-center text-xs text-muted-foreground lg:block">
+            {copy.copyright}
+          </footer>
+
           <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-            <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+            <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
               {mobileNav.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);

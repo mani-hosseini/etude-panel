@@ -1,19 +1,23 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
 import { Award, BadgeCheck, Music2 } from "lucide-react";
 
+import { AvatarUpload } from "@/components/panel/AvatarUpload";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import {
   queryErrorMessage,
+  queryKeys,
   useProfileQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
 
 export function ProfilePage() {
   const reduceMotion = useReducedMotion();
+  const queryClient = useQueryClient();
   const session = useStudentSession();
   const query = useProfileQuery();
   const fullName = session.displayName;
@@ -42,11 +46,16 @@ export function ProfilePage() {
     { label: "سطح", value: student.level },
     {
       label: "زمان کلاس",
-      value: primaryCourse
-        ? `${primaryCourse.timeShort}`
-        : "—",
+      value: primaryCourse ? `${primaryCourse.timeShort}` : "—",
     },
   ] as const;
+
+  const invalidateAvatar = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+    ]);
+  };
 
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
@@ -73,10 +82,15 @@ export function ProfilePage() {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative mx-auto sm:mx-0">
-              <div className="flex size-20 items-center justify-center rounded-[1.35rem] bg-white text-3xl font-bold text-brand shadow-lg sm:size-24 sm:text-4xl">
-                {initial}
-              </div>
-              <span className="absolute -bottom-1 -left-1 inline-flex items-center gap-1 rounded-full bg-success px-2 py-0.5 text-[10px] font-semibold text-white">
+              <AvatarUpload
+                avatarUrl={student.avatarUrl}
+                fallbackInitial={initial}
+                sizeClassName="size-20 text-3xl sm:size-24 sm:text-4xl"
+                onChanged={async () => {
+                  await invalidateAvatar();
+                }}
+              />
+              <span className="pointer-events-none absolute bottom-8 -left-1 inline-flex items-center gap-1 rounded-full bg-success px-2 py-0.5 text-[10px] font-semibold text-white">
                 <BadgeCheck className="size-3" />
                 تاییدشده
               </span>
@@ -124,7 +138,7 @@ export function ProfilePage() {
           {learningFields.map((field) => (
             <div
               key={field.label}
-              className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5 sm:px-6 last:border-b-0 sm:odd:border-l"
+              className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5 last:border-b-0 sm:px-6 sm:odd:border-l"
             >
               <dt className="text-xs text-muted-foreground">{field.label}</dt>
               <dd className="text-sm font-semibold text-navy">{field.value}</dd>

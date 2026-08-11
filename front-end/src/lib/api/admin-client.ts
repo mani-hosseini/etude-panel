@@ -1,6 +1,36 @@
 import type { PaginationMeta } from "@/lib/api/http";
 import { adminHttp } from "@/lib/api/admin-tokens";
 
+export type AdminUserEnrollment = {
+  id: string;
+  joinedAt: string;
+  course: {
+    id: string;
+    uuid: string;
+    title: string;
+    teacher: string;
+    status: string;
+    instrument: string;
+  };
+};
+
+export type AdminUserDetail = AdminUser & {
+  enrollments: AdminUserEnrollment[];
+  achievements: {
+    id: string;
+    title: string;
+    desc: string;
+    earnedAt: string;
+  }[];
+};
+
+export type CreateStudentBody = {
+  firstName: string;
+  lastName: string;
+  password: string;
+  studentCode?: string;
+};
+
 export type AdminRole = "STUDENT" | "ADMIN";
 
 export type AdminUser = {
@@ -245,6 +275,37 @@ export const adminApi = {
     adminHttp.requestData<AdminUser>(`/users/${id}/deactivate`, {
       method: "POST",
     }),
+
+  user: (id: string) =>
+    adminHttp.requestData<AdminUserDetail>(`/users/${id}`),
+
+  createStudent: (body: CreateStudentBody) =>
+    adminHttp.requestData<AdminPublicUser>("/auth/register/student", {
+      method: "POST",
+      body,
+    }),
+
+  deleteUser: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/users/${id}`, {
+      method: "DELETE",
+    }),
+
+  enrollUser: (userId: string, courseId: string) =>
+    adminHttp.requestData<{
+      id: string;
+      joinedAt: string;
+      courseId: string;
+      courseTitle: string;
+    }>(`/users/${userId}/enrollments`, {
+      method: "POST",
+      body: { courseId },
+    }),
+
+  unenrollUser: (userId: string, courseId: string) =>
+    adminHttp.requestData<{ removed: boolean }>(
+      `/users/${userId}/enrollments/${encodeURIComponent(courseId)}`,
+      { method: "DELETE" },
+    ),
 
   courses: async (params: ListCoursesParams = {}) => {
     const query = qs({
