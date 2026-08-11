@@ -40,6 +40,7 @@ export type CourseSession = {
   dateLabel: string;
   courseId?: string;
   courseTitle?: string;
+  progressPercent?: number;
 };
 
 export type ScheduleLesson = {
@@ -80,6 +81,15 @@ export type DashboardPayload = {
     title: string;
     day: string;
     time: string;
+    dateLabel?: string;
+    status: LessonStatus;
+  } | null;
+  lastLesson: {
+    id: string;
+    title: string;
+    day: string;
+    time: string;
+    dateLabel?: string;
     status: LessonStatus;
   } | null;
   currentSession: CourseSession | null;
@@ -88,6 +98,7 @@ export type DashboardPayload = {
     title: string;
     day: string;
     time: string;
+    dateLabel?: string;
     status: LessonStatus;
   }>;
   practiceTips: string[];
@@ -120,6 +131,9 @@ export type ProfilePayload = {
     studentCode: string | null;
     level: string;
     avatarUrl: string | null;
+    phone: string | null;
+    nationalId: string | null;
+    address: string | null;
     programTitle: string;
     attendanceRate: string;
     totalHours: string;

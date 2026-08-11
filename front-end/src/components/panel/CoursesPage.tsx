@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { copy } from "@/constants/copy";
 import type { CourseStatus } from "@/lib/api/types";
 import {
   queryErrorMessage,
@@ -76,7 +77,7 @@ export function CoursesPage() {
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
       <PageHeader
-        eyebrow="آموزشگاه موسیقی اتود"
+        eyebrow={copy.academyName}
         title="دوره‌های من"
         description="همه دوره‌های ثبت‌شده شما — پیشرفت، مدرس و زمان هر کلاس."
       />

@@ -42,11 +42,16 @@ export type AdminUser = {
   role: AdminRole;
   studentCode: string | null;
   level: string | null;
+  phone?: string | null;
+  nationalId?: string | null;
+  address?: string | null;
+  password?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   enrollmentsCount: number;
   achievementsCount: number;
+  avgProgress?: number;
 };
 
 export type AdminUsersStats = {
@@ -278,6 +283,32 @@ export const adminApi = {
 
   user: (id: string) =>
     adminHttp.requestData<AdminUserDetail>(`/users/${id}`),
+
+  updateUser: (
+    id: string,
+    body: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      level?: string;
+      studentCode?: string;
+      phone?: string;
+      nationalId?: string;
+      address?: string;
+      isActive?: boolean;
+      password?: string;
+    },
+  ) =>
+    adminHttp.requestData<AdminUser>(`/users/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  resetPassword: (id: string, password: string) =>
+    adminHttp.requestData<{ reset: boolean; password: string }>(
+      `/users/${id}/reset-password`,
+      { method: "POST", body: { password } },
+    ),
 
   createStudent: (body: CreateStudentBody) =>
     adminHttp.requestData<AdminPublicUser>("/auth/register/student", {

@@ -3,13 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -31,6 +34,197 @@ import { adminRoutes } from "@/lib/routes";
 type AdminUserDetailPageProps = {
   userId: string;
 };
+
+function AdminUserEditForm({
+  user,
+  onSaved,
+}: {
+  user: NonNullable<ReturnType<typeof useAdminUserQuery>["data"]>;
+  onSaved: () => Promise<void>;
+}) {
+  const [firstName, setFirstName] = useState(user.firstName);
+  const [lastName, setLastName] = useState(user.lastName);
+  const [level, setLevel] = useState(user.level ?? "");
+  const [studentCode, setStudentCode] = useState(user.studentCode ?? "");
+  const [phone, setPhone] = useState(user.phone ?? "");
+  const [nationalId, setNationalId] = useState(user.nationalId ?? "");
+  const [address, setAddress] = useState(user.address ?? "");
+  const [password, setPassword] = useState(user.password ?? "");
+  const [showPassword, setShowPassword] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const isStudent = user.role === "STUDENT";
+
+  const saveUser = useMutation({
+    mutationFn: () =>
+      adminApi.updateUser(user.id, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        level: level.trim() || undefined,
+        studentCode: studentCode.trim() || undefined,
+        phone: phone.trim(),
+        nationalId: nationalId.trim(),
+        address: address.trim(),
+        ...(password.trim() ? { password: password.trim() } : {}),
+      }),
+    onSuccess: async (updated) => {
+      setActionError(null);
+      setActionSuccess("اطلاعات کاربر ذخیره شد.");
+      if (updated.password) setPassword(updated.password);
+      await onSaved();
+    },
+    onError: (err) => {
+      setActionSuccess(null);
+      setActionError(
+        err instanceof ApiError ? err.message : "ذخیره کاربر ناموفق بود.",
+      );
+    },
+  });
+
+  return (
+    <Card className="rounded-2xl border-slate-200 shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h3 className="text-sm font-bold text-slate-900">ویرایش کاربر</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          اطلاعات و رمز عبور کاربر را ببینید و تغییر دهید
+        </p>
+      </div>
+      <form
+        className="space-y-4 p-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setActionSuccess(null);
+          setActionError(null);
+          saveUser.mutate();
+        }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="admin-firstName">نام</Label>
+            <Input
+              id="admin-firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="rounded-xl"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="admin-lastName">نام خانوادگی</Label>
+            <Input
+              id="admin-lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="rounded-xl"
+              required
+            />
+          </div>
+          {isStudent ? (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-level">سطح</Label>
+                <Input
+                  id="admin-level"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-code">کد هنرجو</Label>
+                <Input
+                  id="admin-code"
+                  value={studentCode}
+                  onChange={(e) => setStudentCode(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-phone">شماره تلفن</Label>
+                <Input
+                  id="admin-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="rounded-xl"
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-nationalId">کد ملی</Label>
+                <Input
+                  id="admin-nationalId"
+                  value={nationalId}
+                  onChange={(e) => setNationalId(e.target.value)}
+                  className="rounded-xl"
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="admin-address">آدرس</Label>
+                <Input
+                  id="admin-address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            </>
+          ) : null}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="admin-password">رمز عبور</Label>
+            <div className="flex gap-2">
+              <Input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="rounded-xl"
+                placeholder={
+                  user.password
+                    ? "رمز فعلی نمایش داده شده — برای تغییر ویرایش کنید"
+                    : "رمز عبور جدید (حداقل ۸ کاراکتر)"
+                }
+                autoComplete="new-password"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 rounded-xl"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "مخفی کردن رمز" : "نمایش رمز"}
+              >
+                {showPassword ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </Button>
+            </div>
+            {!user.password ? (
+              <p className="text-[11px] text-slate-500">
+                رمز قبلی در سیستم ذخیره نشده؛ با ذخیره، رمز جدید ثبت می‌شود.
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {actionError ? (
+          <p className="text-sm text-rose-600">{actionError}</p>
+        ) : null}
+        {actionSuccess ? (
+          <p className="text-sm text-emerald-600">{actionSuccess}</p>
+        ) : null}
+        <Button
+          type="submit"
+          className="rounded-xl"
+          disabled={saveUser.isPending}
+        >
+          <Save className="size-4" />
+          {saveUser.isPending ? "در حال ذخیره…" : "ذخیره تغییرات"}
+        </Button>
+      </form>
+    </Card>
+  );
+}
 
 export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
   const router = useRouter();
@@ -156,7 +350,24 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
         <p className="mt-3 text-xs text-slate-500">
           عضویت از {toFa(new Date(user.createdAt).toLocaleDateString("fa-IR"))}
         </p>
+        {isStudent ? (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>میانگین پیشرفت اسلایدها</span>
+              <span className="font-sans font-semibold tabular-nums text-brand">
+                {toFa(user.avgProgress ?? 0)}٪
+              </span>
+            </div>
+            <Progress value={user.avgProgress ?? 0} />
+          </div>
+        ) : null}
       </Card>
+
+      <AdminUserEditForm
+        key={`${user.id}-${user.updatedAt}`}
+        user={user}
+        onSaved={invalidate}
+      />
 
       {isStudent ? (
         <Card className="rounded-2xl border-slate-200 shadow-sm">

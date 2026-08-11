@@ -28,6 +28,9 @@ const userPublicSelect = {
   studentCode: true,
   level: true,
   avatarUrl: true,
+  phone: true,
+  nationalId: true,
+  address: true,
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -37,6 +40,11 @@ const userPublicSelect = {
       achievements: true,
     },
   },
+} satisfies Prisma.UserSelect;
+
+const userDetailSelect = {
+  ...userPublicSelect,
+  passwordPlain: true,
 } satisfies Prisma.UserSelect;
 
 @Injectable()
@@ -112,7 +120,7 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
-        ...userPublicSelect,
+        ...userDetailSelect,
         enrollments: {
           include: {
             course: {
@@ -139,8 +147,10 @@ export class UsersService {
       throw new NotFoundException('کاربر یافت نشد.');
     }
 
+    const avgProgress = await this.computeAvgProgress(id);
+
     return {
-      ...this.mapUser(user),
+      ...this.mapUser({ ...user, avgProgress }),
       enrollments: user.enrollments.map((item) => ({
         id: item.id,
         joinedAt: item.joinedAt,
@@ -228,9 +238,31 @@ export class UsersService {
         ...(dto.studentCode !== undefined
           ? { studentCode: dto.studentCode.trim().toUpperCase() }
           : {}),
+        ...(dto.phone !== undefined
+          ? { phone: dto.phone.trim() || null }
+          : {}),
+        ...(dto.nationalId !== undefined
+          ? { nationalId: dto.nationalId.trim() || null }
+          : {}),
+        ...(dto.address !== undefined
+          ? { address: dto.address.trim() || null }
+          : {}),
+        ...(dto.password
+          ? {
+              passwordHash: await argon2.hash(dto.password),
+              passwordPlain: dto.password,
+            }
+          : {}),
       },
-      select: userPublicSelect,
+      select: userDetailSelect,
     });
+
+    if (dto.password) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
 
     return this.mapUser(updated);
   }
@@ -244,7 +276,7 @@ export class UsersService {
     const passwordHash = await argon2.hash(dto.password);
     await this.prisma.user.update({
       where: { id },
-      data: { passwordHash },
+      data: { passwordHash, passwordPlain: dto.password },
     });
 
     await this.prisma.refreshToken.updateMany({
@@ -252,7 +284,7 @@ export class UsersService {
       data: { revokedAt: new Date() },
     });
 
-    return { reset: true };
+    return { reset: true, password: dto.password };
   }
 
   async deactivate(id: string) {
@@ -357,6 +389,41 @@ export class UsersService {
     return { total, students, admins, active, inactive };
   }
 
+  private async computeAvgProgress(userId: string): Promise<number> {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { userId },
+      select: { courseId: true },
+    });
+    if (enrollments.length === 0) return 0;
+
+    const sessions = await this.prisma.courseSession.findMany({
+      where: {
+        courseId: { in: enrollments.map((e) => e.courseId) },
+        status: 'AVAILABLE',
+      },
+      include: { _count: { select: { slides: true } } },
+    });
+    if (sessions.length === 0) return 0;
+
+    const progresses = await this.prisma.sessionProgress.findMany({
+      where: {
+        userId,
+        sessionId: { in: sessions.map((s) => s.id) },
+      },
+    });
+    const bySession = new Map(progresses.map((p) => [p.sessionId, p]));
+
+    let sum = 0;
+    for (const session of sessions) {
+      const row = bySession.get(session.id);
+      const slideCount = session._count.slides;
+      if (row && slideCount > 0) {
+        sum += Math.round(((row.lastSlideIndex + 1) / slideCount) * 100);
+      }
+    }
+    return Math.round(sum / sessions.length);
+  }
+
   private parseSort(sort?: string): Prisma.UserOrderByWithRelationInput {
     if (!sort) return { createdAt: 'desc' };
     const [field, direction] = sort.split(':');
@@ -384,10 +451,15 @@ export class UsersService {
     role: Role;
     studentCode: string | null;
     level: string | null;
+    phone?: string | null;
+    nationalId?: string | null;
+    address?: string | null;
+    passwordPlain?: string | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     _count?: { enrollments: number; achievements: number };
+    avgProgress?: number;
   }) {
     return {
       id: user.id,
@@ -398,11 +470,16 @@ export class UsersService {
       role: user.role,
       studentCode: user.studentCode,
       level: user.level,
+      phone: user.phone ?? null,
+      nationalId: user.nationalId ?? null,
+      address: user.address ?? null,
+      password: user.passwordPlain ?? null,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       enrollmentsCount: user._count?.enrollments ?? 0,
       achievementsCount: user._count?.achievements ?? 0,
+      avgProgress: user.avgProgress ?? 0,
     };
   }
 }

@@ -13,6 +13,7 @@ import {
 
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SessionStatus } from "@/lib/api/types";
 import {
@@ -161,6 +162,17 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                           {topic}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+                  {session.status === "available" && session.slideCount > 0 ? (
+                    <div className="mt-4 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>پیشرفت اسلایدها</span>
+                        <span className="font-sans tabular-nums text-brand">
+                          {toFa(session.progressPercent ?? 0)}٪
+                        </span>
+                      </div>
+                      <Progress value={session.progressPercent ?? 0} />
                     </div>
                   ) : null}
                 </div>

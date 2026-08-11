@@ -6,6 +6,7 @@ import { ArrowRight, Maximize2, X } from "lucide-react";
 
 import { SlideView } from "@/components/slides/SlideView";
 import { useDeck } from "@/components/slides/useDeck";
+import { useSlideProgressSync } from "@/hooks/useSlideProgressSync";
 import { toFa } from "@/lib/format";
 import { slides as defaultSlides, type Slide } from "@/lib/session-1-slides";
 import { cn } from "@/lib/utils";
@@ -71,6 +72,8 @@ type SlideDeckProps = {
   slides?: Slide[];
   sessionLabel?: string;
   playHref?: string;
+  sessionId?: string;
+  courseId?: string;
 };
 
 export function SlideDeck({
@@ -80,9 +83,20 @@ export function SlideDeck({
   slides = defaultSlides,
   sessionLabel = "جلسهٔ اول",
   playHref = "/dashboard/sessions/1/play",
+  sessionId,
+  courseId,
 }: SlideDeckProps) {
   const total = slides.length;
   const { index, direction, next, prev, goTo } = useDeck(total);
+  useSlideProgressSync({
+    sessionId: sessionId ?? "",
+    courseId,
+    enabled: Boolean(sessionId),
+    totalSlides: total,
+    index,
+    onRestore: (i) => goTo(i, i > 0 ? 1 : -1),
+  });
+
   const slide = slides[index]!;
   const progress = total > 0 ? ((index + 1) / total) * 100 : 0;
   const label =

@@ -204,6 +204,8 @@ export function SessionDetailPage({
           mode="embedded"
           slides={slides}
           sessionLabel={`جلسه ${toFa(session.number)}`}
+          sessionId={session.id}
+          courseId={pathCourseId}
           playHref={
             pathCourseId
               ? routes.courseSessionPlay(pathCourseId, session.id)

@@ -91,7 +91,7 @@ export function LoginForm() {
       <div className="relative flex min-h-dvh items-center justify-center overflow-hidden">
         <StaffBackdrop />
         <div className="relative z-10 flex flex-col items-center gap-4">
-          <EtudeLogo size={88} priority />
+          <EtudeLogo size={88} priority glow />
           <div className="h-1 w-28 overflow-hidden rounded-full bg-brand-100">
             <motion.div
               className="h-full w-1/2 rounded-full bg-brand"
@@ -114,7 +114,7 @@ export function LoginForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
-          <EtudeLogo size={148} priority className="mb-6 drop-shadow-sm" />
+          <EtudeLogo size={148} priority glow className="mb-6" />
           <p className="font-display text-4xl font-bold tracking-[0.06em] text-brand md:text-5xl lg:text-6xl">
             {copy.brandFull}
           </p>

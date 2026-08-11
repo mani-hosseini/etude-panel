@@ -82,7 +82,7 @@ export const studentProfile = {
   joinedAt: "مرداد ۱۴۰۵",
   phone: "۰۹۱۲ *** **۴۵",
   email: "ava@etude.academy",
-  branch: "آموزشگاه موسیقی اتود",
+  branch: "آکادمی تخصصی پیانو اتود",
   mentor: "استاد بهرام دهقانیار",
   birthDate: "۱۳۸۵/۰۴/۱۲",
   nationalId: "۰۰۱******۴۲",

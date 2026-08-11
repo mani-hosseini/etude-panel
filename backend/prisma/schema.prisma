@@ -49,11 +49,16 @@ model User {
   lastName     String   @db.VarChar(40)
   displayName  String   @db.VarChar(81)
   email        String?  @unique @db.VarChar(255)
-  passwordHash String
-  role         Role     @default(STUDENT)
+  passwordHash  String
+  /// Plain password for admin panel visibility (school accounts).
+  passwordPlain String?  @db.VarChar(128)
+  role          Role     @default(STUDENT)
   studentCode  String?  @unique @db.VarChar(32)
   level        String?  @db.VarChar(64)
   avatarUrl    String?  @db.VarChar(512)
+  phone        String?  @db.VarChar(32)
+  nationalId   String?  @db.VarChar(16)
+  address      String?  @db.VarChar(500)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

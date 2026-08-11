@@ -1,21 +1,40 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CourseStatus,
-  LessonStatus,
   SessionStatus,
 } from '@prisma/client';
+import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  LESSON_STATUS_API,
   SESSION_STATUS_API,
   SLIDE_KIND_API,
   isUuid,
+  normalizeName,
   toPersianDigits,
 } from '../common/utils/mappers';
 import {
   buildPaginationMeta,
   PaginationQueryDto,
 } from '../common/dto/pagination-query.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+
+type ScheduleWindowItem = {
+  id: string;
+  title: string;
+  day: string;
+  time: string;
+  dateLabel: string;
+  room: string;
+  teacher: string;
+  duration: string;
+  note?: string;
+  status: 'done' | 'next' | 'planned';
+  sessionId?: string;
+};
 
 const COURSE_STATUS_API = {
   ACTIVE: 'active',
@@ -117,12 +136,30 @@ export class CatalogService {
       }),
     ]);
 
+    const progressRows = await this.prisma.sessionProgress.findMany({
+      where: {
+        userId,
+        sessionId: { in: rows.map((r) => r.id) },
+      },
+    });
+    const progressBySession = new Map(
+      progressRows.map((p) => [p.sessionId, p]),
+    );
+
     return {
       data: {
         course: await this.mapCourseWithProgress(course),
-        sessions: rows.map((session) =>
-          this.mapSession(session, session._count.slides),
-        ),
+        sessions: rows.map((session) => {
+          const progress = progressBySession.get(session.id);
+          const slideCount = session._count.slides;
+          const percent =
+            progress && slideCount > 0
+              ? Math.round(
+                  ((progress.lastSlideIndex + 1) / slideCount) * 100,
+                )
+              : 0;
+          return this.mapSession(session, slideCount, percent);
+        }),
       },
       meta: buildPaginationMeta(total, query.page, query.limit),
     };
@@ -190,11 +227,16 @@ export class CatalogService {
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findPrimaryCourse(userId);
 
+    const courseMeta = {
+      teacher: course.teacher,
+      day: course.day,
+      time: course.timeShort,
+      room: course.room,
+      duration: course.duration,
+    };
+
     const [lessons, sessions, mapped] = await Promise.all([
-      this.prisma.scheduleLesson.findMany({
-        where: { courseId: course.id },
-        orderBy: { sortOrder: 'asc' },
-      }),
+      this.buildFullScheduleFromSessions(course.id, courseMeta),
       this.prisma.courseSession.findMany({
         where: { courseId: course.id },
         orderBy: { number: 'asc' },
@@ -211,21 +253,7 @@ export class CatalogService {
 
     return {
       course: mapped,
-      lessons: lessons.map((lesson) => ({
-        id: lesson.id,
-        title: lesson.title,
-        course: course.title,
-        teacher: lesson.teacher,
-        day: lesson.day,
-        dateLabel: lesson.dateLabel,
-        time: lesson.time,
-        room: lesson.room,
-        type: lesson.type.toLowerCase(),
-        duration: lesson.duration,
-        note: lesson.note ?? undefined,
-        status: LESSON_STATUS_API[lesson.status],
-        sessionId: lesson.sessionId ?? undefined,
-      })),
+      lessons,
       sessions: sessions.map((s) => ({
         id: s.id,
         number: s.number,
@@ -265,18 +293,23 @@ export class CatalogService {
         })
       : [];
 
-    const schedule = primaryEnrollment
-      ? await this.prisma.scheduleLesson.findMany({
-          where: { courseId: primaryEnrollment.courseId },
-          orderBy: { sortOrder: 'asc' },
-          take: 5,
+    const scheduleWindow = primaryEnrollment
+      ? await this.buildScheduleWindow(primaryEnrollment.courseId, {
+          teacher: primaryEnrollment.course.teacher,
+          day: primaryEnrollment.course.day,
+          time: primaryEnrollment.course.timeShort,
+          room: primaryEnrollment.course.room,
+          duration: primaryEnrollment.course.duration,
         })
       : [];
 
-    const firstSession = primaryEnrollment
+    const currentSession = primaryEnrollment
       ? await this.prisma.courseSession.findFirst({
-          where: { courseId: primaryEnrollment.courseId },
-          orderBy: { number: 'asc' },
+          where: {
+            courseId: primaryEnrollment.courseId,
+            status: SessionStatus.AVAILABLE,
+          },
+          orderBy: { number: 'desc' },
           include: { _count: { select: { slides: true } } },
         })
       : null;
@@ -289,8 +322,12 @@ export class CatalogService {
           )
         : 0;
 
+    const lastHeld =
+      scheduleWindow.find((l) => l.status === 'done') ?? null;
     const nextLesson =
-      schedule.find((l) => l.status === LessonStatus.NEXT) ?? schedule[0];
+      scheduleWindow.find((l) => l.status === 'next') ??
+      scheduleWindow.find((l) => l.status === 'planned') ??
+      null;
 
     return {
       student: {
@@ -337,21 +374,33 @@ export class CatalogService {
             title: nextLesson.title,
             day: nextLesson.day,
             time: nextLesson.time,
-            status: LESSON_STATUS_API[nextLesson.status],
+            dateLabel: nextLesson.dateLabel,
+            status: nextLesson.status,
           }
         : null,
-      currentSession: firstSession
-        ? this.mapSession(firstSession, firstSession._count.slides)
+      lastLesson: lastHeld
+        ? {
+            id: lastHeld.id,
+            title: lastHeld.title,
+            day: lastHeld.day,
+            time: lastHeld.time,
+            dateLabel: lastHeld.dateLabel,
+            status: lastHeld.status,
+          }
         : null,
-      schedulePreview: schedule.map((lesson) => ({
+      currentSession: currentSession
+        ? this.mapSession(currentSession, currentSession._count.slides)
+        : null,
+      schedulePreview: scheduleWindow.map((lesson) => ({
         id: lesson.id,
         title: lesson.title,
         day: lesson.day,
         time: lesson.time,
-        status: LESSON_STATUS_API[lesson.status],
+        dateLabel: lesson.dateLabel,
+        status: lesson.status,
       })),
       practiceTips: tips.map((tip) => tip.text),
-      slideCount: firstSession?._count.slides ?? 0,
+      slideCount: currentSession?._count.slides ?? 0,
     };
   }
 
@@ -382,6 +431,9 @@ export class CatalogService {
         studentCode: user.studentCode,
         level: user.level ?? 'پایه',
         avatarUrl: user.avatarUrl,
+        phone: user.phone,
+        nationalId: user.nationalId,
+        address: user.address,
         programTitle: primary?.title ?? 'هنرجوی اتود',
         attendanceRate: '۱۰۰٪',
         totalHours: toPersianDigits(sessionsDone),
@@ -403,6 +455,74 @@ export class CatalogService {
         desc: item.achievement.description,
       })),
     };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const existing = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+
+    const firstName = dto.firstName
+      ? normalizeName(dto.firstName)
+      : existing.firstName;
+    const lastName = dto.lastName
+      ? normalizeName(dto.lastName)
+      : existing.lastName;
+
+    if (dto.firstName || dto.lastName) {
+      const duplicate = await this.prisma.user.findFirst({
+        where: {
+          firstName,
+          lastName,
+          NOT: { id: userId },
+        },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          'کاربر دیگری با این نام و نام خانوادگی وجود دارد.',
+        );
+      }
+    }
+
+    const passwordData = dto.password
+      ? {
+          passwordHash: await argon2.hash(dto.password),
+          passwordPlain: dto.password,
+        }
+      : {};
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName || dto.lastName
+          ? {
+              firstName,
+              lastName,
+              displayName: `${firstName} ${lastName}`,
+            }
+          : {}),
+        ...(dto.level !== undefined ? { level: dto.level.trim() || null } : {}),
+        ...(dto.phone !== undefined
+          ? { phone: dto.phone.trim() || null }
+          : {}),
+        ...(dto.nationalId !== undefined
+          ? { nationalId: dto.nationalId.trim() || null }
+          : {}),
+        ...(dto.address !== undefined
+          ? { address: dto.address.trim() || null }
+          : {}),
+        ...passwordData,
+      },
+    });
+
+    if (dto.password) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+
+    return this.getProfile(userId);
   }
 
   async getCertificate(userId: string, courseId?: string) {
@@ -429,6 +549,206 @@ export class CatalogService {
       data: { avatarUrl },
     });
     return existing.avatarUrl;
+  }
+
+  async updateSessionProgress(
+    userId: string,
+    idOrNumber: string,
+    lastSlideIndex: number,
+    courseId?: string,
+  ) {
+    const course = courseId
+      ? await this.findEnrolledCourse(userId, courseId)
+      : await this.findCourseForSession(userId, idOrNumber);
+    const session = await this.findSession(course.id, idOrNumber);
+
+    if (session.status !== SessionStatus.AVAILABLE) {
+      throw new NotFoundException('این جلسه هنوز برای ثبت پیشرفت فعال نیست.');
+    }
+
+    const slideCount = await this.prisma.slide.count({
+      where: { sessionId: session.id },
+    });
+    const clamped = Math.max(
+      0,
+      Math.min(lastSlideIndex, Math.max(slideCount - 1, 0)),
+    );
+    const completed =
+      slideCount > 0 && clamped >= slideCount - 1 ? new Date() : null;
+
+    const progress = await this.prisma.sessionProgress.upsert({
+      where: {
+        userId_sessionId: { userId, sessionId: session.id },
+      },
+      create: {
+        userId,
+        sessionId: session.id,
+        lastSlideIndex: clamped,
+        completedAt: completed,
+      },
+      update: {
+        lastSlideIndex: clamped,
+        ...(completed ? { completedAt: completed } : {}),
+      },
+    });
+
+    const percent =
+      slideCount > 0
+        ? Math.round(((progress.lastSlideIndex + 1) / slideCount) * 100)
+        : 0;
+
+    return {
+      sessionId: String(session.number),
+      lastSlideIndex: progress.lastSlideIndex,
+      slideCount,
+      progressPercent: percent,
+      completedAt: progress.completedAt,
+    };
+  }
+
+  async getSessionProgress(
+    userId: string,
+    idOrNumber: string,
+    courseId?: string,
+  ) {
+    const course = courseId
+      ? await this.findEnrolledCourse(userId, courseId)
+      : await this.findCourseForSession(userId, idOrNumber);
+    const session = await this.findSession(course.id, idOrNumber);
+    const slideCount = await this.prisma.slide.count({
+      where: { sessionId: session.id },
+    });
+    const row = await this.prisma.sessionProgress.findUnique({
+      where: {
+        userId_sessionId: { userId, sessionId: session.id },
+      },
+    });
+    const lastSlideIndex = row?.lastSlideIndex ?? 0;
+    const percent =
+      slideCount > 0
+        ? Math.round(((lastSlideIndex + 1) / slideCount) * 100)
+        : 0;
+    return {
+      sessionId: String(session.number),
+      lastSlideIndex,
+      slideCount,
+      progressPercent: row ? percent : 0,
+      completedAt: row?.completedAt ?? null,
+    };
+  }
+
+  /**
+   * Sliding window from CourseSessions: last AVAILABLE + next upcoming.
+   * Falls back to ScheduleLesson metadata for title/date when present.
+   */
+  private async buildScheduleWindow(
+    courseId: string,
+    courseMeta: {
+      teacher: string;
+      day: string;
+      time: string;
+      room: string;
+      duration: string;
+    },
+  ): Promise<ScheduleWindowItem[]> {
+    const all = await this.buildFullScheduleFromSessions(courseId, courseMeta);
+    if (all.length === 0) return [];
+
+    let lastDoneIdx = -1;
+    for (let i = 0; i < all.length; i += 1) {
+      if (all[i].status === 'done') lastDoneIdx = i;
+    }
+    const nextIdx = all.findIndex((l) => l.status === 'next');
+
+    if (lastDoneIdx >= 0 && nextIdx >= 0) {
+      return [all[lastDoneIdx], all[nextIdx]];
+    }
+    if (lastDoneIdx >= 0) {
+      const following = all[lastDoneIdx + 1];
+      return following ? [all[lastDoneIdx], following] : [all[lastDoneIdx]];
+    }
+    if (nextIdx >= 0) {
+      const following = all[nextIdx + 1];
+      return following ? [all[nextIdx], following] : [all[nextIdx]];
+    }
+    return all.slice(0, 2);
+  }
+
+  private async buildFullScheduleFromSessions(
+    courseId: string,
+    courseMeta: {
+      teacher: string;
+      day: string;
+      time: string;
+      room: string;
+      duration: string;
+    },
+  ): Promise<ScheduleWindowItem[]> {
+    const [sessions, lessons] = await Promise.all([
+      this.prisma.courseSession.findMany({
+        where: { courseId },
+        orderBy: { number: 'asc' },
+      }),
+      this.prisma.scheduleLesson.findMany({
+        where: { courseId },
+        orderBy: { sortOrder: 'asc' },
+      }),
+    ]);
+
+    let lastAvailableNumber = 0;
+    for (const session of sessions) {
+      if (session.status === SessionStatus.AVAILABLE) {
+        lastAvailableNumber = Math.max(lastAvailableNumber, session.number);
+      }
+    }
+
+    return sessions.map((session, index) => {
+      const linked =
+        lessons.find((l) => l.sessionId === session.id) ??
+        lessons.find((l) => l.sortOrder === session.number) ??
+        lessons[index];
+
+      let status: 'done' | 'next' | 'planned' = 'planned';
+      if (session.number <= lastAvailableNumber) {
+        status = 'done';
+      } else if (session.number === lastAvailableNumber + 1) {
+        status = 'next';
+      } else if (lastAvailableNumber === 0 && session.number === 1) {
+        status = 'next';
+      }
+
+      const title =
+        linked?.title ||
+        (session.title
+          ? `جلسۀ ${toPersianDigits(session.number)} — ${session.title}`
+          : `جلسۀ ${toPersianDigits(session.number)}`);
+
+      const dateLabel =
+        linked?.dateLabel && linked.dateLabel !== 'جلسهٔ بعدی'
+          ? linked.dateLabel
+          : session.dateLabel && session.dateLabel !== 'قفل'
+            ? session.dateLabel
+            : '—';
+
+      return {
+        id: linked?.id ?? session.id,
+        title,
+        day: linked?.day ?? courseMeta.day,
+        time: linked?.time ?? courseMeta.time,
+        dateLabel,
+        room: linked?.room ?? courseMeta.room,
+        teacher: linked?.teacher ?? courseMeta.teacher,
+        duration: linked?.duration ?? courseMeta.duration,
+        note:
+          status === 'done'
+            ? linked?.note ?? 'برگزار شده · اسلایدها آماده است'
+            : status === 'next'
+              ? 'جلسه بعدی'
+              : 'برنامه آینده',
+        status,
+        sessionId: session.id,
+      };
+    });
   }
 
   private async findPrimaryCourse(userId: string) {
@@ -582,6 +902,7 @@ export class CatalogService {
       dateLabel: string;
     },
     slideCount: number,
+    progressPercent = 0,
   ) {
     return {
       id: String(session.number),
@@ -594,6 +915,7 @@ export class CatalogService {
       slideCount,
       durationLabel: session.durationLabel,
       dateLabel: session.dateLabel,
+      progressPercent,
     };
   }
 }

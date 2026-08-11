@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s | ETUDE",
   },
   description:
-    "پنل هنرجویی آموزشگاه موسیقی اتود — دوره‌ها، جلسات، برنامه کلاس و پروفایل",
+    "پنل هنرجویی آکادمی تخصصی پیانو اتود — دوره‌ها، جلسات، برنامه کلاس و پروفایل",
   applicationName: "ETUDE Panel",
   icons: {
     icon: [

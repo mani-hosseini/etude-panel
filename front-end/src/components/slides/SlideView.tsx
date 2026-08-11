@@ -121,7 +121,7 @@ function CoverSlide({ slide }: { slide: Slide }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logo}
-              alt="لوگوی آموزشگاه اتود"
+              alt="لوگوی آکادمی تخصصی پیانو اتود"
               className="relative size-12 rounded-full object-cover ring-1 ring-[#0056d2]/55 sm:size-14"
             />
           </div>
@@ -241,7 +241,7 @@ function OutroSlide({ slide }: { slide: Slide }) {
             />
             <div>
               <div className="font-display text-[12px] font-bold text-white sm:text-[13px]">
-                آموزشگاه موسیقی اتود
+                آکادمی تخصصی پیانو اتود
               </div>
               <div className="text-[10px] text-white/70">
                 Masterclass · Session 01

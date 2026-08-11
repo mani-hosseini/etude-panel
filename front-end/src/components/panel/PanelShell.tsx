@@ -96,13 +96,21 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                 </div>
               </div>
               {nextLesson || primary ? (
-                <div className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
-                  <span className="size-1.5 animate-pulse rounded-full bg-brand" />
-                  {nextLesson
-                    ? `جلسه بعدی: ${nextLesson.day} ${nextLesson.time}`
-                    : primary
-                      ? `کلاس: ${weekdayPlural(primary.day)} ${primary.timeShort}`
-                      : null}
+                <div className="hidden max-w-[min(100%,22rem)] items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
+                  <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
+                  <span className="truncate">
+                    {nextLesson
+                      ? `جلسه بعدی: ${nextLesson.day} ${nextLesson.time}${
+                          nextLesson.dateLabel &&
+                          nextLesson.dateLabel !== "—" &&
+                          nextLesson.dateLabel !== "قفل"
+                            ? ` · ${nextLesson.dateLabel}`
+                            : ""
+                        }`
+                      : primary
+                        ? `کلاس: ${weekdayPlural(primary.day)} ${primary.timeShort}`
+                        : null}
+                  </span>
                 </div>
               ) : null}
             </div>

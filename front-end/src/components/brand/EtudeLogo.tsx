@@ -8,12 +8,15 @@ type EtudeLogoProps = {
   size?: number;
   className?: string;
   priority?: boolean;
+  /** Soft brand-colored edge glow around the logo silhouette */
+  glow?: boolean;
 };
 
 export function EtudeLogo({
   size = 96,
   className,
   priority = false,
+  glow = false,
 }: EtudeLogoProps) {
   return (
     <Image
@@ -23,7 +26,11 @@ export function EtudeLogo({
       height={size}
       priority={priority}
       sizes={`${size}px`}
-      className={cn("select-none object-contain bg-transparent", className)}
+      className={cn(
+        "select-none object-contain bg-transparent",
+        glow && "logo-edge-glow",
+        className,
+      )}
     />
   );
 }
