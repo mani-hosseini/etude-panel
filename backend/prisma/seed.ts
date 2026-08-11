@@ -56,17 +56,17 @@ async function main() {
   const theory = await prisma.course.create({
     data: {
       slug: 'theory-basics',
-      title: 'تئوری موسیقی — سطح پایه',
+      title: 'مستر کلاس تئوری موسیقی',
       subtitle: 'حامل، کلید سل، ارزش زمانی و میزان‌های ساده',
       instrument: 'تئوری',
       teacher: 'استاد بهرام دهقانیار',
       teacherShort: 'بهرام دهقانیار',
-      day: 'پنجشنبه',
+      day: 'پنج‌شنبه',
       time: '۱۱ تا ۱۳',
       timeShort: '۱۱ تا ۱۳',
       duration: '۱۲۰ دقیقه',
       room: 'سالن اصلی اتود',
-      level: 'پایه',
+      level: '',
       focus: 'حامل، کلید سل، ارزش زمانی و میزان‌های ساده',
       sessionsTotal: 10,
       weeklyHours: 2,
@@ -159,7 +159,7 @@ async function main() {
           number === 1
             ? '۱۴۰۵/۰۵/۱۵'
             : number === 2
-              ? 'پنجشنبهٔ بعد'
+              ? 'پنج‌شنبهٔ بعد'
               : 'قفل',
       },
     });
@@ -308,7 +308,7 @@ async function main() {
 
   console.log('Seed completed:');
   console.log(`  Admin: ${adminEmail}`);
-  console.log(`  Default course for new students: ${theory.slug} (${theory.teacher})`);
+  console.log(`  Master class course (admin grants access): ${theory.slug} (${theory.teacher})`);
   console.log(`  No demo student — register from frontend`);
   console.log(`  Theory slides: ${session1Slides.length}`);
 }
