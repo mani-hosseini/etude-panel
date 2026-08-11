@@ -23,7 +23,7 @@ import {
   queryErrorMessage,
   useScheduleQuery,
 } from "@/lib/api/queries";
-import { toFa } from "@/lib/format";
+import { cleanCourseTitle, toFa, weekdayPlural } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -72,13 +72,14 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
   const { course, lessons, sessions } = query.data;
   const progressPct = course.progress;
   const remaining = course.sessionsTotal - course.sessionsDone;
+  const courseTitle = cleanCourseTitle(course.title);
 
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
       <PageHeader
         eyebrow="برنامه کلاس‌ها"
-        title={course.title}
-        description={`${course.teacher} · ${course.day}ها ${course.time}`}
+        title={courseTitle}
+        description={`${course.teacher} · ${weekdayPlural(course.day)} ${course.time}`}
       />
 
       <motion.section
@@ -117,7 +118,7 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
       </motion.section>
 
       <section className="surface-panel p-5 sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-base font-bold">پیشرفت جلسات</h3>
           <p className="font-sans text-xs tabular-nums text-muted-foreground">
             {toFa(course.sessionsDone)} از {toFa(course.sessionsTotal)} جلسه
@@ -125,15 +126,17 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
           </p>
         </div>
         <Progress value={progressPct} className="mb-4" />
-        <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {sessions.map((session) => {
             const done = session.number <= course.sessionsDone;
             const next = session.number === course.sessionsDone + 1;
+            const hasDate =
+              Boolean(session.dateLabel) && session.dateLabel !== "—";
             return (
               <div
                 key={session.id}
                 className={cn(
-                  "flex aspect-square items-center justify-center rounded-xl font-sans text-xs font-bold tabular-nums",
+                  "flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-center",
                   done && "bg-success text-white",
                   next && "bg-brand text-white",
                   !done && !next && "bg-muted text-muted-foreground",
@@ -142,14 +145,32 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
                 {done ? (
                   <CheckCircle2 className="size-4" />
                 ) : next ? (
-                  toFa(session.number)
+                  <span className="font-sans text-sm font-bold tabular-nums">
+                    {toFa(session.number)}
+                  </span>
                 ) : (
                   <Lock className="size-3.5 opacity-60" />
                 )}
+                <span className="text-[10px] font-medium leading-tight opacity-90">
+                  جلسه {toFa(session.number)}
+                </span>
+                {hasDate ? (
+                  <span
+                    className={cn(
+                      "font-sans text-[10px] tabular-nums",
+                      done || next ? "text-white/85" : "text-muted-foreground",
+                    )}
+                  >
+                    {toFa(session.dateLabel!)}
+                  </span>
+                ) : null}
               </div>
             );
           })}
         </div>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          تاریخ هر جلسه از پنل ادمین (جلسات دوره) تنظیم می‌شود.
+        </p>
       </section>
 
       <section className="space-y-3">

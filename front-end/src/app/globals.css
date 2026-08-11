@@ -96,16 +96,6 @@
       linear-gradient(165deg, #f8faff 0%, #eef2f9 48%, #f3f5f9 100%);
   }
 
-  .staff-lines {
-    background-image: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 27px,
-      rgba(11, 26, 61, 0.045) 27px,
-      rgba(11, 26, 61, 0.045) 28px
-    );
-  }
-
   .surface-panel {
     @apply rounded-3xl border border-border/90 bg-card shadow-soft;
   }

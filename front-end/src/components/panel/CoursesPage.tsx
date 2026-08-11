@@ -23,7 +23,7 @@ import {
   queryErrorMessage,
   useCoursesQuery,
 } from "@/lib/api/queries";
-import { toFa } from "@/lib/format";
+import { cleanCourseTitle, toFa } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -158,12 +158,19 @@ export function CoursesPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-navy">{course.title}</h3>
+                    <h3 className="text-lg font-bold text-navy">
+                      {cleanCourseTitle(course.title)}
+                    </h3>
                     <Badge variant={meta.variant}>{meta.label}</Badge>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {course.subtitle}
-                  </p>
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold text-brand">
+                      خلاصه سرفصل‌ها
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {course.subtitle || course.focus}
+                    </p>
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       <UserRound className="size-3.5" />
@@ -177,9 +184,13 @@ export function CoursesPage() {
                       <Clock3 className="size-3.5" />
                       {toFa(course.weeklyHours)} ساعت/هفته
                     </span>
-                    <span className="rounded-md bg-brand-50 px-2 py-0.5 text-brand-700">
-                      {course.instrument} · {course.level}
-                    </span>
+                    {course.instrument || course.level ? (
+                      <span className="rounded-md bg-brand-50 px-2 py-0.5 text-brand-700">
+                        {[course.instrument, course.level]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="w-full shrink-0 lg:w-56">
@@ -192,7 +203,7 @@ export function CoursesPage() {
                   <Progress value={course.progress} />
                   <p className="mt-2 text-[11px] text-muted-foreground">
                     {toFa(course.sessionsDone)} از {toFa(course.sessionsTotal)}{" "}
-                    جلسه · تمرکز: {course.focus}
+                    جلسه
                   </p>
                   <Link
                     href={routes.courseSessions(course.id)}

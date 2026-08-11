@@ -9,12 +9,14 @@ import { motion, useReducedMotion } from "motion/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { AvatarPicker } from "@/components/auth/AvatarPicker";
+import { StaffBackdrop } from "@/components/auth/StaffBackdrop";
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
-import { PianoKeysBar } from "@/components/brand/PianoKeysBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { copy } from "@/constants/copy";
+import { api } from "@/lib/api/client";
 import {
   getServerSession,
   getSession,
@@ -62,10 +64,12 @@ export function RegisterForm() {
   );
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -78,6 +82,9 @@ export function RegisterForm() {
       confirmPassword: "",
     },
   });
+
+  const firstName = watch("firstName");
+  const avatarInitial = firstName.trim().charAt(0) || "ه";
 
   useEffect(() => {
     if (existingSession) router.replace("/dashboard");
@@ -95,20 +102,31 @@ export function RegisterForm() {
       setAuthError(result.message || copy.register.error);
       return;
     }
+    if (avatarFile) {
+      try {
+        await api.uploadAvatar(avatarFile);
+      } catch {
+        /* ثبت‌نام موفق بود؛ آپلود عکس بعداً از پروفایل ممکن است */
+      }
+    }
     router.push("/dashboard");
   };
 
   if (existingSession) {
     return (
-      <div className="flex min-h-dvh items-center justify-center login-atmosphere">
-        <EtudeLogo size={88} priority />
+      <div className="relative flex min-h-dvh items-center justify-center overflow-hidden">
+        <StaffBackdrop />
+        <div className="relative z-10">
+          <EtudeLogo size={88} priority />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-dvh overflow-hidden login-atmosphere staff-lines">
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-6xl flex-col items-center justify-center px-4 py-10 lg:flex-row lg:gap-16 lg:px-8">
+    <div className="relative min-h-dvh overflow-hidden">
+      <StaffBackdrop />
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col items-center justify-center px-4 py-10 lg:flex-row lg:gap-16 lg:px-8">
         <motion.aside
           className="mb-10 flex w-full max-w-md flex-col items-center text-center lg:mb-0"
           initial={reduceMotion ? false : { opacity: 0, y: 24 }}
@@ -116,10 +134,13 @@ export function RegisterForm() {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
           <EtudeLogo size={148} priority className="mb-6 drop-shadow-sm" />
-          <p className="font-display text-3xl font-bold tracking-[0.08em] text-brand lowercase md:text-4xl">
+          <p className="font-display text-4xl font-bold tracking-[0.06em] text-brand md:text-5xl lg:text-6xl">
             {copy.brandFull}
           </p>
-          <p className="mt-3 text-lg font-medium text-brand-700">{copy.tagline}</p>
+          <p className="mt-2 font-display text-sm font-medium tracking-[0.22em] text-brand-600 uppercase md:text-base">
+            {copy.brandSlogan}
+          </p>
+          <p className="mt-4 text-lg font-medium text-brand-700">{copy.tagline}</p>
           <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
             {copy.brandBlurb}
           </p>
@@ -138,9 +159,7 @@ export function RegisterForm() {
           transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 p-7 shadow-[0_30px_80px_-40px_rgba(0,54,196,0.45)] backdrop-blur-md sm:p-9">
-            <PianoKeysBar className="absolute inset-x-0 top-0 h-1.5 rounded-none" />
-
-            <div className="mb-7 pt-2">
+            <div className="mb-7">
               <h1 className="text-2xl font-bold text-foreground">
                 {copy.register.title}
               </h1>
@@ -150,6 +169,13 @@ export function RegisterForm() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <AvatarPicker
+                value={avatarFile}
+                onChange={setAvatarFile}
+                fallbackInitial={avatarInitial}
+                disabled={isSubmitting}
+              />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">{copy.register.firstName}</Label>

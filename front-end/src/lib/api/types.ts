@@ -70,6 +70,7 @@ export type DashboardPayload = {
     displayName: string;
     studentCode: string | null;
     level: string | null;
+    avatarUrl: string | null;
   };
   courses: CourseCard[];
   primaryCourse: CourseCard | null;
@@ -101,7 +102,13 @@ export type SessionsPayload = {
 export type SchedulePayload = {
   course: CourseCard;
   lessons: ScheduleLesson[];
-  sessions: Array<{ id: string; number: number; status: SessionStatus }>;
+  sessions: Array<{
+    id: string;
+    number: number;
+    status: SessionStatus;
+    title?: string;
+    dateLabel?: string;
+  }>;
 };
 
 export type ProfilePayload = {
@@ -112,6 +119,7 @@ export type ProfilePayload = {
     displayName: string;
     studentCode: string | null;
     level: string;
+    avatarUrl: string | null;
     programTitle: string;
     attendanceRate: string;
     totalHours: string;

@@ -19,7 +19,8 @@ import {
   queryErrorMessage,
   useDashboardQuery,
 } from "@/lib/api/queries";
-import { toFa } from "@/lib/format";
+import { resolveMediaUrl } from "@/lib/api/http";
+import { toFa, weekdayPlural, cleanCourseTitle } from "@/lib/format";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -72,16 +73,29 @@ export function DashboardHome() {
         />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm text-white/70">{copy.dashboard.welcome}</p>
-            <h2 className="mt-1 text-2xl font-bold sm:text-3xl">
-              {session.displayName}
-            </h2>
-            <p className="mt-2 text-sm text-white/80">
-              {data.primaryCourse
-                ? `${data.primaryCourse.title} · ${data.primaryCourse.teacher}`
-                : "هنرجوی اتود"}
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-2xl font-bold text-brand shadow-md sm:size-20 sm:text-3xl">
+              {resolveMediaUrl(data.student.avatarUrl) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={resolveMediaUrl(data.student.avatarUrl)!}
+                  alt={session.displayName}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <span>{session.firstName.charAt(0) || "ه"}</span>
+              )}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold sm:text-3xl">
+                {session.displayName} عزیز خوش آمدید!
+              </h2>
+              <p className="mt-2 text-sm text-white/80">
+                {data.primaryCourse
+                  ? `${cleanCourseTitle(data.primaryCourse.title)} · ${data.primaryCourse.teacher}`
+                  : "هنرجوی اتود"}
+              </p>
+            </div>
           </div>
           {nextLesson ? (
             <div className="rounded-2xl bg-white/12 px-4 py-3 backdrop-blur-sm">
@@ -138,7 +152,7 @@ export function DashboardHome() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-semibold text-foreground">
-                        {course.title}
+                        {cleanCourseTitle(course.title)}
                       </h4>
                       <Badge
                         variant={
@@ -157,7 +171,8 @@ export function DashboardHome() {
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {course.teacher} · {course.day}ها {course.timeShort}
+                      {course.teacher} · {weekdayPlural(course.day)}{" "}
+                      {course.timeShort}
                     </p>
                   </div>
                   <span className="shrink-0 font-sans text-sm font-bold tabular-nums text-brand">

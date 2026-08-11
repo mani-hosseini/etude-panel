@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Plus, Search, Settings2 } from "lucide-react";
 
+import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
+import { AdminCreateUserForm } from "@/components/admin/AdminCreateUserForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +18,7 @@ import {
 } from "@/lib/api/admin-queries";
 import { ApiError } from "@/lib/api/http";
 import { toFa } from "@/lib/format";
+import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 type RoleFilter = "ALL" | "STUDENT" | "ADMIN";
@@ -25,6 +29,8 @@ export function AdminUsersPage() {
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<RoleFilter>("STUDENT");
+  const [showCreate, setShowCreate] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
@@ -46,6 +52,20 @@ export function AdminUsersPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
+    },
+  });
+
+  const removeUser = useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
+    onSuccess: async () => {
+      setDeleteError(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
+    },
+    onError: (err) => {
+      setDeleteError(
+        err instanceof ApiError ? err.message : "حذف کاربر ناموفق بود.",
+      );
     },
   });
 
@@ -80,13 +100,29 @@ export function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-medium text-brand">مدیریت</p>
-        <h2 className="mt-1 text-2xl font-bold text-slate-900">کاربران</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          هنرجویان و مدیران ثبت‌شده در سیستم.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-medium text-brand">مدیریت</p>
+          <h2 className="mt-1 text-2xl font-bold text-slate-900">کاربران</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            افزودن هنرجو، حذف و مدیریت دسترسی به دوره‌ها.
+          </p>
+        </div>
+        {role !== "ADMIN" ? (
+          <Button
+            type="button"
+            className="rounded-xl"
+            onClick={() => setShowCreate((v) => !v)}
+          >
+            <Plus className="size-4" />
+            هنرجوی جدید
+          </Button>
+        ) : null}
       </div>
+
+      {showCreate ? (
+        <AdminCreateUserForm onClose={() => setShowCreate(false)} />
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap gap-2">
@@ -137,7 +173,7 @@ export function AdminUsersPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-right font-semibold">نام</th>
@@ -180,16 +216,36 @@ export function AdminUsersPage() {
                     {user.role === "ADMIN" ? (
                       <span className="text-xs text-slate-400">—</span>
                     ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl"
-                        disabled={toggleActive.isPending}
-                        onClick={() => toggleActive.mutate(user)}
-                      >
-                        {user.isActive ? "غیرفعال کردن" : "فعال کردن"}
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl"
+                          asChild
+                        >
+                          <Link href={adminRoutes.user(user.id)}>
+                            <Settings2 className="size-3.5" />
+                            دسترسی
+                          </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl"
+                          disabled={toggleActive.isPending}
+                          onClick={() => toggleActive.mutate(user)}
+                        >
+                          {user.isActive ? "غیرفعال" : "فعال"}
+                        </Button>
+                        <AdminConfirmDelete
+                          title="حذف هنرجو"
+                          description={`آیا از حذف «${user.displayName}» مطمئن هستید؟`}
+                          disabled={removeUser.isPending}
+                          onConfirm={() => removeUser.mutate(user.id)}
+                        />
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -246,6 +302,9 @@ export function AdminUsersPage() {
             ? toggleActive.error.message
             : "عملیات ناموفق بود."}
         </p>
+      ) : null}
+      {deleteError ? (
+        <p className="text-sm text-rose-600">{deleteError}</p>
       ) : null}
     </div>
   );

@@ -11,6 +11,7 @@ import {
 export const adminQueryKeys = {
   stats: ["admin", "users-stats"] as const,
   users: (params: ListUsersParams) => ["admin", "users", params] as const,
+  user: (id: string) => ["admin", "user", id] as const,
   courses: (params: ListCoursesParams) =>
     ["admin", "courses", params] as const,
   course: (id: string) => ["admin", "course", id] as const,
@@ -31,6 +32,14 @@ export function useAdminUsersQuery(params: ListUsersParams) {
   return useQuery({
     queryKey: adminQueryKeys.users(params),
     queryFn: () => adminApi.users(params),
+  });
+}
+
+export function useAdminUserQuery(id: string) {
+  return useQuery({
+    queryKey: adminQueryKeys.user(id),
+    queryFn: () => adminApi.user(id),
+    enabled: Boolean(id),
   });
 }
 

@@ -19,7 +19,7 @@ import {
   queryErrorMessage,
   useSessionsQuery,
 } from "@/lib/api/queries";
-import { toFa } from "@/lib/format";
+import { toFa, weekdayPlural, cleanCourseTitle } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -93,9 +93,11 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs text-white/70">{course.subtitle}</p>
-            <h3 className="mt-1 text-xl font-bold sm:text-2xl">{course.title}</h3>
+            <h3 className="mt-1 text-xl font-bold sm:text-2xl">
+              {cleanCourseTitle(course.title)}
+            </h3>
             <p className="mt-2 text-sm text-white/80">
-              {course.day}ها · {course.time} · {course.room}
+              {weekdayPlural(course.day)} · {course.time} · {course.room}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
