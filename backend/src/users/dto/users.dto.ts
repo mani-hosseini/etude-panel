@@ -69,6 +69,31 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(32)
   studentCode?: string;
+
+  @ApiPropertyOptional({ example: '09121234567' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+
+  @ApiPropertyOptional({ example: '0012345678' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  nationalId?: string;
+
+  @ApiPropertyOptional({ example: 'تهران، خیابان ولیعصر' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'رمز عبور جدید' })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password?: string;
 }
 
 export class ResetPasswordDto {

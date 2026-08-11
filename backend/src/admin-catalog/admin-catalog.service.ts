@@ -241,6 +241,7 @@ export class AdminCatalogService {
         include: { _count: { select: { slides: true } } },
       });
       await this.syncSessionsTotal(courseId);
+      await this.syncScheduleFromSessions(courseId);
       return this.mapSession(session);
     } catch (error) {
       if (
@@ -275,6 +276,11 @@ export class AdminCatalogService {
         },
         include: { _count: { select: { slides: true } } },
       });
+
+      if (dto.status !== undefined) {
+        await this.syncScheduleFromSessions(existing.courseId);
+      }
+
       return this.mapSession(session);
     } catch (error) {
       if (
@@ -534,6 +540,53 @@ export class AdminCatalogService {
       where: { id: courseId },
       data: { sessionsTotal: count },
     });
+  }
+
+  /**
+   * Keep ScheduleLesson statuses in sync with CourseSession unlock state:
+   * AVAILABLE → DONE, first after last available → NEXT, rest PLANNED.
+   */
+  private async syncScheduleFromSessions(courseId: string) {
+    const sessions = await this.prisma.courseSession.findMany({
+      where: { courseId },
+      orderBy: { number: 'asc' },
+      select: { id: true, number: true, status: true },
+    });
+    if (sessions.length === 0) return;
+
+    let lastAvailableNumber = 0;
+    for (const session of sessions) {
+      if (session.status === SessionStatus.AVAILABLE) {
+        lastAvailableNumber = Math.max(lastAvailableNumber, session.number);
+      }
+    }
+
+    const lessons = await this.prisma.scheduleLesson.findMany({
+      where: { courseId },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    for (let i = 0; i < lessons.length; i += 1) {
+      const lesson = lessons[i];
+      const linked = lesson.sessionId
+        ? sessions.find((s) => s.id === lesson.sessionId)
+        : sessions[i];
+      const number = linked?.number ?? i + 1;
+
+      let status: LessonStatus = LessonStatus.PLANNED;
+      if (number <= lastAvailableNumber) {
+        status = LessonStatus.DONE;
+      } else if (number === lastAvailableNumber + 1) {
+        status = LessonStatus.NEXT;
+      }
+
+      if (lesson.status !== status) {
+        await this.prisma.scheduleLesson.update({
+          where: { id: lesson.id },
+          data: { status },
+        });
+      }
+    }
   }
 
   private async ensureCourse(id: string) {

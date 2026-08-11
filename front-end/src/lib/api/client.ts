@@ -109,6 +109,51 @@ export const api = {
     ),
   profile: () => studentHttp.requestData<ProfilePayload>("/profile"),
 
+  updateProfile: (body: {
+    firstName?: string;
+    lastName?: string;
+    level?: string;
+    phone?: string;
+    nationalId?: string;
+    address?: string;
+    password?: string;
+  }) =>
+    studentHttp.requestData<ProfilePayload>("/profile", {
+      method: "PATCH",
+      body,
+    }),
+
+  sessionProgress: (id: string, courseId?: string) =>
+    studentHttp.requestData<{
+      sessionId: string;
+      lastSlideIndex: number;
+      slideCount: number;
+      progressPercent: number;
+      completedAt: string | null;
+    }>(
+      courseId
+        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(courseId)}`
+        : `/sessions/${id}/progress`,
+    ),
+
+  updateSessionProgress: (
+    id: string,
+    lastSlideIndex: number,
+    courseId?: string,
+  ) =>
+    studentHttp.requestData<{
+      sessionId: string;
+      lastSlideIndex: number;
+      slideCount: number;
+      progressPercent: number;
+      completedAt: string | null;
+    }>(
+      courseId
+        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(courseId)}`
+        : `/sessions/${id}/progress`,
+      { method: "PATCH", body: { lastSlideIndex } },
+    ),
+
   uploadAvatar: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);

@@ -14,7 +14,7 @@ import {
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { copy } from "@/constants/copy";
 import { useDashboardQuery } from "@/lib/api/queries";
-import { resolveMediaUrl } from "@/lib/api/http";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { logoutWithApi } from "@/lib/auth";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -41,8 +41,7 @@ export function PanelSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const dashboard = useDashboardQuery();
-  const avatarUrl = resolveMediaUrl(dashboard.data?.student.avatarUrl);
-  const initial = studentName.trim().charAt(0) || "ه";
+  const avatarUrl = resolveAvatarUrl(dashboard.data?.student.avatarUrl);
 
   const logout = () => {
     void logoutWithApi().then(() => {
@@ -92,16 +91,12 @@ export function PanelSidebar({
       <div className="border-t border-white/10 p-4">
         <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/8 px-3 py-2.5 ring-1 ring-white/10">
           <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-sm font-bold text-brand">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt={studentName}
-                className="size-full object-cover"
-              />
-            ) : (
-              <span>{initial}</span>
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={avatarUrl}
+              alt={studentName}
+              className="size-full object-cover"
+            />
           </div>
           <div className="min-w-0">
             <p className="text-[11px] text-white/55">هنرجو</p>

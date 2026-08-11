@@ -5,7 +5,8 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
-import { ApiError, resolveMediaUrl } from "@/lib/api/http";
+import { ApiError } from "@/lib/api/http";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 1 * 1024 * 1024;
@@ -28,7 +29,7 @@ export function AvatarUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const preview = resolveMediaUrl(avatarUrl);
+  const preview = resolveAvatarUrl(avatarUrl);
 
   const onPick = async (file: File | undefined) => {
     if (!file) return;
@@ -75,16 +76,12 @@ export function AvatarUpload({
             sizeClassName,
           )}
         >
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={preview}
-              alt="عکس پروفایل"
-              className="size-full object-cover"
-            />
-          ) : (
-            <span>{fallbackInitial}</span>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={preview}
+            alt="عکس پروفایل"
+            className="size-full object-cover"
+          />
         </div>
         <input
           ref={inputRef}

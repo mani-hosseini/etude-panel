@@ -49,6 +49,7 @@ async function main() {
       displayName: 'مدیر سیستم',
       email: adminEmail,
       passwordHash: adminHash,
+      passwordPlain: adminPassword,
       role: Role.ADMIN,
     },
   });
@@ -72,7 +73,7 @@ async function main() {
       weeklyHours: 2,
       status: CourseStatus.ACTIVE,
       certificateReady: false,
-      accessNote: 'مخصوص هنرجویان ثبت‌نام‌شده آموزشگاه اتود',
+      accessNote: 'مخصوص هنرجویان ثبت‌نام‌شده آکادمی تخصصی پیانو اتود',
       sortOrder: 1,
       isActive: true,
     },
@@ -159,8 +160,10 @@ async function main() {
           number === 1
             ? '۱۴۰۵/۰۵/۱۵'
             : number === 2
-              ? 'پنج‌شنبهٔ بعد'
-              : 'قفل',
+              ? '۱۴۰۵/۰۵/۲۹'
+              : number === 3
+                ? '۱۴۰۵/۰۶/۱۲'
+                : 'قفل',
       },
     });
     theorySessions.push(session);
@@ -186,35 +189,49 @@ async function main() {
   });
 
   await prisma.scheduleLesson.createMany({
+    data: theorySessions.map((session, index) => {
+      const number = index + 1;
+      const dateLabels = [
+        '۱۴۰۵/۰۵/۱۵',
+        '۱۴۰۵/۰۵/۲۹',
+        '۱۴۰۵/۰۶/۱۲',
+        '۱۴۰۵/۰۶/۲۶',
+        '۱۴۰۵/۰۷/۱۰',
+        '۱۴۰۵/۰۷/۲۴',
+        '۱۴۰۵/۰۸/۰۸',
+        '۱۴۰۵/۰۸/۲۲',
+        '۱۴۰۵/۰۹/۰۶',
+        '۱۴۰۵/۰۹/۲۰',
+      ];
+      const status =
+        number === 1 ? 'DONE' : number === 2 ? 'NEXT' : 'PLANNED';
+      return {
+        courseId: theory.id,
+        sessionId: session.id,
+        title:
+          number === 1
+            ? 'جلسهٔ اول — پایه‌های نت‌خوانی و ریتم'
+            : `جلسهٔ ${['', 'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم', 'نهم', 'دهم'][number]}`,
+        teacher: theory.teacher,
+        day: theory.day,
+        dateLabel: dateLabels[index] ?? `جلسه ${number}`,
+        time: theory.time,
+        room: theory.room,
+        duration: theory.duration,
+        note:
+          status === 'DONE'
+            ? 'برگزار شده · اسلایدها آماده است'
+            : status === 'NEXT'
+              ? 'جلسه بعدی'
+              : 'برنامه آینده',
+        status,
+        sortOrder: number,
+      };
+    }),
+  });
+
+  await prisma.scheduleLesson.createMany({
     data: [
-      {
-        courseId: theory.id,
-        sessionId: theorySessions[0]!.id,
-        title: 'جلسهٔ اول — پایه‌های نت‌خوانی و ریتم',
-        teacher: theory.teacher,
-        day: theory.day,
-        dateLabel: '۱۴۰۵/۰۵/۱۵',
-        time: theory.time,
-        room: theory.room,
-        duration: theory.duration,
-        note: 'برگزار شده · اسلایدها آماده است',
-        status: 'DONE',
-        sortOrder: 1,
-      },
-      {
-        courseId: theory.id,
-        sessionId: theorySessions[1]!.id,
-        title: 'جلسهٔ دوم',
-        teacher: theory.teacher,
-        day: theory.day,
-        dateLabel: 'جلسهٔ بعدی',
-        time: theory.time,
-        room: theory.room,
-        duration: theory.duration,
-        note: 'محتوا پس از برگزاری جلسه فعال می‌شود',
-        status: 'NEXT',
-        sortOrder: 2,
-      },
       {
         courseId: piano.id,
         title: 'پیانو — تمرین دست راست',
@@ -291,7 +308,7 @@ async function main() {
       {
         code: 'joined',
         title: 'عضویت در اتود',
-        description: 'ثبت‌نام در پنل هنرجویی آموزشگاه موسیقی اتود',
+        description: 'ثبت‌نام در پنل هنرجویی آکادمی تخصصی پیانو اتود',
       },
       {
         code: 'a2',

@@ -59,6 +59,8 @@ export function SessionPlayView({
       mode="fullscreen"
       slides={toDeckSlides(slidesQuery.data.slides)}
       sessionLabel={`جلسه ${toFa(sessionQuery.data.number)}`}
+      sessionId={sessionId}
+      courseId={resolvedCourseId}
       backHref={
         resolvedCourseId
           ? routes.courseSession(resolvedCourseId, sessionId)

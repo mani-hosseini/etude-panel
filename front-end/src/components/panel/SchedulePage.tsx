@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  Award,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Lock,
   MapPin,
-  Presentation,
   UserRound,
 } from "lucide-react";
 
@@ -24,6 +22,7 @@ import {
   useScheduleQuery,
 } from "@/lib/api/queries";
 import { cleanCourseTitle, toFa, weekdayPlural } from "@/lib/format";
+import { pickScheduleWindow, scheduleLessonLabel } from "@/lib/schedule-window";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +53,11 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
     router.replace(routes.courseSchedule(query.data.course.id));
   }, [courseId, queryCourseId, query.isSuccess, query.data, router]);
 
+  const windowLessons = useMemo(
+    () => (query.data ? pickScheduleWindow(query.data.lessons) : []),
+    [query.data],
+  );
+
   if (!courseId && (queryCourseId || query.isSuccess)) {
     return <Skeleton className="h-64 rounded-3xl" />;
   }
@@ -69,7 +73,7 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
     );
   }
 
-  const { course, lessons, sessions } = query.data;
+  const { course, sessions } = query.data;
   const progressPct = course.progress;
   const remaining = course.sessionsTotal - course.sessionsDone;
   const courseTitle = cleanCourseTitle(course.title);
@@ -175,13 +179,15 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
 
       <section className="space-y-3">
         <h3 className="text-base font-bold">زمان‌بندی</h3>
-        {lessons.map((lesson) => {
+        {windowLessons.map((lesson) => {
           const badge = statusBadge[lesson.status];
           return (
             <article key={lesson.id} className="surface-panel p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="font-bold text-navy">{lesson.title}</h4>
-                <Badge variant={badge.variant}>{badge.label}</Badge>
+                <Badge variant={badge.variant}>
+                  {badge.label || scheduleLessonLabel(lesson.status)}
+                </Badge>
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
@@ -207,36 +213,6 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
             </article>
           );
         })}
-      </section>
-
-      <section className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex items-start gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand">
-            <Award className="size-4" />
-          </span>
-          <div>
-            <h3 className="text-sm font-bold">مدرک پایان دوره</h3>
-            <p className="mt-1 text-xs leading-6 text-muted-foreground">
-              با تکمیل همهٔ جلسات این دوره، مدرک از همین بخش قابل دریافت است.
-            </p>
-            <p className="mt-1 font-sans text-xs font-semibold tabular-nums text-navy">
-              {toFa(course.sessionsDone)}/{toFa(course.sessionsTotal)}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          disabled={!course.certificateReady}
-          className={cn(
-            "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold",
-            course.certificateReady
-              ? "bg-brand text-white"
-              : "cursor-not-allowed bg-muted text-muted-foreground",
-          )}
-        >
-          <Presentation className="size-4" />
-          {course.certificateReady ? "دریافت مدرک" : "هنوز آماده نیست"}
-        </button>
       </section>
 
       <Link

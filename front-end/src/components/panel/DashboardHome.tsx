@@ -19,11 +19,11 @@ import {
   queryErrorMessage,
   useDashboardQuery,
 } from "@/lib/api/queries";
-import { resolveMediaUrl } from "@/lib/api/http";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { toFa, weekdayPlural, cleanCourseTitle } from "@/lib/format";
+import { scheduleLessonLabel } from "@/lib/schedule-window";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { routes } from "@/lib/routes";
-import { cn } from "@/lib/utils";
 
 export function DashboardHome() {
   const reduceMotion = useReducedMotion();
@@ -75,16 +75,12 @@ export function DashboardHome() {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-2xl font-bold text-brand shadow-md sm:size-20 sm:text-3xl">
-              {resolveMediaUrl(data.student.avatarUrl) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={resolveMediaUrl(data.student.avatarUrl)!}
-                  alt={session.displayName}
-                  className="size-full object-cover"
-                />
-              ) : (
-                <span>{session.firstName.charAt(0) || "ه"}</span>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={resolveAvatarUrl(data.student.avatarUrl)}
+                alt={session.displayName}
+                className="size-full object-cover"
+              />
             </div>
             <div>
               <h2 className="text-2xl font-bold sm:text-3xl">
@@ -106,6 +102,11 @@ export function DashboardHome() {
               <p className="mt-1 text-base font-semibold">{nextLesson.title}</p>
               <p className="text-sm text-white/80">
                 {nextLesson.day} · {nextLesson.time}
+                {nextLesson.dateLabel &&
+                nextLesson.dateLabel !== "—" &&
+                nextLesson.dateLabel !== "قفل"
+                  ? ` · ${toFa(nextLesson.dateLabel)}`
+                  : ""}
               </p>
             </div>
           ) : null}
@@ -130,7 +131,7 @@ export function DashboardHome() {
             <div>
               <h3 className="text-base font-bold">{copy.dashboard.myCourses}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                همه دوره‌های ثبت‌شده شما در آموزشگاه اتود
+                همه دوره‌های ثبت‌شده شما در {copy.academyName}
               </p>
             </div>
             <Link
@@ -241,14 +242,21 @@ export function DashboardHome() {
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {lesson.day} · {lesson.time}
+                      {lesson.dateLabel && lesson.dateLabel !== "—"
+                        ? ` · ${toFa(lesson.dateLabel)}`
+                        : ""}
                     </p>
                     <Badge
                       className="mt-1"
                       variant={
-                        lesson.status === "done" ? "success" : "default"
+                        lesson.status === "done"
+                          ? "success"
+                          : lesson.status === "next"
+                            ? "default"
+                            : "secondary"
                       }
                     >
-                      {lesson.status === "done" ? "برگزار شده" : "جلسه بعدی"}
+                      {scheduleLessonLabel(lesson.status)}
                     </Badge>
                   </div>
                 </li>

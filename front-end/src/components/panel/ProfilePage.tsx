@@ -1,28 +1,194 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
-import { Award, BadgeCheck, Music2 } from "lucide-react";
+import { Award, BadgeCheck, Music2, Save } from "lucide-react";
 
 import { AvatarUpload } from "@/components/panel/AvatarUpload";
 import { PageHeader } from "@/components/panel/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { copy } from "@/constants/copy";
 import { useStudentSession } from "@/hooks/useStudentSession";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/http";
+import type { ProfilePayload } from "@/lib/api/types";
 import {
   queryErrorMessage,
   queryKeys,
   useProfileQuery,
 } from "@/lib/api/queries";
+import { saveSession } from "@/lib/auth";
 import { toFa } from "@/lib/format";
+
+function ProfileEditForm({
+  student,
+  loggedInAt,
+}: {
+  student: ProfilePayload["student"];
+  loggedInAt: string;
+}) {
+  const queryClient = useQueryClient();
+  const [firstName, setFirstName] = useState(student.firstName);
+  const [lastName, setLastName] = useState(student.lastName);
+  const [level, setLevel] = useState(student.level);
+  const [phone, setPhone] = useState(student.phone ?? "");
+  const [nationalId, setNationalId] = useState(student.nationalId ?? "");
+  const [address, setAddress] = useState(student.address ?? "");
+  const [password, setPassword] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        level: level.trim() || undefined,
+        phone: phone.trim(),
+        nationalId: nationalId.trim(),
+        address: address.trim(),
+        ...(password.trim() ? { password: password.trim() } : {}),
+      }),
+    onSuccess: async (data) => {
+      setFormError(null);
+      setFormSuccess("اطلاعات با موفقیت ذخیره شد.");
+      setPassword("");
+      saveSession({
+        firstName: data.student.firstName,
+        lastName: data.student.lastName,
+        displayName: data.student.displayName,
+        loggedInAt,
+        studentCode: data.student.studentCode,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+      ]);
+    },
+    onError: (err) => {
+      setFormSuccess(null);
+      setFormError(
+        err instanceof ApiError ? err.message : "ذخیره اطلاعات ناموفق بود.",
+      );
+    },
+  });
+
+  return (
+    <section className="surface-panel overflow-hidden">
+      <div className="border-b border-border px-5 py-4 sm:px-6">
+        <h3 className="text-base font-bold">ویرایش اطلاعات</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          نام، سطح و در صورت نیاز رمز عبور خود را به‌روز کنید
+        </p>
+      </div>
+      <form
+        className="space-y-4 p-5 sm:p-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFormSuccess(null);
+          setFormError(null);
+          save.mutate();
+        }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-firstName">نام</Label>
+            <Input
+              id="profile-firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="rounded-xl"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-lastName">نام خانوادگی</Label>
+            <Input
+              id="profile-lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="rounded-xl"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-level">سطح</Label>
+            <Input
+              id="profile-level"
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-phone">شماره تلفن</Label>
+            <Input
+              id="profile-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="rounded-xl"
+              placeholder="0912…"
+              dir="ltr"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-nationalId">کد ملی</Label>
+            <Input
+              id="profile-nationalId"
+              value={nationalId}
+              onChange={(e) => setNationalId(e.target.value)}
+              className="rounded-xl"
+              placeholder="001…"
+              dir="ltr"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="profile-address">آدرس</Label>
+            <Input
+              id="profile-address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="rounded-xl"
+              placeholder="شهر، خیابان، پلاک…"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="profile-password">رمز عبور جدید</Label>
+            <Input
+              id="profile-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-xl"
+              placeholder="خالی بگذارید اگر نمی‌خواهید عوض شود"
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        {formError ? (
+          <p className="text-sm text-destructive">{formError}</p>
+        ) : null}
+        {formSuccess ? (
+          <p className="text-sm text-emerald-600">{formSuccess}</p>
+        ) : null}
+        <Button type="submit" className="rounded-xl" disabled={save.isPending}>
+          <Save className="size-4" />
+          {save.isPending ? "در حال ذخیره…" : "ذخیره تغییرات"}
+        </Button>
+      </form>
+    </section>
+  );
+}
 
 export function ProfilePage() {
   const reduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const session = useStudentSession();
   const query = useProfileQuery();
-  const fullName = session.displayName;
-  const firstName = session.firstName;
-  const initial = firstName.charAt(0) || "ه";
 
   if (query.isPending) {
     return <Skeleton className="h-64 rounded-3xl" />;
@@ -37,18 +203,8 @@ export function ProfilePage() {
   }
 
   const { student, primaryCourse, achievements, courses } = query.data;
-  const learningFields = [
-    { label: "دوره فعال", value: student.programTitle },
-    {
-      label: "مدرس",
-      value: primaryCourse?.teacher ?? "—",
-    },
-    { label: "سطح", value: student.level },
-    {
-      label: "زمان کلاس",
-      value: primaryCourse ? `${primaryCourse.timeShort}` : "—",
-    },
-  ] as const;
+  const fullName = student.displayName;
+  const initial = student.firstName.charAt(0) || "ه";
 
   const invalidateAvatar = async () => {
     await Promise.all([
@@ -62,7 +218,7 @@ export function ProfilePage() {
       <PageHeader
         eyebrow="هنرجوی اتود"
         title="پروفایل هنرجو"
-        description="اطلاعات شما و دوره‌های ثبت‌شده در آموزشگاه موسیقی اتود."
+        description={`اطلاعات شما و دوره‌های ثبت‌شده در ${copy.academyName}.`}
       />
 
       <motion.section
@@ -127,15 +283,32 @@ export function ProfilePage() {
         </div>
       </motion.section>
 
+      <ProfileEditForm
+        key={`${student.id}-${student.displayName}-${student.level}`}
+        student={student}
+        loggedInAt={session.loggedInAt}
+      />
+
       <section className="surface-panel overflow-hidden">
         <div className="border-b border-border px-5 py-4 sm:px-6">
           <h3 className="text-base font-bold">مسیر یادگیری</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            وضعیت فعلی شما در دوره‌های آموزشگاه
+            وضعیت فعلی شما در دوره‌های {copy.academyName}
           </p>
         </div>
         <dl className="grid sm:grid-cols-2">
-          {learningFields.map((field) => (
+          {[
+            { label: "دوره فعال", value: student.programTitle },
+            {
+              label: "مدرس",
+              value: primaryCourse?.teacher ?? "—",
+            },
+            { label: "سطح", value: student.level },
+            {
+              label: "زمان کلاس",
+              value: primaryCourse ? `${primaryCourse.timeShort}` : "—",
+            },
+          ].map((field) => (
             <div
               key={field.label}
               className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5 last:border-b-0 sm:px-6 sm:odd:border-l"

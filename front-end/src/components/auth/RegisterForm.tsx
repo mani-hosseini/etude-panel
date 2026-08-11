@@ -117,7 +117,7 @@ export function RegisterForm() {
       <div className="relative flex min-h-dvh items-center justify-center overflow-hidden">
         <StaffBackdrop />
         <div className="relative z-10">
-          <EtudeLogo size={88} priority />
+          <EtudeLogo size={88} priority glow />
         </div>
       </div>
     );
@@ -133,7 +133,7 @@ export function RegisterForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
-          <EtudeLogo size={148} priority className="mb-6 drop-shadow-sm" />
+          <EtudeLogo size={148} priority glow className="mb-6" />
           <p className="font-display text-4xl font-bold tracking-[0.06em] text-brand md:text-5xl lg:text-6xl">
             {copy.brandFull}
           </p>
