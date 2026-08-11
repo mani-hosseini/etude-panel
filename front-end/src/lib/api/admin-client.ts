@@ -4,6 +4,7 @@ import { adminHttp } from "@/lib/api/admin-tokens";
 export type AdminUserEnrollment = {
   id: string;
   joinedAt: string;
+  viewProgress?: number;
   course: {
     id: string;
     uuid: string;
@@ -42,11 +43,15 @@ export type AdminUser = {
   role: AdminRole;
   studentCode: string | null;
   level: string | null;
+  phone: string | null;
+  nationalId: string | null;
+  address: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   enrollmentsCount: number;
   achievementsCount: number;
+  avgViewProgress: number;
 };
 
 export type AdminUsersStats = {
@@ -188,7 +193,7 @@ export type UpsertCourseBody = {
   timeShort: string;
   duration: string;
   room: string;
-  level: string;
+  level?: string;
   focus: string;
   sessionsTotal: number;
   weeklyHours?: number;
@@ -288,6 +293,12 @@ export const adminApi = {
   deleteUser: (id: string) =>
     adminHttp.requestData<{ deleted: boolean }>(`/users/${id}`, {
       method: "DELETE",
+    }),
+
+  resetUserPassword: (id: string, password: string) =>
+    adminHttp.requestData<{ reset: boolean }>(`/users/${id}/reset-password`, {
+      method: "POST",
+      body: { password },
     }),
 
   enrollUser: (userId: string, courseId: string) =>

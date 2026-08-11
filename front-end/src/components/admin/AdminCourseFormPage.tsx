@@ -39,7 +39,7 @@ const emptyForm: UpsertCourseBody = {
   timeShort: "۱۰:۰۰",
   duration: "۹۰ دقیقه",
   room: "کلاس آنلاین",
-  level: "مقدماتی",
+  level: "",
   focus: "",
   sessionsTotal: 12,
   weeklyHours: 2,
@@ -199,12 +199,12 @@ export function AdminCourseFormPage({ courseId }: Props) {
               className="rounded-xl"
             />
           </Field>
-          <Field label="سطح">
+          <Field label="سطح (اختیاری)">
             <Input
-              required
               value={form.level}
               onChange={(e) => set("level")(e.target.value)}
               className="rounded-xl"
+              placeholder="مثلاً مقدماتی — می‌تواند خالی بماند"
             />
           </Field>
           <Field label="استاد">

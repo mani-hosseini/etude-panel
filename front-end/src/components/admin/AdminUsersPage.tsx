@@ -10,6 +10,7 @@ import { AdminCreateUserForm } from "@/components/admin/AdminCreateUserForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
 import {
@@ -180,6 +181,7 @@ export function AdminUsersPage() {
                 <th className="px-4 py-3 text-right font-semibold">نقش</th>
                 <th className="px-4 py-3 text-right font-semibold">کد / ایمیل</th>
                 <th className="px-4 py-3 text-right font-semibold">دوره‌ها</th>
+                <th className="px-4 py-3 text-right font-semibold">میانگین پیشرفت</th>
                 <th className="px-4 py-3 text-right font-semibold">وضعیت</th>
                 <th className="px-4 py-3 text-right font-semibold">عملیات</th>
               </tr>
@@ -206,6 +208,24 @@ export function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 font-sans tabular-nums">
                     {toFa(user.enrollmentsCount)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.role === "STUDENT" ? (
+                      <div className="min-w-28 space-y-1">
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                          <span>جلسات</span>
+                          <span className="font-sans font-semibold tabular-nums text-slate-700">
+                            {toFa(user.avgViewProgress ?? 0)}٪
+                          </span>
+                        </div>
+                        <Progress
+                          value={user.avgViewProgress ?? 0}
+                          className="h-1.5"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={user.isActive ? "success" : "warning"}>
@@ -253,7 +273,7 @@ export function AdminUsersPage() {
               {users.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-12 text-center text-slate-500"
                   >
                     کاربری پیدا نشد.

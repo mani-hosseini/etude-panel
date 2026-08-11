@@ -49,6 +49,7 @@ export function useSessionsQuery(courseId?: string) {
   return useQuery({
     queryKey: queryKeys.sessions(courseId),
     queryFn: () => api.sessions(courseId),
+    refetchOnMount: "always",
   });
 }
 

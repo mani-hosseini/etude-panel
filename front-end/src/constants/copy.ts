@@ -1,14 +1,15 @@
 export const copy = {
   brand: "ETUDE",
-  brandFull: "Etude Academy",
+  brandFull: "ETUDE ACADEMY",
   brandSlogan: "Excellence in Life",
   brandFa: "اتود",
+  academyName: "آکادمی تخصصی پیانو اتود",
   tagline: "پنل هنرجویی آکادمی تخصصی پیانو اتود",
   brandBlurb:
     "در این پنل هنرجویان و علاقه‌مندان به موسیقی می‌توانند به دوره‌های آموزشی، اسلایدهای مسترکلاس، فیلم‌های آموزشی و نت‌های پیانو دسترسی پیدا کنند.",
   passwordHint: "حداقل ۸ کاراکتر، شامل حروف و اعداد",
   copyright:
-    "© ۱۴۰۵ Etude Academy — تمامی حقوق برای آکادمی تخصصی پیانو اتود محفوظ است.",
+    "© ۱۴۰۵ ETUDE ACADEMY — تمامی حقوق برای آکادمی تخصصی پیانو اتود محفوظ است.",
   login: {
     title: "ورود به پنل هنرجویی",
     subtitle: "نام و نام خانوادگی فارسی خود را وارد کنید",

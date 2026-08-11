@@ -6,6 +6,8 @@ import { ArrowRight, Maximize2, X } from "lucide-react";
 
 import { SlideView } from "@/components/slides/SlideView";
 import { useDeck } from "@/components/slides/useDeck";
+import { Progress } from "@/components/ui/progress";
+import { useSlideProgressSync } from "@/hooks/useSlideProgressSync";
 import { toFa } from "@/lib/format";
 import { slides as defaultSlides, type Slide } from "@/lib/session-1-slides";
 import { cn } from "@/lib/utils";
@@ -71,6 +73,10 @@ type SlideDeckProps = {
   slides?: Slide[];
   sessionLabel?: string;
   playHref?: string;
+  sessionId?: string;
+  courseId?: string;
+  initialIndex?: number;
+  progressTracking?: boolean;
 };
 
 export function SlideDeck({
@@ -80,11 +86,24 @@ export function SlideDeck({
   slides = defaultSlides,
   sessionLabel = "جلسهٔ اول",
   playHref = "/dashboard/sessions/1/play",
+  sessionId,
+  courseId,
+  initialIndex = 0,
+  progressTracking = false,
 }: SlideDeckProps) {
   const total = slides.length;
-  const { index, direction, next, prev, goTo } = useDeck(total);
+  const { index, direction, next, prev, goTo } = useDeck(total, initialIndex);
   const slide = slides[index]!;
   const progress = total > 0 ? ((index + 1) / total) * 100 : 0;
+
+  useSlideProgressSync({
+    sessionId: sessionId ?? "",
+    courseId,
+    slideIndex: index,
+    total,
+    enabled: progressTracking && Boolean(sessionId) && total > 0,
+  });
+
   const label =
     slide.kind === "visual"
       ? `${slide.title} · تصویر`
@@ -142,10 +161,21 @@ export function SlideDeck({
               </p>
             </div>
           </div>
-          <div className="font-sans flex items-baseline gap-2 rounded-full border border-white/8 bg-white/3 px-3 py-1.5 text-sm font-bold tabular-nums">
-            <span>{toFa(String(index + 1).padStart(2, "0"))}</span>
-            <span className="text-white/15">/</span>
-            <span className="text-[#8ba0c0]">{toFa(total)}</span>
+          <div className="flex items-center gap-2">
+            <div className="hidden w-28 sm:block">
+              <Progress
+                value={progress}
+                className="h-1.5 bg-white/10 [&>div]:bg-linear-to-l [&>div]:from-[#3b84ff] [&>div]:to-[#0056d2]"
+              />
+            </div>
+            <div className="font-sans flex items-baseline gap-2 rounded-full border border-white/8 bg-white/3 px-3 py-1.5 text-sm font-bold tabular-nums">
+              <span>{toFa(String(index + 1).padStart(2, "0"))}</span>
+              <span className="text-white/15">/</span>
+              <span className="text-[#8ba0c0]">{toFa(total)}</span>
+              <span className="ms-1 text-[10px] font-semibold text-[#8ba0c0]">
+                {toFa(Math.round(progress))}٪
+              </span>
+            </div>
           </div>
         </div>
         <div className="h-px w-full overflow-hidden bg-white/5">

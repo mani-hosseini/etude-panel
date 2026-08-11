@@ -204,6 +204,10 @@ export function SessionDetailPage({
           mode="embedded"
           slides={slides}
           sessionLabel={`جلسه ${toFa(session.number)}`}
+          sessionId={session.id}
+          courseId={pathCourseId}
+          initialIndex={slidesQuery.data?.progress?.lastSlideIndex ?? 0}
+          progressTracking
           playHref={
             pathCourseId
               ? routes.courseSessionPlay(pathCourseId, session.id)

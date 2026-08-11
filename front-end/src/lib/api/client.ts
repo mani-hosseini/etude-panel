@@ -94,13 +94,40 @@ export const api = {
     studentHttp.requestData<{
       sessionId: string;
       total: number;
-      slides: ApiSlide[];
       courseTitle?: string;
+      progress?: {
+        lastSlideIndex: number;
+        viewProgress: number;
+        viewed: boolean;
+        completedAt: string | null;
+      };
+      slides: ApiSlide[];
     }>(
       courseId
         ? `/sessions/${id}/slides?courseId=${encodeURIComponent(courseId)}`
         : `/sessions/${id}/slides`,
     ),
+
+  updateSessionProgress: (
+    id: string,
+    lastSlideIndex: number,
+    courseId?: string,
+  ) =>
+    studentHttp.requestData<{
+      lastSlideIndex: number;
+      viewProgress: number;
+      viewed: boolean;
+      completedAt: string | null;
+    }>(
+      courseId
+        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(courseId)}`
+        : `/sessions/${id}/progress`,
+      {
+        method: "PUT",
+        body: { lastSlideIndex },
+      },
+    ),
+
   schedule: (courseId?: string) =>
     studentHttp.requestData<SchedulePayload>(
       courseId
@@ -108,6 +135,29 @@ export const api = {
         : "/schedule",
     ),
   profile: () => studentHttp.requestData<ProfilePayload>("/profile"),
+
+  updateProfile: (body: {
+    firstName?: string;
+    lastName?: string;
+    level?: string;
+    phone?: string;
+    nationalId?: string;
+    address?: string;
+    password?: string;
+    confirmPassword?: string;
+  }) =>
+    studentHttp.requestData<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      displayName: string;
+      level: string | null;
+      studentCode: string | null;
+      avatarUrl: string | null;
+      phone: string | null;
+      nationalId: string | null;
+      address: string | null;
+    }>("/profile", { method: "PATCH", body }),
 
   uploadAvatar: (file: File) => {
     const formData = new FormData();

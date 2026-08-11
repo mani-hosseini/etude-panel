@@ -4,10 +4,23 @@ import { useCallback, useEffect, useState } from "react";
 
 import { TOTAL_SLIDES } from "@/lib/session-1-slides";
 
-export function useDeck(total = TOTAL_SLIDES) {
-  const [index, setIndex] = useState(0);
+export function useDeck(total = TOTAL_SLIDES, initialIndex = 0) {
+  const start = Math.max(0, Math.min(initialIndex, Math.max(total - 1, 0)));
+  const [index, setIndex] = useState(start);
   const [direction, setDirection] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (hydrated || total <= 0) return;
+    if (initialIndex <= 0) {
+      setHydrated(true);
+      return;
+    }
+    const clamped = Math.max(0, Math.min(initialIndex, total - 1));
+    setIndex(clamped);
+    setHydrated(true);
+  }, [initialIndex, total, hydrated]);
 
   const goTo = useCallback(
     (next: number, dir?: number) => {

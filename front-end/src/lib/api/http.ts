@@ -19,6 +19,13 @@ export function resolveMediaUrl(
   return null;
 }
 
+/** Avatar URL with default placeholder when user has no photo. */
+export function resolveAvatarUrl(
+  pathOrId: string | null | undefined,
+): string {
+  return resolveMediaUrl(pathOrId) ?? "/default-avatar.png";
+}
+
 export type ApiErrorPayload = {
   success: false;
   error: {

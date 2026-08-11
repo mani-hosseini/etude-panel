@@ -1,19 +1,27 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
-import { Award, BadgeCheck, Music2 } from "lucide-react";
+import { Award, BadgeCheck, Music2, Save } from "lucide-react";
 
 import { AvatarUpload } from "@/components/panel/AvatarUpload";
 import { PageHeader } from "@/components/panel/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { copy } from "@/constants/copy";
 import { useStudentSession } from "@/hooks/useStudentSession";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/http";
 import {
   queryErrorMessage,
   queryKeys,
   useProfileQuery,
 } from "@/lib/api/queries";
-import { toFa } from "@/lib/format";
+import { saveSession } from "@/lib/auth";
+import { toFa, cleanCourseTitle } from "@/lib/format";
 
 export function ProfilePage() {
   const reduceMotion = useReducedMotion();
@@ -23,6 +31,65 @@ export function ProfilePage() {
   const fullName = session.displayName;
   const firstName = session.firstName;
   const initial = firstName.charAt(0) || "ه";
+
+  const [firstNameDraft, setFirstNameDraft] = useState("");
+  const [lastNameDraft, setLastNameDraft] = useState("");
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [nationalIdDraft, setNationalIdDraft] = useState("");
+  const [addressDraft, setAddressDraft] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!query.data) return;
+    setFirstNameDraft(query.data.student.firstName);
+    setLastNameDraft(query.data.student.lastName);
+    setPhoneDraft(query.data.student.phone ?? "");
+    setNationalIdDraft(query.data.student.nationalId ?? "");
+    setAddressDraft(query.data.student.address ?? "");
+  }, [query.data]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.updateProfile({
+        firstName: firstNameDraft.trim(),
+        lastName: lastNameDraft.trim(),
+        phone: phoneDraft.trim(),
+        nationalId: nationalIdDraft.trim(),
+        address: addressDraft.trim(),
+        password: password || undefined,
+        confirmPassword: password ? confirmPassword : undefined,
+      }),
+    onSuccess: async (result) => {
+      setFormError(null);
+      setFormSuccess(
+        password
+          ? "اطلاعات ذخیره شد. لطفاً دوباره وارد شوید."
+          : "اطلاعات پروفایل ذخیره شد.",
+      );
+      setPassword("");
+      setConfirmPassword("");
+      saveSession({
+        firstName: result.firstName,
+        lastName: result.lastName,
+        displayName: result.displayName,
+        loggedInAt: session.loggedInAt,
+        studentCode: result.studentCode,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+      ]);
+    },
+    onError: (err) => {
+      setFormSuccess(null);
+      setFormError(
+        err instanceof ApiError ? err.message : "ذخیره اطلاعات ناموفق بود.",
+      );
+    },
+  });
 
   if (query.isPending) {
     return <Skeleton className="h-64 rounded-3xl" />;
@@ -38,12 +105,14 @@ export function ProfilePage() {
 
   const { student, primaryCourse, achievements, courses } = query.data;
   const learningFields = [
-    { label: "دوره فعال", value: student.programTitle },
+    {
+      label: "دوره فعال",
+      value: cleanCourseTitle(student.programTitle),
+    },
     {
       label: "مدرس",
       value: primaryCourse?.teacher ?? "—",
     },
-    { label: "سطح", value: student.level },
     {
       label: "زمان کلاس",
       value: primaryCourse ? `${primaryCourse.timeShort}` : "—",
@@ -57,12 +126,23 @@ export function ProfilePage() {
     ]);
   };
 
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
+    if (password && password !== confirmPassword) {
+      setFormError("تکرار رمز عبور مطابقت ندارد.");
+      return;
+    }
+    save.mutate();
+  };
+
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
       <PageHeader
         eyebrow="هنرجوی اتود"
         title="پروفایل هنرجو"
-        description="اطلاعات شما و دوره‌های ثبت‌شده در آموزشگاه موسیقی اتود."
+        description={`اطلاعات شما و دوره‌های ثبت‌شده در ${copy.academyName}.`}
       />
 
       <motion.section
@@ -98,7 +178,7 @@ export function ProfilePage() {
             <div className="text-center sm:text-right">
               <h3 className="text-2xl font-bold sm:text-3xl">{fullName}</h3>
               <p className="mt-1.5 text-sm text-white/80">
-                {student.programTitle} · سطح {student.level}
+                {cleanCourseTitle(student.programTitle)}
               </p>
               <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-xs text-white/85">
                 <Music2 className="size-3.5" strokeWidth={1.75} />
@@ -127,11 +207,115 @@ export function ProfilePage() {
         </div>
       </motion.section>
 
+      <section className="surface-panel p-5 sm:p-6">
+        <h3 className="text-base font-bold">ویرایش اطلاعات</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          مشخصات تماس و در صورت نیاز رمز عبور خود را به‌روز کنید.
+        </p>
+        <form onSubmit={onSubmit} className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-firstName">نام</Label>
+            <Input
+              id="profile-firstName"
+              value={firstNameDraft}
+              onChange={(e) => setFirstNameDraft(e.target.value)}
+              className="rounded-xl"
+              required
+              minLength={2}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-lastName">نام خانوادگی</Label>
+            <Input
+              id="profile-lastName"
+              value={lastNameDraft}
+              onChange={(e) => setLastNameDraft(e.target.value)}
+              className="rounded-xl"
+              required
+              minLength={2}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-phone">شماره تلفن</Label>
+            <Input
+              id="profile-phone"
+              value={phoneDraft}
+              onChange={(e) => setPhoneDraft(e.target.value)}
+              className="rounded-xl"
+              inputMode="tel"
+              placeholder="09121234567"
+              dir="ltr"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-nationalId">کد ملی</Label>
+            <Input
+              id="profile-nationalId"
+              value={nationalIdDraft}
+              onChange={(e) => setNationalIdDraft(e.target.value)}
+              className="rounded-xl"
+              inputMode="numeric"
+              placeholder="۱۰ رقم"
+              dir="ltr"
+              maxLength={10}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="profile-address">آدرس</Label>
+            <Input
+              id="profile-address"
+              value={addressDraft}
+              onChange={(e) => setAddressDraft(e.target.value)}
+              className="rounded-xl"
+              placeholder="شهر، خیابان، پلاک…"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-password">رمز عبور جدید (اختیاری)</Label>
+            <Input
+              id="profile-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-xl"
+              minLength={8}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-confirm">تکرار رمز جدید</Label>
+            <Input
+              id="profile-confirm"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="rounded-xl"
+              minLength={8}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Button
+              type="submit"
+              className="rounded-xl"
+              disabled={save.isPending}
+            >
+              <Save className="size-4" />
+              {save.isPending ? "در حال ذخیره…" : "ذخیره تغییرات"}
+            </Button>
+          </div>
+        </form>
+        {formError ? (
+          <p className="mt-3 text-sm text-rose-600">{formError}</p>
+        ) : null}
+        {formSuccess ? (
+          <p className="mt-3 text-sm text-emerald-700">{formSuccess}</p>
+        ) : null}
+      </section>
+
       <section className="surface-panel overflow-hidden">
         <div className="border-b border-border px-5 py-4 sm:px-6">
           <h3 className="text-base font-bold">مسیر یادگیری</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            وضعیت فعلی شما در دوره‌های آموزشگاه
+            وضعیت فعلی شما در دوره‌های {copy.academyName}
           </p>
         </div>
         <dl className="grid sm:grid-cols-2">

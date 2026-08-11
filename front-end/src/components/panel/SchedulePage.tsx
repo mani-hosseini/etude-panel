@@ -5,13 +5,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  Award,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Lock,
   MapPin,
-  Presentation,
   UserRound,
 } from "lucide-react";
 
@@ -175,68 +173,46 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
 
       <section className="space-y-3">
         <h3 className="text-base font-bold">زمان‌بندی</h3>
-        {lessons.map((lesson) => {
-          const badge = statusBadge[lesson.status];
-          return (
-            <article key={lesson.id} className="surface-panel p-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-bold text-navy">{lesson.title}</h4>
-                <Badge variant={badge.variant}>{badge.label}</Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="size-3.5" />
-                  {lesson.day} · {lesson.dateLabel}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock3 className="size-3.5" />
-                  {lesson.time}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="size-3.5" />
-                  {lesson.room}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <UserRound className="size-3.5" />
-                  {lesson.teacher}
-                </span>
-              </div>
-              {lesson.note ? (
-                <p className="mt-2 text-xs text-muted-foreground">{lesson.note}</p>
-              ) : null}
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex items-start gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand">
-            <Award className="size-4" />
-          </span>
-          <div>
-            <h3 className="text-sm font-bold">مدرک پایان دوره</h3>
-            <p className="mt-1 text-xs leading-6 text-muted-foreground">
-              با تکمیل همهٔ جلسات این دوره، مدرک از همین بخش قابل دریافت است.
-            </p>
-            <p className="mt-1 font-sans text-xs font-semibold tabular-nums text-navy">
-              {toFa(course.sessionsDone)}/{toFa(course.sessionsTotal)}
-            </p>
+        {lessons.length === 0 ? (
+          <div className="surface-panel px-5 py-10 text-center text-sm text-muted-foreground">
+            هنوز جلسه‌ای در برنامه ثبت نشده است.
           </div>
-        </div>
-        <button
-          type="button"
-          disabled={!course.certificateReady}
-          className={cn(
-            "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold",
-            course.certificateReady
-              ? "bg-brand text-white"
-              : "cursor-not-allowed bg-muted text-muted-foreground",
-          )}
-        >
-          <Presentation className="size-4" />
-          {course.certificateReady ? "دریافت مدرک" : "هنوز آماده نیست"}
-        </button>
+        ) : (
+          lessons.map((lesson) => {
+            const badge = statusBadge[lesson.status];
+            return (
+              <article key={lesson.id} className="surface-panel p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="font-bold text-navy">{lesson.title}</h4>
+                  <Badge variant={badge.variant}>{badge.label}</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <CalendarDays className="size-3.5" />
+                    {lesson.day} · {toFa(lesson.dateLabel)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock3 className="size-3.5" />
+                    {lesson.time}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="size-3.5" />
+                    {lesson.room}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <UserRound className="size-3.5" />
+                    {lesson.teacher}
+                  </span>
+                </div>
+                {lesson.note ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {lesson.note}
+                  </p>
+                ) : null}
+              </article>
+            );
+          })
+        )}
       </section>
 
       <Link

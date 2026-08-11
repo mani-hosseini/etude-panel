@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { copy } from "@/constants/copy";
 import type { CourseStatus } from "@/lib/api/types";
 import {
   queryErrorMessage,
@@ -76,7 +77,7 @@ export function CoursesPage() {
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
       <PageHeader
-        eyebrow="آموزشگاه موسیقی اتود"
+        eyebrow={copy.academyName}
         title="دوره‌های من"
         description="همه دوره‌های ثبت‌شده شما — پیشرفت، مدرس و زمان هر کلاس."
       />
@@ -184,11 +185,9 @@ export function CoursesPage() {
                       <Clock3 className="size-3.5" />
                       {toFa(course.weeklyHours)} ساعت/هفته
                     </span>
-                    {course.instrument || course.level ? (
+                    {course.instrument ? (
                       <span className="rounded-md bg-brand-50 px-2 py-0.5 text-brand-700">
-                        {[course.instrument, course.level]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {course.instrument}
                       </span>
                     ) : null}
                   </div>

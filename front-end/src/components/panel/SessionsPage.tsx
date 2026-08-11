@@ -13,6 +13,7 @@ import {
 
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SessionStatus } from "@/lib/api/types";
 import {
@@ -125,6 +126,18 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
           const meta = statusMeta[session.status];
           const clickable = session.status === "available";
           const href = routes.courseSession(course.id, session.id);
+          const viewed = Boolean(session.viewed) || (session.viewProgress ?? 0) >= 100;
+          const viewProgress = session.viewProgress ?? 0;
+          const badgeLabel =
+            clickable && viewed
+              ? "مشاهده شد"
+              : clickable && viewProgress > 0
+                ? `در حال مشاهده · ${toFa(viewProgress)}٪`
+                : meta.label;
+          const badgeVariant =
+            clickable && viewed
+              ? ("default" as const)
+              : meta.variant;
 
           const card = (
             <motion.article
@@ -143,7 +156,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                     <span className="rounded-lg bg-navy px-2.5 py-1 font-sans text-[11px] font-bold tabular-nums text-white">
                       جلسه {toFa(session.number)}
                     </span>
-                    <Badge variant={meta.variant}>{meta.label}</Badge>
+                    <Badge variant={badgeVariant}>{badgeLabel}</Badge>
                   </div>
                   <h3 className="mt-2 text-lg font-bold text-foreground group-hover:text-brand">
                     {session.title || `جلسه ${toFa(session.number)}`}
@@ -161,6 +174,17 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                           {topic}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+                  {clickable && session.slideCount > 0 ? (
+                    <div className="mt-3 max-w-xs">
+                      <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>پیشرفت مشاهده</span>
+                        <span className="font-sans tabular-nums">
+                          {toFa(viewProgress)}٪
+                        </span>
+                      </div>
+                      <Progress value={viewProgress} className="h-1.5" />
                     </div>
                   ) : null}
                 </div>
@@ -185,7 +209,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   </div>
                   {clickable ? (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand">
-                      مشاهده محتوا
+                      {viewed ? "مرور مجدد" : "مشاهده محتوا"}
                       <ArrowLeft className="size-3.5" />
                     </span>
                   ) : null}

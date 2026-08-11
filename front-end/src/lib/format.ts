@@ -17,3 +17,5 @@ export function cleanCourseTitle(title: string): string {
     .replace(/\s*سطح\s*پایه\s*/g, "")
     .trim();
 }
+
+export const DEFAULT_AVATAR_SRC = "/default-avatar.png";

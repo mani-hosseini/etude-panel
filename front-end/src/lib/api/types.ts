@@ -40,6 +40,9 @@ export type CourseSession = {
   dateLabel: string;
   courseId?: string;
   courseTitle?: string;
+  viewProgress?: number;
+  viewed?: boolean;
+  lastSlideIndex?: number;
 };
 
 export type ScheduleLesson = {
@@ -80,7 +83,15 @@ export type DashboardPayload = {
     title: string;
     day: string;
     time: string;
+    dateLabel?: string;
     status: LessonStatus;
+  } | null;
+  lastHeldLesson: {
+    id: string;
+    title: string;
+    day: string;
+    time: string;
+    dateLabel: string;
   } | null;
   currentSession: CourseSession | null;
   schedulePreview: Array<{
@@ -88,6 +99,7 @@ export type DashboardPayload = {
     title: string;
     day: string;
     time: string;
+    dateLabel?: string;
     status: LessonStatus;
   }>;
   practiceTips: string[];
@@ -120,6 +132,9 @@ export type ProfilePayload = {
     studentCode: string | null;
     level: string;
     avatarUrl: string | null;
+    phone: string | null;
+    nationalId: string | null;
+    address: string | null;
     programTitle: string;
     attendanceRate: string;
     totalHours: string;

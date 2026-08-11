@@ -17,7 +17,7 @@ import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { PanelSidebar } from "@/components/panel/PanelSidebar";
 import { copy } from "@/constants/copy";
 import { useDashboardQuery } from "@/lib/api/queries";
-import { weekdayPlural } from "@/lib/format";
+import { toFa, weekdayPlural } from "@/lib/format";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +40,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
   const [pathForMenu, setPathForMenu] = useState(pathname);
   const dashboard = useDashboardQuery();
   const nextLesson = dashboard.data?.nextLesson;
+  const lastHeld = dashboard.data?.lastHeldLesson;
   const primary = dashboard.data?.primaryCourse;
 
   if (pathname !== pathForMenu) {
@@ -96,13 +97,21 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                 </div>
               </div>
               {nextLesson || primary ? (
-                <div className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
-                  <span className="size-1.5 animate-pulse rounded-full bg-brand" />
-                  {nextLesson
-                    ? `جلسه بعدی: ${nextLesson.day} ${nextLesson.time}`
-                    : primary
-                      ? `کلاس: ${weekdayPlural(primary.day)} ${primary.timeShort}`
-                      : null}
+                <div className="hidden max-w-xs items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
+                  <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
+                  <span className="truncate">
+                    {nextLesson
+                      ? `جلسه بعدی: ${nextLesson.day} ${nextLesson.time}${
+                          lastHeld?.dateLabel &&
+                          lastHeld.dateLabel !== "—" &&
+                          !/قفل|بعدی/.test(lastHeld.dateLabel)
+                            ? ` · آخرین: ${toFa(lastHeld.dateLabel)}`
+                            : ""
+                        }`
+                      : primary
+                        ? `کلاس: ${weekdayPlural(primary.day)} ${primary.timeShort}`
+                        : null}
+                  </span>
                 </div>
               ) : null}
             </div>
