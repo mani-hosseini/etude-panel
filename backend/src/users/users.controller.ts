@@ -84,6 +84,12 @@ export class UsersController {
     return this.usersService.activate(id);
   }
 
+  @Delete(':id')
+  @ApiOperation({ summary: 'حذف کاربر (فقط هنرجو)' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.delete(id);
+  }
+
   @Post(':id/enrollments')
   @ApiOperation({ summary: 'ثبت کاربر در یک دوره' })
   enroll(

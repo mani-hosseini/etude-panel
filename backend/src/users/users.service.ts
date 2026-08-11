@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,6 +27,7 @@ const userPublicSelect = {
   role: true,
   studentCode: true,
   level: true,
+  avatarUrl: true,
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -259,6 +261,19 @@ export class UsersService {
 
   async activate(id: string) {
     return this.update(id, { isActive: true });
+  }
+
+  async delete(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('کاربر یافت نشد.');
+    }
+    if (user.role === Role.ADMIN) {
+      throw new ForbiddenException('حذف حساب ادمین مجاز نیست.');
+    }
+
+    await this.prisma.user.delete({ where: { id } });
+    return { deleted: true };
   }
 
   async enroll(userId: string, dto: EnrollCourseDto) {

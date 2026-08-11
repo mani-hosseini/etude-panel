@@ -198,7 +198,13 @@ export class CatalogService {
       this.prisma.courseSession.findMany({
         where: { courseId: course.id },
         orderBy: { number: 'asc' },
-        select: { id: true, number: true, status: true },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          title: true,
+          dateLabel: true,
+        },
       }),
       this.mapCourseWithProgress(course),
     ]);
@@ -224,6 +230,8 @@ export class CatalogService {
         id: s.id,
         number: s.number,
         status: SESSION_STATUS_API[s.status],
+        title: s.title,
+        dateLabel: s.dateLabel,
       })),
     };
   }
@@ -289,6 +297,7 @@ export class CatalogService {
         displayName: user.displayName,
         studentCode: user.studentCode,
         level: user.level,
+        avatarUrl: user.avatarUrl,
       },
       courses,
       primaryCourse: primary ?? null,
@@ -372,6 +381,7 @@ export class CatalogService {
         displayName: user.displayName,
         studentCode: user.studentCode,
         level: user.level ?? 'پایه',
+        avatarUrl: user.avatarUrl,
         programTitle: primary?.title ?? 'هنرجوی اتود',
         attendanceRate: '۱۰۰٪',
         totalHours: toPersianDigits(sessionsDone),
@@ -406,6 +416,19 @@ export class CatalogService {
         ? `/api/v1/courses/${course.slug}/certificate/download`
         : null,
     };
+  }
+
+  /** Updates avatar and returns previous path (if any). */
+  async setAvatarUrl(userId: string, avatarUrl: string | null) {
+    const existing = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+    return existing.avatarUrl;
   }
 
   private async findPrimaryCourse(userId: string) {

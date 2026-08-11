@@ -123,8 +123,6 @@ export class AuthService {
       },
     });
 
-    await this.enrollInDefaultCourses(user.id);
-
     const achievement = await this.prisma.achievement.findUnique({
       where: { code: 'joined' },
     });
@@ -177,7 +175,6 @@ export class AuthService {
       },
     });
 
-    await this.enrollInDefaultCourses(user.id);
     return this.toPublicUser(user);
   }
 
@@ -261,26 +258,6 @@ export class AuthService {
         studentCode: full.studentCode,
       },
     };
-  }
-
-  private async enrollInDefaultCourses(userId: string) {
-    // فعلاً فقط دوره استاد بهرام دهقانیار
-    const courses = await this.prisma.course.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { slug: 'theory-basics' },
-          { teacherShort: { contains: 'دهقانیار' } },
-          { teacher: { contains: 'دهقانیار' } },
-        ],
-      },
-      select: { id: true },
-    });
-    if (courses.length === 0) return;
-    await this.prisma.enrollment.createMany({
-      data: courses.map((course) => ({ userId, courseId: course.id })),
-      skipDuplicates: true,
-    });
   }
 
   private async generateStudentCode() {
@@ -380,6 +357,7 @@ export class AuthService {
     email: string | null;
     role: Role;
     level: string | null;
+    avatarUrl?: string | null;
   }) {
     return {
       id: user.id,
@@ -390,6 +368,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       level: user.level,
+      avatarUrl: user.avatarUrl ?? null,
     };
   }
 }
