@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { adminApi } from "@/lib/api/admin-client";
 import {
@@ -212,7 +213,7 @@ export function AdminUsersPage() {
               <tr>
                 <th className="px-4 py-3 text-right font-semibold">نام</th>
                 <th className="px-4 py-3 text-right font-semibold">نقش</th>
-                <th className="px-4 py-3 text-right font-semibold">کد / ایمیل</th>
+                <th className="px-4 py-3 text-right font-semibold">سطح هنرجو</th>
                 <th className="px-4 py-3 text-right font-semibold">دوره‌ها</th>
                 <th className="px-4 py-3 text-right font-semibold">
                   میانگین پیشرفت اسلایدها
@@ -245,10 +246,12 @@ export function AdminUsersPage() {
                       {user.role === "ADMIN" ? "ادمین" : "هنرجو"}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-slate-500" dir="ltr">
-                    {user.role === "STUDENT"
-                      ? toFa(user.studentCode ?? "—")
-                      : (user.email ?? "—")}
+                  <td className="px-4 py-3">
+                    {user.role === "STUDENT" ? (
+                      <StudentLevelBadge level={user.level} />
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 font-sans tabular-nums">
                     {toFa(user.enrollmentsCount)}

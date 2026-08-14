@@ -31,7 +31,7 @@ export type CreateStudentBody = {
   firstName: string;
   lastName: string;
   password: string;
-  studentCode?: string;
+  level?: string;
 };
 
 export type AdminRole = "STUDENT" | "ADMIN";

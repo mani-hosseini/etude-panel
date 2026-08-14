@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 
+import { StudentLevelSelect } from "@/components/admin/StudentLevelSelect";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,7 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
-  const [studentCode, setStudentCode] = useState("");
+  const [level, setLevel] = useState("1");
   const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
@@ -30,7 +31,7 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         password,
-        studentCode: studentCode.trim() || undefined,
+        level,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
@@ -99,13 +100,11 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="create-studentCode">کد هنرجو (اختیاری)</Label>
-          <Input
-            id="create-studentCode"
-            value={studentCode}
-            onChange={(e) => setStudentCode(e.target.value)}
-            className="rounded-xl bg-white"
-            dir="ltr"
+          <Label htmlFor="create-level">سطح هنرجو</Label>
+          <StudentLevelSelect
+            id="create-level"
+            value={level}
+            onValueChange={setLevel}
           />
         </div>
 
