@@ -5,10 +5,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { SessionAttachmentsPanel } from "@/components/admin/course/SessionAttachmentsPanel";
 import { type SlideFormState } from "@/components/admin/course/SlideEditorForm";
 import { SlideList } from "@/components/admin/course/SlideList";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   adminApi,
   type AdminSlide,
@@ -249,38 +251,54 @@ export function AdminSessionSlidesPage({
         backLabel="بازگشت به دوره"
         title={`محتوای جلسه ${toFa(session.number)}`}
         description={session.title || courseQuery.data.title}
-        actions={
-          <Button
-            type="button"
-            className="rounded-xl"
-            onClick={openCreate}
-            disabled={creating}
-          >
-            <Plus className="size-4" />
-            اسلاید جدید
-          </Button>
-        }
       />
 
-      <p className="text-sm text-slate-500">
-        {toFa(slides.length)} اسلاید
-      </p>
+      <Tabs defaultValue="slides" className="space-y-4" dir="rtl">
+        <TabsList className="h-auto min-h-11 max-w-xl flex-wrap">
+          <TabsTrigger value="slides">
+            اسلایدها ({toFa(slides.length)})
+          </TabsTrigger>
+          <TabsTrigger value="attachments">
+            فایل و عکس‌های پیوست ({toFa(session.attachmentCount ?? 0)})
+          </TabsTrigger>
+        </TabsList>
 
-      <SlideList
-        slides={slides}
-        editingId={editingId}
-        creating={creating}
-        form={form}
-        setForm={setForm}
-        savePending={save.isPending}
-        reorderPending={reorder.isPending}
-        formError={error}
-        onEdit={openEdit}
-        onDelete={(id) => remove.mutate(id)}
-        onMove={move}
-        onSave={() => save.mutate()}
-        onCloseEditor={closeEditor}
-      />
+        <TabsContent value="slides" className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-500">
+              {toFa(slides.length)} اسلاید
+            </p>
+            <Button
+              type="button"
+              className="rounded-xl"
+              onClick={openCreate}
+              disabled={creating}
+            >
+              <Plus className="size-4" />
+              اسلاید جدید
+            </Button>
+          </div>
+          <SlideList
+            slides={slides}
+            editingId={editingId}
+            creating={creating}
+            form={form}
+            setForm={setForm}
+            savePending={save.isPending}
+            reorderPending={reorder.isPending}
+            formError={error}
+            onEdit={openEdit}
+            onDelete={(id) => remove.mutate(id)}
+            onMove={move}
+            onSave={() => save.mutate()}
+            onCloseEditor={closeEditor}
+          />
+        </TabsContent>
+
+        <TabsContent value="attachments">
+          <SessionAttachmentsPanel sessionId={sessionId} courseSlug={slug} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

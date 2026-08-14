@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Settings2 } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
@@ -10,13 +10,20 @@ import { AdminCreateUserForm } from "@/components/admin/AdminCreateUserForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import { adminApi } from "@/lib/api/admin-client";
 import {
   adminQueryKeys,
   useAdminUsersQuery,
 } from "@/lib/api/admin-queries";
 import { ApiError } from "@/lib/api/http";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -74,6 +81,41 @@ export function AdminUsersPage() {
     setSearch(searchDraft.trim());
   };
 
+  const users = query.data?.users ?? [];
+  const meta = query.data?.meta;
+  const totalPages = meta?.totalPages ?? 1;
+
+  const progressQueries = useQueries({
+    queries: users.map((user) => ({
+      queryKey: adminQueryKeys.user(user.id),
+      queryFn: () => adminApi.user(user.id),
+      enabled: user.role === "STUDENT" && user.enrollmentsCount > 0,
+      staleTime: 60_000,
+    })),
+  });
+
+  const progressByUserId = useMemo(() => {
+    const map = new Map<string, number>();
+    users.forEach((user, index) => {
+      map.set(
+        user.id,
+        progressQueries[index]?.data?.avgProgress ?? user.avgProgress ?? 0,
+      );
+    });
+    return map;
+  }, [users, progressQueries]);
+
+  const avatarByUserId = useMemo(() => {
+    const map = new Map<string, string | null | undefined>();
+    users.forEach((user, index) => {
+      map.set(
+        user.id,
+        progressQueries[index]?.data?.avatarUrl ?? user.avatarUrl,
+      );
+    });
+    return map;
+  }, [users, progressQueries]);
+
   if (query.isPending) {
     return (
       <div className="space-y-4">
@@ -94,9 +136,6 @@ export function AdminUsersPage() {
       </div>
     );
   }
-
-  const { users, meta } = query.data;
-  const totalPages = meta?.totalPages ?? 1;
 
   return (
     <div className="space-y-6">
@@ -173,13 +212,16 @@ export function AdminUsersPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-right font-semibold">نام</th>
                 <th className="px-4 py-3 text-right font-semibold">نقش</th>
                 <th className="px-4 py-3 text-right font-semibold">کد / ایمیل</th>
                 <th className="px-4 py-3 text-right font-semibold">دوره‌ها</th>
+                <th className="px-4 py-3 text-right font-semibold">
+                  میانگین پیشرفت اسلایدها
+                </th>
                 <th className="px-4 py-3 text-right font-semibold">وضعیت</th>
                 <th className="px-4 py-3 text-right font-semibold">عملیات</th>
               </tr>
@@ -187,8 +229,22 @@ export function AdminUsersPage() {
             <tbody>
               {users.map((user) => (
                 <tr key={user.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    {user.displayName}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="size-8 rounded-full ring-1 ring-slate-200">
+                        <AvatarImage
+                          src={resolveAvatarUrl(avatarByUserId.get(user.id))}
+                          alt={user.displayName}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="text-[11px]">
+                          {user.displayName.trim().slice(0, 1)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-semibold text-slate-900">
+                        {user.displayName}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge
@@ -206,6 +262,21 @@ export function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 font-sans tabular-nums">
                     {toFa(user.enrollmentsCount)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.role === "STUDENT" ? (
+                      <div className="min-w-36 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>میانگین پیشرفت اسلایدها</span>
+                          <span className="font-sans font-semibold tabular-nums text-brand">
+                            {toFa(progressByUserId.get(user.id) ?? 0)}٪
+                          </span>
+                        </div>
+                        <Progress value={progressByUserId.get(user.id) ?? 0} />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={user.isActive ? "success" : "warning"}>
@@ -253,7 +324,7 @@ export function AdminUsersPage() {
               {users.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-12 text-center text-slate-500"
                   >
                     کاربری پیدا نشد.
