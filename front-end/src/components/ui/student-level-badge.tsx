@@ -1,7 +1,5 @@
 "use client";
 
-import { Award } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { parseStudentLevel, STUDENT_LEVEL_STYLE } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
@@ -14,6 +12,32 @@ type StudentLevelBadgeProps = {
   /** White chip so the level color stays readable on dark banners. */
   onDark?: boolean;
 };
+
+function LevelMedalIcon({
+  className,
+  color,
+}: {
+  className?: string;
+  color: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn("inline-block", className)}
+      style={{
+        backgroundColor: color,
+        WebkitMaskImage: "url(/level-badge.png)",
+        maskImage: "url(/level-badge.png)",
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
+    />
+  );
+}
 
 export function StudentLevelBadge({
   level,
@@ -30,21 +54,20 @@ export function StudentLevelBadge({
         className={cn(
           "inline-flex shrink-0 flex-col items-center",
           onDark
-            ? "gap-0.5 rounded-lg bg-white px-1.5 py-1 ring-1 ring-current"
-            : "gap-0.5",
+            ? "size-[4.5rem] justify-center gap-0.5 rounded-full bg-white p-1 ring-1 ring-current/50"
+            : "gap-1",
           className,
         )}
         style={{ color: style.color }}
       >
-        <Award
-          className={onDark ? "size-5" : "size-8"}
-          fill="currentColor"
-          strokeWidth={1.75}
+        <LevelMedalIcon
+          className={onDark ? "size-11" : "size-10"}
+          color={style.color}
         />
         <span
           className={cn(
             "font-bold leading-none",
-            onDark ? "text-[9px]" : "text-[10px]",
+            onDark ? "text-[11px]" : "text-xs",
           )}
         >
           سطح {toFa(n)}
@@ -57,12 +80,12 @@ export function StudentLevelBadge({
     <Badge
       variant="outline"
       className={cn(
-        "gap-1 rounded-full border bg-white px-2 py-0.5 text-[10px] font-bold leading-none shadow-none",
+        "gap-1.5 rounded-full border bg-white px-3 py-1 text-xs font-bold leading-none shadow-none",
         className,
       )}
       style={{ borderColor: style.color, color: style.color }}
     >
-      <Award className="size-3" fill="currentColor" strokeWidth={1.75} />
+      <LevelMedalIcon className="size-4" color={style.color} />
       سطح {toFa(n)}
     </Badge>
   );

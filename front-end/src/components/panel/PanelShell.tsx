@@ -17,7 +17,7 @@ import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { PanelSidebar } from "@/components/panel/PanelSidebar";
 import { copy } from "@/constants/copy";
 import { useDashboardQuery } from "@/lib/api/queries";
-import { weekdayPlural } from "@/lib/format";
+import { toFa, weekdayPlural } from "@/lib/format";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -100,15 +100,15 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                   <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
                   <span className="truncate">
                     {nextLesson
-                      ? `جلسه بعدی: ${nextLesson.day} ${nextLesson.time}${
+                      ? `جلسه بعدی: ${nextLesson.day} ${toFa(nextLesson.time)}${
                           nextLesson.dateLabel &&
                           nextLesson.dateLabel !== "—" &&
                           nextLesson.dateLabel !== "قفل"
-                            ? ` · ${nextLesson.dateLabel}`
+                            ? ` · ${toFa(nextLesson.dateLabel)}`
                             : ""
                         }`
                       : primary
-                        ? `کلاس: ${weekdayPlural(primary.day)} ${primary.timeShort}`
+                        ? `کلاس: ${weekdayPlural(primary.day)} ${toFa(primary.timeShort)}`
                         : null}
                   </span>
                 </div>

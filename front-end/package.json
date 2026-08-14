@@ -11,6 +11,7 @@
     "postinstall": "node -e \"const fs=require('fs');const s='scripts/copy-lightningcss-native.cjs';if(!fs.existsSync(s))process.exit(0);require('child_process').execFileSync(process.execPath,[s],{stdio:'inherit'})\""
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.7.1",
     "@radix-ui/react-alert-dialog": "^1.1.23",
     "@radix-ui/react-avatar": "^1.2.6",

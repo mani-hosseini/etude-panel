@@ -113,7 +113,7 @@ export function DashboardHome() {
               </div>
               <p className="mt-1 text-base font-semibold">{nextLesson.title}</p>
               <p className="text-sm text-white/80">
-                {nextLesson.day} · {nextLesson.time}
+                {toFa(nextLesson.day)} · {toFa(nextLesson.time)}
                 {nextLesson.dateLabel &&
                 nextLesson.dateLabel !== "—" &&
                 nextLesson.dateLabel !== "قفل"

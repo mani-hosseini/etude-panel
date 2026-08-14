@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Settings2 } from "lucide-react";
+import { Plus, Search, Settings2, X } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
 import { AdminCreateUserForm } from "@/components/admin/AdminCreateUserForm";
@@ -78,6 +78,14 @@ export function AdminUsersPage() {
     setSearch(searchDraft.trim());
   };
 
+  const hasActiveFilters = level !== "all" || Boolean(search);
+  const clearFilters = () => {
+    setLevel("all");
+    setSearch("");
+    setSearchDraft("");
+    setPage(1);
+  };
+
   const users = query.data?.users ?? [];
   const meta = query.data?.meta;
   const totalPages = meta?.totalPages ?? 1;
@@ -112,23 +120,6 @@ export function AdminUsersPage() {
     });
     return map;
   }, [users, progressQueries]);
-
-  if (query.isPending) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-16 rounded-2xl" />
-        <Skeleton className="h-80 rounded-3xl" />
-      </div>
-    );
-  }
-
-  if (query.isError) {
-    return (
-      <div className="surface-panel p-8 text-center text-sm text-destructive">
-        {audienceError(query.error, "فهرست هنرجوها الان در دسترس نیست.")}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -184,17 +175,40 @@ export function AdminUsersPage() {
             </button>
           ))}
           {role !== "ADMIN" ? (
-            <div className="w-40">
-              <StudentLevelSelect
-                id="users-level-filter"
-                includeAll
-                value={level}
-                onValueChange={(value) => {
-                  setLevel(value);
-                  setPage(1);
-                }}
-              />
+            <div className="flex items-center gap-2">
+              <div className="w-40">
+                <StudentLevelSelect
+                  id="users-level-filter"
+                  includeAll
+                  value={level}
+                  onValueChange={(value) => {
+                    setLevel(value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              {hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={clearFilters}
+                >
+                  <X className="size-4" />
+                  حذف فیلتر
+                </Button>
+              ) : null}
             </div>
+          ) : hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={clearFilters}
+            >
+              <X className="size-4" />
+              حذف فیلتر
+            </Button>
           ) : null}
         </div>
 
@@ -234,6 +248,38 @@ export function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
+              {query.isPending ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12">
+                    <Skeleton className="h-40 rounded-xl" />
+                  </td>
+                </tr>
+              ) : query.isError ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <p className="text-sm text-rose-700">
+                      {audienceError(
+                        query.error,
+                        hasActiveFilters
+                          ? "هنرجویی با این فیلتر پیدا نشد."
+                          : "فهرست هنرجوها الان در دسترس نیست.",
+                      )}
+                    </p>
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 rounded-xl"
+                        onClick={clearFilters}
+                      >
+                        <X className="size-4" />
+                        حذف فیلتر
+                      </Button>
+                    ) : null}
+                  </td>
+                </tr>
+              ) : (
+                <>
               {users.map((user) => (
                 <tr key={user.id} className="border-t border-slate-100">
                   <td className="px-4 py-3">
@@ -331,15 +377,32 @@ export function AdminUsersPage() {
                     colSpan={7}
                     className="px-4 py-12 text-center text-slate-500"
                   >
-                    کاربری پیدا نشد.
+                    <p>
+                      {hasActiveFilters
+                        ? "هنرجویی با این فیلتر پیدا نشد."
+                        : "هنرجویی پیدا نشد."}
+                    </p>
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 rounded-xl"
+                        onClick={clearFilters}
+                      >
+                        <X className="size-4" />
+                        حذف فیلتر
+                      </Button>
+                    ) : null}
                   </td>
                 </tr>
               ) : null}
+                </>
+              )}
             </tbody>
           </table>
         </div>
 
-        {meta ? (
+        {query.isSuccess && meta ? (
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
             <span>
               صفحه {toFa(meta.page)} از {toFa(totalPages)} · جمع{" "}
@@ -373,7 +436,7 @@ export function AdminUsersPage() {
 
       {toggleActive.isError ? (
         <p className="text-sm text-rose-600">
-{audienceError(toggleActive.error, "این تغییر الان انجام نشد.")}
+          {audienceError(toggleActive.error, "این تغییر الان انجام نشد.")}
         </p>
       ) : null}
       {deleteError ? (
