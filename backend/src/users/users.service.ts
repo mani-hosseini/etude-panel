@@ -108,9 +108,18 @@ export class UsersService {
       }),
     ]);
 
+    const progressByUser = await this.computeProgressByUser(
+      users.map((user) => user.id),
+    );
+
     return {
       data: {
-        users: users.map((user) => this.mapUser(user)),
+        users: users.map((user) =>
+          this.mapUser({
+            ...user,
+            avgProgress: progressByUser.get(user.id) ?? 0,
+          }),
+        ),
       },
       meta: buildPaginationMeta(total, query.page, query.limit),
     };
@@ -131,6 +140,7 @@ export class UsersService {
                 teacher: true,
                 status: true,
                 instrument: true,
+                sessionsTotal: true,
               },
             },
           },
@@ -148,21 +158,28 @@ export class UsersService {
     }
 
     const avgProgress = await this.computeAvgProgress(id);
+    const courseProgress = await this.computeProgressByCourse(id);
 
     return {
       ...this.mapUser({ ...user, avgProgress }),
-      enrollments: user.enrollments.map((item) => ({
-        id: item.id,
-        joinedAt: item.joinedAt,
-        course: {
-          id: item.course.slug,
-          uuid: item.course.id,
-          title: item.course.title,
-          teacher: item.course.teacher,
-          status: item.course.status.toLowerCase(),
-          instrument: item.course.instrument,
-        },
-      })),
+      enrollments: user.enrollments.map((item) => {
+        const stats = courseProgress.get(item.course.id);
+        return {
+          id: item.id,
+          joinedAt: item.joinedAt,
+          progress: stats?.progress ?? 0,
+          sessionsDone: stats?.sessionsDone ?? 0,
+          sessionsTotal: item.course.sessionsTotal,
+          course: {
+            id: item.course.slug,
+            uuid: item.course.id,
+            title: item.course.title,
+            teacher: item.course.teacher,
+            status: item.course.status.toLowerCase(),
+            instrument: item.course.instrument,
+          },
+        };
+      }),
       achievements: user.achievements.map((item) => ({
         id: item.achievement.code,
         title: item.achievement.title,
@@ -390,38 +407,129 @@ export class UsersService {
   }
 
   private async computeAvgProgress(userId: string): Promise<number> {
+    const byUser = await this.computeProgressByUser([userId]);
+    return byUser.get(userId) ?? 0;
+  }
+
+  private async computeProgressByUser(
+    userIds: string[],
+  ): Promise<Map<string, number>> {
+    const rows = await this.loadSessionPercents(userIds);
+    const grouped = new Map<string, number[]>();
+    for (const row of rows) {
+      const list = grouped.get(row.userId) ?? [];
+      list.push(row.percent);
+      grouped.set(row.userId, list);
+    }
+    const result = new Map<string, number>();
+    for (const userId of userIds) {
+      result.set(userId, this.average(grouped.get(userId) ?? []));
+    }
+    return result;
+  }
+
+  private async computeProgressByCourse(userId: string): Promise<
+    Map<string, { progress: number; sessionsDone: number; sessionsTotal: number }>
+  > {
+    const rows = await this.loadSessionPercents([userId]);
+    const grouped = new Map<string, number[]>();
+    for (const row of rows) {
+      const list = grouped.get(row.courseId) ?? [];
+      list.push(row.percent);
+      grouped.set(row.courseId, list);
+    }
+
     const enrollments = await this.prisma.enrollment.findMany({
       where: { userId },
-      select: { courseId: true },
+      select: {
+        courseId: true,
+        course: { select: { sessionsTotal: true } },
+      },
     });
-    if (enrollments.length === 0) return 0;
+    const availableByCourse = await this.prisma.courseSession.groupBy({
+      by: ['courseId'],
+      where: {
+        courseId: { in: enrollments.map((item) => item.courseId) },
+        status: 'AVAILABLE',
+      },
+      _count: { _all: true },
+    });
+    const availableMap = new Map(
+      availableByCourse.map((row) => [row.courseId, row._count._all]),
+    );
+
+    const result = new Map<
+      string,
+      { progress: number; sessionsDone: number; sessionsTotal: number }
+    >();
+    for (const item of enrollments) {
+      result.set(item.courseId, {
+        progress: this.average(grouped.get(item.courseId) ?? []),
+        sessionsDone: availableMap.get(item.courseId) ?? 0,
+        sessionsTotal: item.course.sessionsTotal,
+      });
+    }
+    return result;
+  }
+
+  private async loadSessionPercents(userIds: string[]): Promise<
+    Array<{ userId: string; courseId: string; percent: number }>
+  > {
+    if (userIds.length === 0) return [];
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, courseId: true },
+    });
+    if (enrollments.length === 0) return [];
 
     const sessions = await this.prisma.courseSession.findMany({
       where: {
-        courseId: { in: enrollments.map((e) => e.courseId) },
+        courseId: { in: [...new Set(enrollments.map((item) => item.courseId))] },
         status: 'AVAILABLE',
       },
       include: { _count: { select: { slides: true } } },
     });
-    if (sessions.length === 0) return 0;
+    if (sessions.length === 0) return [];
 
     const progresses = await this.prisma.sessionProgress.findMany({
       where: {
-        userId,
-        sessionId: { in: sessions.map((s) => s.id) },
+        userId: { in: userIds },
+        sessionId: { in: sessions.map((session) => session.id) },
       },
     });
-    const bySession = new Map(progresses.map((p) => [p.sessionId, p]));
-
-    let sum = 0;
+    const progressKey = new Map(
+      progresses.map((row) => [`${row.userId}:${row.sessionId}`, row]),
+    );
+    const sessionsByCourse = new Map<string, typeof sessions>();
     for (const session of sessions) {
-      const row = bySession.get(session.id);
-      const slideCount = session._count.slides;
-      if (row && slideCount > 0) {
-        sum += Math.round(((row.lastSlideIndex + 1) / slideCount) * 100);
+      const list = sessionsByCourse.get(session.courseId) ?? [];
+      list.push(session);
+      sessionsByCourse.set(session.courseId, list);
+    }
+
+    const rows: Array<{ userId: string; courseId: string; percent: number }> =
+      [];
+    for (const enrollment of enrollments) {
+      for (const session of sessionsByCourse.get(enrollment.courseId) ?? []) {
+        const row = progressKey.get(`${enrollment.userId}:${session.id}`);
+        const slideCount = session._count.slides;
+        rows.push({
+          userId: enrollment.userId,
+          courseId: enrollment.courseId,
+          percent:
+            row && slideCount > 0
+              ? Math.round(((row.lastSlideIndex + 1) / slideCount) * 100)
+              : 0,
+        });
       }
     }
-    return Math.round(sum / sessions.length);
+    return rows;
+  }
+
+  private average(values: number[]): number {
+    if (values.length === 0) return 0;
+    return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
   }
 
   private parseSort(sort?: string): Prisma.UserOrderByWithRelationInput {
@@ -451,6 +559,7 @@ export class UsersService {
     role: Role;
     studentCode: string | null;
     level: string | null;
+    avatarUrl?: string | null;
     phone?: string | null;
     nationalId?: string | null;
     address?: string | null;
@@ -470,6 +579,7 @@ export class UsersService {
       role: user.role,
       studentCode: user.studentCode,
       level: user.level,
+      avatarUrl: user.avatarUrl ?? null,
       phone: user.phone ?? null,
       nationalId: user.nationalId ?? null,
       address: user.address ?? null,

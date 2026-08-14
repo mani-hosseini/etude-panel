@@ -85,6 +85,17 @@ export class CatalogController {
     return this.catalog.getSessionSlides(user.id, id, query.courseId);
   }
 
+  @Get('sessions/:id/attachments')
+  @ApiOperation({ summary: 'فایل‌ها و عکس‌های پیوست جلسه' })
+  @ApiQuery({ name: 'courseId', required: false })
+  getAttachments(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query() query: CourseScopedQueryDto,
+  ) {
+    return this.catalog.getSessionAttachments(user.id, id, query.courseId);
+  }
+
   @Get('sessions/:id/progress')
   @ApiOperation({ summary: 'پیشرفت اسلایدهای جلسه' })
   @ApiQuery({ name: 'courseId', required: false })

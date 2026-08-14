@@ -45,11 +45,18 @@ async function bootstrap() {
   );
   app.use(cookieParser());
 
+  const allowedOrigins = config.getOrThrow<string[]>('corsOrigin');
   app.enableCors({
-    origin: config.getOrThrow<string[]>('corsOrigin'),
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   app.useGlobalPipes(

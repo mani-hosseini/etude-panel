@@ -1,3 +1,5 @@
+import { existsSync, unlinkSync } from 'fs';
+import { join } from 'path';
 import {
   ConflictException,
   Injectable,
@@ -19,7 +21,9 @@ import {
   AdminListCoursesQueryDto,
   CreateSessionDto,
   CreateSlideDto,
+  ReorderAttachmentsDto,
   ReorderSlidesDto,
+  UpdateAttachmentDto,
   UpsertCourseDto,
   UpsertPracticeTipDto,
   UpsertScheduleDto,
@@ -94,7 +98,9 @@ export class AdminCatalogService {
         },
         sessions: {
           orderBy: { number: 'asc' },
-          include: { _count: { select: { slides: true } } },
+          include: {
+            _count: { select: { slides: true, attachments: true } },
+          },
         },
       },
     });
@@ -217,7 +223,9 @@ export class AdminCatalogService {
     const sessions = await this.prisma.courseSession.findMany({
       where: { courseId },
       orderBy: { number: 'asc' },
-      include: { _count: { select: { slides: true } } },
+      include: {
+            _count: { select: { slides: true, attachments: true } },
+          },
     });
     return { sessions: sessions.map((s) => this.mapSession(s)) };
   }
@@ -238,7 +246,9 @@ export class AdminCatalogService {
           durationLabel: dto.durationLabel ?? '۹۰ دقیقه',
           dateLabel: dto.dateLabel ?? 'قفل',
         },
-        include: { _count: { select: { slides: true } } },
+        include: {
+            _count: { select: { slides: true, attachments: true } },
+          },
       });
       await this.syncSessionsTotal(courseId);
       await this.syncScheduleFromSessions(courseId);
@@ -274,7 +284,9 @@ export class AdminCatalogService {
             : {}),
           ...(dto.dateLabel !== undefined ? { dateLabel: dto.dateLabel } : {}),
         },
-        include: { _count: { select: { slides: true } } },
+        include: {
+            _count: { select: { slides: true, attachments: true } },
+          },
       });
 
       if (dto.status !== undefined) {
@@ -408,6 +420,78 @@ export class AdminCatalogService {
       ),
     );
     return this.listSlides(sessionId);
+  }
+
+  async listAttachments(sessionId: string) {
+    await this.ensureSession(sessionId);
+    const attachments = await this.prisma.sessionAttachment.findMany({
+      where: { sessionId },
+      orderBy: { sortOrder: 'asc' },
+    });
+    return { attachments: attachments.map((a) => this.mapAttachment(a)) };
+  }
+
+  async createAttachment(
+    sessionId: string,
+    file: Express.Multer.File,
+    caption?: string,
+  ) {
+    await this.ensureSession(sessionId);
+    const maxOrder = await this.prisma.sessionAttachment.aggregate({
+      where: { sessionId },
+      _max: { sortOrder: true },
+    });
+    const path = `/uploads/attachments/${file.filename}`;
+    try {
+      const attachment = await this.prisma.sessionAttachment.create({
+        data: {
+          sessionId,
+          path,
+          filename: file.originalname.slice(0, 255),
+          mimeType: file.mimetype,
+          size: file.size,
+          caption: caption?.trim() || null,
+          sortOrder: (maxOrder._max.sortOrder ?? 0) + 1,
+        },
+      });
+      return this.mapAttachment(attachment);
+    } catch (error) {
+      this.unlinkAttachmentFile(path);
+      throw error;
+    }
+  }
+
+  async updateAttachment(id: string, dto: UpdateAttachmentDto) {
+    await this.ensureAttachment(id);
+    const attachment = await this.prisma.sessionAttachment.update({
+      where: { id },
+      data: {
+        ...(dto.caption !== undefined
+          ? { caption: dto.caption.trim() || null }
+          : {}),
+      },
+    });
+    return this.mapAttachment(attachment);
+  }
+
+  async deleteAttachment(id: string) {
+    const existing = await this.ensureAttachment(id);
+    await this.prisma.sessionAttachment.delete({ where: { id } });
+    this.unlinkAttachmentFile(existing.path);
+    return { deleted: true };
+  }
+
+  async reorderAttachments(sessionId: string, dto: ReorderAttachmentsDto) {
+    await this.ensureSession(sessionId);
+    await this.prisma.$transaction(
+      dto.attachmentIds.map((attachmentId, index) =>
+        this.prisma.sessionAttachment.updateMany({
+          where: { id: attachmentId, sessionId },
+          data: { sortOrder: index + 1 },
+        }),
+      ),
+    );
+    return this.listAttachments(sessionId);
   }
 
   async listSchedule(courseId: string) {
@@ -609,6 +693,25 @@ export class AdminCatalogService {
     return slide;
   }
 
+  private async ensureAttachment(id: string) {
+    const attachment = await this.prisma.sessionAttachment.findUnique({
+      where: { id },
+    });
+    if (!attachment) throw new NotFoundException('فایل پیوست یافت نشد.');
+    return attachment;
+  }
+
+  private unlinkAttachmentFile(path: string) {
+    if (!path.startsWith('/uploads/attachments/')) return;
+    const abs = join(process.cwd(), path.replace(/^\//, ''));
+    if (!existsSync(abs)) return;
+    try {
+      unlinkSync(abs);
+    } catch {
+      /* ignore missing files */
+    }
+  }
+
   private mapCourse(
     course: Prisma.CourseGetPayload<{
       include: {
@@ -650,7 +753,9 @@ export class AdminCatalogService {
 
   private mapSession(
     session: Prisma.CourseSessionGetPayload<{
-      include: { _count: { select: { slides: true } } };
+      include: {
+        _count: { select: { slides: true; attachments: true } };
+      };
     }>,
   ) {
     return {
@@ -664,8 +769,35 @@ export class AdminCatalogService {
       durationLabel: session.durationLabel,
       dateLabel: session.dateLabel,
       slideCount: session._count.slides,
+      attachmentCount: session._count.attachments,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
+    };
+  }
+
+  private mapAttachment(attachment: {
+    id: string;
+    sessionId: string;
+    path: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    caption: string | null;
+    sortOrder: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: attachment.id,
+      sessionId: attachment.sessionId,
+      path: attachment.path,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      caption: attachment.caption,
+      sortOrder: attachment.sortOrder,
+      createdAt: attachment.createdAt,
+      updatedAt: attachment.updatedAt,
     };
   }
 
