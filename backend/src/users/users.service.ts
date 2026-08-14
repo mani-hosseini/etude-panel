@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   buildPaginationMeta,
 } from '../common/dto/pagination-query.dto';
-import { normalizeName, isUuid } from '../common/utils/mappers';
+import { normalizeName, isUuid, normalizeStudentLevel } from '../common/utils/mappers';
 import {
   EnrollCourseDto,
   ListUsersQueryDto,
@@ -250,7 +250,9 @@ export class UsersService {
         ...(dto.email !== undefined
           ? { email: dto.email.trim().toLowerCase() || null }
           : {}),
-        ...(dto.level !== undefined ? { level: dto.level } : {}),
+        ...(dto.level !== undefined
+          ? { level: normalizeStudentLevel(dto.level) }
+          : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.studentCode !== undefined
           ? { studentCode: dto.studentCode.trim().toUpperCase() }
@@ -578,7 +580,7 @@ export class UsersService {
       email: user.email,
       role: user.role,
       studentCode: user.studentCode,
-      level: user.level,
+      level: normalizeStudentLevel(user.level),
       avatarUrl: user.avatarUrl ?? null,
       phone: user.phone ?? null,
       nationalId: user.nationalId ?? null,

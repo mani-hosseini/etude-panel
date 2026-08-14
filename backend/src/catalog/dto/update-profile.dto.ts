@@ -24,12 +24,6 @@ export class UpdateProfileDto {
   })
   lastName?: string;
 
-  @ApiPropertyOptional({ example: 'پایه' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  level?: string;
-
   @ApiPropertyOptional({ example: '09121234567' })
   @IsOptional()
   @IsString()

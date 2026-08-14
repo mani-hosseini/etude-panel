@@ -9,7 +9,7 @@ import { Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { normalizeName } from '../common/utils/mappers';
+import { normalizeName, normalizeStudentLevel } from '../common/utils/mappers';
 import type { AuthUser } from '../common/decorators/auth.decorators';
 import {
   AdminLoginDto,
@@ -120,7 +120,7 @@ export class AuthService {
         passwordPlain: dto.password,
         role: Role.STUDENT,
         studentCode,
-        level: 'پایه',
+        level: '1',
       },
     });
 
@@ -173,7 +173,7 @@ export class AuthService {
         passwordPlain: dto.password,
         role: Role.STUDENT,
         studentCode,
-        level: 'پایه',
+        level: normalizeStudentLevel(dto.level),
       },
     });
 
@@ -369,7 +369,7 @@ export class AuthService {
       studentCode: user.studentCode,
       email: user.email,
       role: user.role,
-      level: user.level,
+      level: normalizeStudentLevel(user.level),
       avatarUrl: user.avatarUrl ?? null,
     };
   }

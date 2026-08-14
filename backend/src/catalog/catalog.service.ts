@@ -14,6 +14,7 @@ import {
   SLIDE_KIND_API,
   isUuid,
   normalizeName,
+  normalizeStudentLevel,
   toPersianDigits,
 } from '../common/utils/mappers';
 import {
@@ -377,7 +378,7 @@ export class CatalogService {
       student: {
         displayName: user.displayName,
         studentCode: user.studentCode,
-        level: user.level,
+        level: normalizeStudentLevel(user.level),
         avatarUrl: user.avatarUrl,
       },
       courses,
@@ -478,7 +479,7 @@ export class CatalogService {
         lastName: user.lastName,
         displayName: user.displayName,
         studentCode: user.studentCode,
-        level: user.level ?? 'پایه',
+        level: normalizeStudentLevel(user.level),
         avatarUrl: user.avatarUrl,
         phone: user.phone,
         nationalId: user.nationalId,
@@ -550,7 +551,6 @@ export class CatalogService {
               displayName: `${firstName} ${lastName}`,
             }
           : {}),
-        ...(dto.level !== undefined ? { level: dto.level.trim() || null } : {}),
         ...(dto.phone !== undefined
           ? { phone: dto.phone.trim() || null }
           : {}),
