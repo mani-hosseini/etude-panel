@@ -4,27 +4,28 @@ import { useCallback, useEffect, useState } from "react";
 
 import { TOTAL_SLIDES } from "@/lib/session-1-slides";
 
-export function useDeck(total = TOTAL_SLIDES) {
+export function useDeck(total = TOTAL_SLIDES, enabled = true) {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [busy, setBusy] = useState(false);
 
   const goTo = useCallback(
     (next: number, dir?: number) => {
-      if (busy) return;
+      if (!enabled || busy) return;
       if (next < 0 || next >= total || next === index) return;
       setBusy(true);
       setDirection(dir ?? (next > index ? 1 : -1));
       setIndex(next);
       window.setTimeout(() => setBusy(false), 520);
     },
-    [busy, index, total],
+    [busy, enabled, index, total],
   );
 
   const next = useCallback(() => goTo(index + 1, 1), [goTo, index]);
   const prev = useCallback(() => goTo(index - 1, -1), [goTo, index]);
 
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -71,7 +72,7 @@ export function useDeck(total = TOTAL_SLIDES) {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [goTo, next, prev, total]);
+  }, [enabled, goTo, next, prev, total]);
 
   return { index, direction, next, prev, goTo, busy };
 }
