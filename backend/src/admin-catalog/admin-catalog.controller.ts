@@ -8,16 +8,30 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/auth.decorators';
 import { AdminCatalogService } from './admin-catalog.service';
+import { attachmentMulterOptions } from './attachment-upload';
 import {
   AdminListCoursesQueryDto,
   CreateSessionDto,
   CreateSlideDto,
+  ReorderAttachmentsDto,
   ReorderSlidesDto,
+  UpdateAttachmentDto,
+  UploadAttachmentDto,
   UpsertCourseDto,
   UpsertPracticeTipDto,
   UpsertScheduleDto,
@@ -118,6 +132,61 @@ export class AdminCatalogController {
     @Body() dto: ReorderSlidesDto,
   ) {
     return this.adminCatalog.reorderSlides(sessionId, dto);
+  }
+
+  @Get('sessions/:sessionId/attachments')
+  @ApiOperation({ summary: 'فایل‌های پیوست جلسه' })
+  listAttachments(@Param('sessionId', ParseUUIDPipe) sessionId: string) {
+    return this.adminCatalog.listAttachments(sessionId);
+  }
+
+  @Post('sessions/:sessionId/attachments')
+  @ApiOperation({ summary: 'آپلود عکس پیوست جلسه' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        caption: { type: 'string' },
+      },
+      required: ['file'],
+    },
+  })
+  @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
+  createAttachment(
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: UploadAttachmentDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('فایل تصویر ارسال نشده است.');
+    }
+    return this.adminCatalog.createAttachment(sessionId, file, body?.caption);
+  }
+
+  @Patch('attachments/:id')
+  @ApiOperation({ summary: 'ویرایش توضیح فایل پیوست' })
+  updateAttachment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAttachmentDto,
+  ) {
+    return this.adminCatalog.updateAttachment(id, dto);
+  }
+
+  @Delete('attachments/:id')
+  @ApiOperation({ summary: 'حذف فایل پیوست جلسه' })
+  deleteAttachment(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminCatalog.deleteAttachment(id);
+  }
+
+  @Post('sessions/:sessionId/attachments/reorder')
+  @ApiOperation({ summary: 'مرتب‌سازی فایل‌های پیوست' })
+  reorderAttachments(
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Body() dto: ReorderAttachmentsDto,
+  ) {
+    return this.adminCatalog.reorderAttachments(sessionId, dto);
   }
 
   @Get('courses/:courseId/schedule')

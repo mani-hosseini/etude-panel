@@ -65,7 +65,8 @@ export class EnvironmentVariables {
 
   @IsString()
   @IsNotEmpty()
-  CORS_ORIGIN = 'http://localhost:3000';
+  CORS_ORIGIN =
+    'http://localhost:3000,http://127.0.0.1:3000,https://panel.etudepianoacademy.com';
 
   @Transform(({ value }) => toInt(value, 60_000))
   @Type(() => Number)
@@ -123,7 +124,10 @@ export default () => ({
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   },
-  corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+  corsOrigin: (
+    process.env.CORS_ORIGIN ??
+    'http://localhost:3000,http://127.0.0.1:3000,https://panel.etudepianoacademy.com'
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),

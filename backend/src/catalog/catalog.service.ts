@@ -132,7 +132,7 @@ export class CatalogService {
         orderBy: { number: 'asc' },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        include: { _count: { select: { slides: true } } },
+        include: { _count: { select: { slides: true, attachments: true } } },
       }),
     ]);
 
@@ -158,7 +158,12 @@ export class CatalogService {
                   ((progress.lastSlideIndex + 1) / slideCount) * 100,
                 )
               : 0;
-          return this.mapSession(session, slideCount, percent);
+          return this.mapSession(
+            session,
+            slideCount,
+            percent,
+            session._count.attachments,
+          );
         }),
       },
       meta: buildPaginationMeta(total, query.page, query.limit),
@@ -170,11 +175,14 @@ export class CatalogService {
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
-    const slideCount = await this.prisma.slide.count({
-      where: { sessionId: session.id },
-    });
+    const [slideCount, attachmentCount] = await Promise.all([
+      this.prisma.slide.count({ where: { sessionId: session.id } }),
+      this.prisma.sessionAttachment.count({
+        where: { sessionId: session.id },
+      }),
+    ]);
     return {
-      ...this.mapSession(session, slideCount),
+      ...this.mapSession(session, slideCount, 0, attachmentCount),
       courseId: course.slug,
       courseTitle: course.title,
     };
@@ -218,6 +226,42 @@ export class CatalogService {
         imageId: slide.imageId ?? undefined,
         funFact: slide.funFact ?? undefined,
         kind: SLIDE_KIND_API[slide.kind],
+      })),
+    };
+  }
+
+  async getSessionAttachments(
+    userId: string,
+    idOrNumber: string,
+    courseId?: string,
+  ) {
+    const course = courseId
+      ? await this.findEnrolledCourse(userId, courseId)
+      : await this.findCourseForSession(userId, idOrNumber);
+    const session = await this.findSession(course.id, idOrNumber);
+
+    if (session.status !== SessionStatus.AVAILABLE) {
+      throw new NotFoundException('محتوای این جلسه هنوز در دسترس نیست.');
+    }
+
+    const attachments = await this.prisma.sessionAttachment.findMany({
+      where: { sessionId: session.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return {
+      courseId: course.slug,
+      courseTitle: course.title,
+      sessionId: session.id,
+      sessionNumber: session.number,
+      total: attachments.length,
+      attachments: attachments.map((attachment) => ({
+        id: attachment.id,
+        path: attachment.path,
+        caption: attachment.caption ?? undefined,
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        sortOrder: attachment.sortOrder,
       })),
     };
   }
@@ -310,7 +354,7 @@ export class CatalogService {
             status: SessionStatus.AVAILABLE,
           },
           orderBy: { number: 'desc' },
-          include: { _count: { select: { slides: true } } },
+          include: { _count: { select: { slides: true, attachments: true } } },
         })
       : null;
 
@@ -389,7 +433,12 @@ export class CatalogService {
           }
         : null,
       currentSession: currentSession
-        ? this.mapSession(currentSession, currentSession._count.slides)
+        ? this.mapSession(
+            currentSession,
+            currentSession._count.slides,
+            0,
+            currentSession._count.attachments,
+          )
         : null,
       schedulePreview: scheduleWindow.map((lesson) => ({
         id: lesson.id,
@@ -903,6 +952,7 @@ export class CatalogService {
     },
     slideCount: number,
     progressPercent = 0,
+    attachmentCount = 0,
   ) {
     return {
       id: String(session.number),
@@ -913,6 +963,7 @@ export class CatalogService {
       topics: session.topics,
       status: SESSION_STATUS_API[session.status],
       slideCount,
+      attachmentCount,
       durationLabel: session.durationLabel,
       dateLabel: session.dateLabel,
       progressPercent,

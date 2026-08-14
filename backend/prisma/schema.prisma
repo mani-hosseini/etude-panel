@@ -149,13 +149,31 @@ model CourseSession {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  course   Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  slides   Slide[]
-  progress SessionProgress[]
-  lessons  ScheduleLesson[]
+  course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  slides      Slide[]
+  attachments SessionAttachment[]
+  progress    SessionProgress[]
+  lessons     ScheduleLesson[]
 
   @@unique([courseId, number])
   @@index([status])
+}
+
+model SessionAttachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @db.Uuid
+  path      String   @db.VarChar(512)
+  filename  String   @db.VarChar(255)
+  mimeType  String   @db.VarChar(64)
+  size      Int
+  caption   String?  @db.VarChar(200)
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session CourseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, sortOrder])
 }
 
 model Slide {

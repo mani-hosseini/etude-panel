@@ -340,6 +340,26 @@ export class ReorderSlidesDto {
   slideIds!: string[];
 }
 
+export class UpdateAttachmentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  caption?: string;
+}
+
+export class UploadAttachmentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  caption?: string;
+}
+
+export class ReorderAttachmentsDto {
+  @IsArray()
+  @IsUUID('4', { each: true })
+  attachmentIds!: string[];
+}
+
 export class UpsertScheduleDto {
   @IsOptional()
   @IsUUID()
