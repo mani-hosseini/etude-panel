@@ -307,6 +307,9 @@ export function CourseSessionsPanel({
                         </Badge>
                         <span className="text-xs text-slate-400">
                           {toFa(session.slideCount)} اسلاید
+                          {(session.attachmentCount ?? 0) > 0
+                            ? ` · ${toFa(session.attachmentCount ?? 0)} پیوست`
+                            : ""}
                         </span>
                       </div>
                       <p className="text-sm font-semibold text-slate-800">
@@ -360,7 +363,7 @@ export function CourseSessionsPanel({
                             session.number,
                           )}
                         >
-                          محتوای اسلاید
+                          محتوای جلسه
                         </Link>
                       </Button>
                     </div>

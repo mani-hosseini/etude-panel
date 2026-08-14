@@ -4,6 +4,9 @@ import { adminHttp } from "@/lib/api/admin-tokens";
 export type AdminUserEnrollment = {
   id: string;
   joinedAt: string;
+  progress?: number;
+  sessionsDone?: number;
+  sessionsTotal?: number;
   course: {
     id: string;
     uuid: string;
@@ -42,6 +45,7 @@ export type AdminUser = {
   role: AdminRole;
   studentCode: string | null;
   level: string | null;
+  avatarUrl?: string | null;
   phone?: string | null;
   nationalId?: string | null;
   address?: string | null;
@@ -128,6 +132,20 @@ export type AdminSession = {
   durationLabel: string;
   dateLabel: string;
   slideCount: number;
+  attachmentCount?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminAttachment = {
+  id: string;
+  sessionId: string;
+  path: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  caption: string | null;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -479,6 +497,38 @@ export const adminApi = {
     adminHttp.requestData<{ slides: AdminSlide[] }>(
       `/admin/sessions/${sessionId}/slides/reorder`,
       { method: "POST", body: { slideIds } },
+    ),
+
+  attachments: (sessionId: string) =>
+    adminHttp.requestData<{ attachments: AdminAttachment[] }>(
+      `/admin/sessions/${sessionId}/attachments`,
+    ),
+
+  uploadAttachment: (sessionId: string, file: File, caption?: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (caption?.trim()) formData.append("caption", caption.trim());
+    return adminHttp.upload<AdminAttachment>(
+      `/admin/sessions/${sessionId}/attachments`,
+      formData,
+    );
+  },
+
+  updateAttachment: (id: string, body: { caption?: string }) =>
+    adminHttp.requestData<AdminAttachment>(`/admin/attachments/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  deleteAttachment: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/admin/attachments/${id}`, {
+      method: "DELETE",
+    }),
+
+  reorderAttachments: (sessionId: string, attachmentIds: string[]) =>
+    adminHttp.requestData<{ attachments: AdminAttachment[] }>(
+      `/admin/sessions/${sessionId}/attachments/reorder`,
+      { method: "POST", body: { attachmentIds } },
     ),
 
   schedule: (courseId: string) =>

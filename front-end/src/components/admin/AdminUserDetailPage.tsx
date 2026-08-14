@@ -14,6 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +33,7 @@ import {
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
 import { ApiError } from "@/lib/api/http";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
@@ -338,6 +344,22 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       />
 
       <Card className="rounded-2xl border-slate-200 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-3">
+          <Avatar className="size-12 rounded-full ring-1 ring-slate-200">
+            <AvatarImage
+              src={resolveAvatarUrl(user.avatarUrl)}
+              alt={user.displayName}
+              className="object-cover"
+            />
+            <AvatarFallback>{user.displayName.trim().slice(0, 1)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold text-slate-900">{user.displayName}</p>
+            <p className="text-xs text-slate-500">
+              {isStudent ? (user.studentCode ?? "هنرجو") : (user.email ?? "ادمین")}
+            </p>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
             {user.role === "ADMIN" ? "ادمین" : "هنرجو"}
@@ -432,13 +454,26 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
                     key={item.id}
                     className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-slate-900">
                         {item.course.title}
                       </p>
                       <p className="text-xs text-slate-500">
                         {item.course.teacher} · {item.course.instrument}
                       </p>
+                      <div className="mt-3 max-w-xs space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>پیشرفت دوره</span>
+                          <span className="font-sans font-semibold tabular-nums text-brand">
+                            {toFa(item.progress ?? 0)}٪
+                          </span>
+                        </div>
+                        <Progress value={item.progress ?? 0} />
+                        <p className="text-[11px] text-slate-400">
+                          {toFa(item.sessionsDone ?? 0)} از{" "}
+                          {toFa(item.sessionsTotal ?? 0)} جلسه
+                        </p>
+                      </div>
                     </div>
                     <Button
                       type="button"
