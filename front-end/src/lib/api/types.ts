@@ -36,6 +36,7 @@ export type CourseSession = {
   topics: string[];
   status: SessionStatus;
   slideCount: number;
+  attachmentCount?: number;
   durationLabel: string;
   dateLabel: string;
   courseId?: string;
@@ -163,4 +164,13 @@ export type ApiSlide = {
   imageId?: string;
   funFact?: string;
   kind?: "cover" | "lesson" | "visual" | "outro";
+};
+
+export type SessionAttachment = {
+  id: string;
+  path: string;
+  caption?: string;
+  filename: string;
+  mimeType: string;
+  sortOrder: number;
 };

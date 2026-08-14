@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Maximize2, X } from "lucide-react";
 
 import { SlideView } from "@/components/slides/SlideView";
+import { DeckNavArrow } from "@/components/slides/DeckNavArrow";
 import { useDeck } from "@/components/slides/useDeck";
 import { useSlideProgressSync } from "@/hooks/useSlideProgressSync";
 import { toFa } from "@/lib/format";
@@ -29,41 +30,6 @@ const slideVariants = {
     transition: { duration: 0.28, ease },
   }),
 };
-
-function NavArrow({
-  onClick,
-  disabled,
-  flip = false,
-  label,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-  flip?: boolean;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className="grid size-7 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/8 hover:text-white active:scale-95 disabled:pointer-events-none disabled:opacity-25"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        width="13"
-        height="13"
-        className={flip ? "" : "rotate-180"}
-        aria-hidden
-      >
-        <path
-          fill="currentColor"
-          d="M14.7 6.3a1 1 0 0 0-1.4 0l-6 6a1 1 0 0 0 0 1.4l6 6a1 1 0 1 0 1.4-1.4L9.42 13l5.28-5.3a1 1 0 0 0 0-1.4z"
-        />
-      </svg>
-    </button>
-  );
-}
 
 type SlideDeckProps = {
   mode?: "embedded" | "fullscreen";
@@ -195,7 +161,7 @@ export function SlideDeck({
         aria-label="ناوبری اسلایدها"
       >
         <div className="flex w-full max-w-360 items-center gap-1.5 rounded-full border border-white/10 bg-white/4 px-1.5 py-1 backdrop-blur-md sm:gap-2 sm:px-2">
-          <NavArrow onClick={prev} disabled={index === 0} label="اسلاید قبلی" />
+          <DeckNavArrow onClick={prev} disabled={index === 0} label="اسلاید قبلی" />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-center gap-1.5">
@@ -220,7 +186,7 @@ export function SlideDeck({
             </div>
           </div>
 
-          <NavArrow
+          <DeckNavArrow
             onClick={next}
             disabled={index === total - 1}
             label="اسلاید بعدی"

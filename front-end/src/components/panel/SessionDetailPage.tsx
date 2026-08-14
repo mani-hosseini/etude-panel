@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import {
-  ArrowRight,
-  Maximize2,
-  Presentation,
-  UserRound,
-} from "lucide-react";
+import { ArrowRight, Images, Maximize2, Presentation, UserRound } from "lucide-react";
 
 import { PageHeader } from "@/components/panel/PageHeader";
-import { SlideDeck } from "@/components/slides/SlideDeck";
+import { SessionStatCards } from "@/components/panel/session/SessionStatCards";
+import {
+  SessionWorkspace,
+  type SessionWorkspaceView,
+} from "@/components/panel/session/SessionWorkspace";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   queryErrorMessage,
   useCourseQuery,
+  useSessionAttachmentsQuery,
   useSessionQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
@@ -35,6 +35,8 @@ export function SessionDetailPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryCourseId = searchParams.get("courseId");
+  const [workspaceView, setWorkspaceView] =
+    useState<SessionWorkspaceView>("slides");
 
   useEffect(() => {
     if (!courseId && queryCourseId) {
@@ -48,6 +50,11 @@ export function SessionDetailPage({
   const slidesEnabled =
     sessionQuery.isSuccess && sessionQuery.data.status === "available";
   const slidesQuery = useSessionSlidesQuery(
+    sessionId,
+    resolvedCourseId,
+    slidesEnabled,
+  );
+  const attachmentsQuery = useSessionAttachmentsQuery(
     sessionId,
     resolvedCourseId,
     slidesEnabled,
@@ -68,7 +75,7 @@ export function SessionDetailPage({
   if (
     sessionQuery.isPending ||
     (resolvedCourseId && courseQuery.isPending) ||
-    (slidesEnabled && slidesQuery.isPending)
+    (slidesEnabled && (slidesQuery.isPending || attachmentsQuery.isPending))
   ) {
     return <Skeleton className="h-64 rounded-3xl" />;
   }
@@ -88,6 +95,7 @@ export function SessionDetailPage({
     slidesQuery.isSuccess && slidesQuery.data
       ? toDeckSlides(slidesQuery.data.slides)
       : [];
+  const attachments = attachmentsQuery.data?.attachments ?? [];
   const course = courseQuery.data ?? null;
   const pathCourseId =
     resolvedCourseId ?? session.courseId ?? course?.id ?? undefined;
@@ -96,6 +104,7 @@ export function SessionDetailPage({
     session.courseTitle ??
     course?.title ??
     "دوره";
+  const sessionLabel = `جلسه ${toFa(session.number)}`;
 
   if (session.status !== "available") {
     return (
@@ -160,64 +169,56 @@ export function SessionDetailPage({
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid gap-3 sm:grid-cols-3"
       >
-        {[
-          {
-            label: "مدرس",
-            value: course?.teacherShort || "—",
-            icon: UserRound,
-          },
-          {
-            label: "تعداد اسلاید",
-            value: toFa(slides.length),
-            icon: Presentation,
-          },
-          {
-            label: "زمان کلاس",
-            value: course?.timeShort || "—",
-            icon: Maximize2,
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.label}
-              className="surface-panel flex items-center gap-3 p-4"
-            >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand">
-                <Icon className="size-4" strokeWidth={1.75} />
-              </span>
-              <div>
-                <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className="font-sans text-sm font-semibold tabular-nums text-navy">
-                  {item.value}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+        <SessionStatCards
+          items={[
+            {
+              id: "teacher",
+              label: "مدرس",
+              value: course?.teacherShort || "—",
+              icon: UserRound,
+            },
+            {
+              id: "slides",
+              label: "تعداد اسلاید",
+              value: toFa(slides.length),
+              icon: Presentation,
+              active: workspaceView === "slides",
+              onSelect: () => setWorkspaceView("slides"),
+            },
+            {
+              id: "attachments",
+              label: "فایل و عکس‌های پیوست",
+              value:
+                attachments.length > 0
+                  ? `${toFa(attachments.length)} فایل`
+                  : "بدون فایل",
+              icon: Images,
+              active: workspaceView === "attachments",
+              onSelect: () => setWorkspaceView("attachments"),
+            },
+          ]}
+        />
       </motion.div>
 
-      <div className="overflow-hidden rounded-3xl border border-border shadow-soft">
-        <SlideDeck
-          mode="embedded"
-          slides={slides}
-          sessionLabel={`جلسه ${toFa(session.number)}`}
-          sessionId={session.id}
-          courseId={pathCourseId}
-          playHref={
-            pathCourseId
-              ? routes.courseSessionPlay(pathCourseId, session.id)
-              : routes.sessions
-          }
-          backHref={
-            pathCourseId
-              ? routes.courseSession(pathCourseId, session.id)
-              : routes.sessions
-          }
-        />
-      </div>
+      <SessionWorkspace
+        view={workspaceView}
+        slides={slides}
+        attachments={attachments}
+        sessionLabel={sessionLabel}
+        sessionId={session.id}
+        courseId={pathCourseId}
+        playHref={
+          pathCourseId
+            ? routes.courseSessionPlay(pathCourseId, session.id)
+            : routes.sessions
+        }
+        backHref={
+          pathCourseId
+            ? routes.courseSession(pathCourseId, session.id)
+            : routes.sessions
+        }
+      />
     </div>
   );
 }
