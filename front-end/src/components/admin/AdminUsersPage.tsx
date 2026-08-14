@@ -12,18 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { adminApi } from "@/lib/api/admin-client";
 import {
   adminQueryKeys,
   useAdminUsersQuery,
 } from "@/lib/api/admin-queries";
 import { ApiError } from "@/lib/api/http";
-import { resolveAvatarUrl } from "@/lib/avatar";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -231,16 +226,11 @@ export function AdminUsersPage() {
                 <tr key={user.id} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <Avatar className="size-8 rounded-full ring-1 ring-slate-200">
-                        <AvatarImage
-                          src={resolveAvatarUrl(avatarByUserId.get(user.id))}
-                          alt={user.displayName}
-                          className="object-cover"
-                        />
-                        <AvatarFallback className="text-[11px]">
-                          {user.displayName.trim().slice(0, 1)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar
+                        className="size-8"
+                        avatarUrl={avatarByUserId.get(user.id)}
+                        alt={user.displayName}
+                      />
                       <span className="font-semibold text-slate-900">
                         {user.displayName}
                       </span>

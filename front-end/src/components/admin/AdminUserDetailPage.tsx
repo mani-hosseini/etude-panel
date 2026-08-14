@@ -13,11 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import {
   Select,
   SelectContent,
@@ -33,7 +29,6 @@ import {
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
 import { ApiError } from "@/lib/api/http";
-import { resolveAvatarUrl } from "@/lib/avatar";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
@@ -345,14 +340,11 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
 
       <Card className="rounded-2xl border-slate-200 p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <Avatar className="size-12 rounded-full ring-1 ring-slate-200">
-            <AvatarImage
-              src={resolveAvatarUrl(user.avatarUrl)}
-              alt={user.displayName}
-              className="object-cover"
-            />
-            <AvatarFallback>{user.displayName.trim().slice(0, 1)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            className="size-12"
+            avatarUrl={user.avatarUrl}
+            alt={user.displayName}
+          />
           <div>
             <p className="font-semibold text-slate-900">{user.displayName}</p>
             <p className="text-xs text-slate-500">
