@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminCourseQuery } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
@@ -26,9 +26,7 @@ export function AdminCourseDetailPage({ courseSlug }: { courseSlug: string }) {
     return (
       <Card className="rounded-2xl border-rose-200 bg-rose-50">
         <CardContent className="p-8 text-center text-sm text-rose-700">
-          {courseQuery.error instanceof ApiError
-            ? courseQuery.error.message
-            : "دوره یافت نشد"}
+          {audienceError(courseQuery.error, "دوره یافت نشد.")}
         </CardContent>
       </Card>
     );

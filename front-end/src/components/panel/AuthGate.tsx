@@ -31,7 +31,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     if (!session) {
-      router.replace(routes.register);
+      router.replace(routes.login);
     }
   }, [hydrated, session, router]);
 

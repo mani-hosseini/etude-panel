@@ -155,7 +155,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('کاربر یافت نشد.');
+      throw new NotFoundException('هنرجو یافت نشد.');
     }
 
     const avgProgress = await this.computeAvgProgress(id);
@@ -193,7 +193,7 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
-      throw new NotFoundException('کاربر یافت نشد.');
+      throw new NotFoundException('هنرجو یافت نشد.');
     }
 
     const firstName = dto.firstName
@@ -290,7 +290,7 @@ export class UsersService {
   async resetPassword(id: string, dto: ResetPasswordDto) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
-      throw new NotFoundException('کاربر یافت نشد.');
+      throw new NotFoundException('هنرجو یافت نشد.');
     }
 
     const passwordHash = await argon2.hash(dto.password);
@@ -318,7 +318,7 @@ export class UsersService {
   async delete(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
-      throw new NotFoundException('کاربر یافت نشد.');
+      throw new NotFoundException('هنرجو یافت نشد.');
     }
     if (user.role === Role.ADMIN) {
       throw new ForbiddenException('حذف حساب ادمین مجاز نیست.');
@@ -331,7 +331,7 @@ export class UsersService {
   async enroll(userId: string, dto: EnrollCourseDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('کاربر یافت نشد.');
+      throw new NotFoundException('هنرجو یافت نشد.');
     }
 
     const course = await this.prisma.course.findFirst({

@@ -110,7 +110,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           success: false,
           error: {
             code: 'CONFLICT',
-            message: 'رکورد تکراری است.',
+            message: 'این مورد از قبل ثبت شده است.',
             details: isProduction ? undefined : exception.meta,
           },
         };
@@ -120,7 +120,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           success: false,
           error: {
             code: 'NOT_FOUND',
-            message: 'رکورد مورد نظر یافت نشد.',
+            message: 'مورد نظر یافت نشد.',
           },
         };
       }
@@ -130,11 +130,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       success: false,
       error: {
         code: 'INTERNAL_SERVER_ERROR',
-        message: isProduction
-          ? 'خطای داخلی سرور رخ داد.'
-          : exception instanceof Error
-            ? exception.message
-            : 'Unknown error',
+        message: 'الان امکان انجام این کار نیست. کمی بعد دوباره تلاش کنید.',
       },
     };
   }

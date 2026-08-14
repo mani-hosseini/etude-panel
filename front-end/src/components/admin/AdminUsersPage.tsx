@@ -19,7 +19,7 @@ import {
   adminQueryKeys,
   useAdminUsersQuery,
 } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -66,9 +66,7 @@ export function AdminUsersPage() {
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
     },
     onError: (err) => {
-      setDeleteError(
-        err instanceof ApiError ? err.message : "حذف کاربر ناموفق بود.",
-      );
+      setDeleteError(audienceError(err, "حذف هنرجو انجام نشد."));
     },
   });
 
@@ -122,13 +120,9 @@ export function AdminUsersPage() {
   }
 
   if (query.isError) {
-    const message =
-      query.error instanceof ApiError
-        ? query.error.message
-        : "خطا در دریافت کاربران";
     return (
       <div className="surface-panel p-8 text-center text-sm text-destructive">
-        {message}
+        {audienceError(query.error, "فهرست هنرجوها الان در دسترس نیست.")}
       </div>
     );
   }
@@ -362,9 +356,7 @@ export function AdminUsersPage() {
 
       {toggleActive.isError ? (
         <p className="text-sm text-rose-600">
-          {toggleActive.error instanceof ApiError
-            ? toggleActive.error.message
-            : "عملیات ناموفق بود."}
+{audienceError(toggleActive.error, "این تغییر الان انجام نشد.")}
         </p>
       ) : null}
       {deleteError ? (

@@ -5,7 +5,7 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 
@@ -43,9 +43,7 @@ export function AvatarUpload({
       const result = await api.uploadAvatar(file);
       onChanged(result.avatarUrl);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "آپلود تصویر ناموفق بود.",
-      );
+      setError(audienceError(err, "آپلود تصویر انجام نشد."));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -59,9 +57,7 @@ export function AvatarUpload({
       await api.deleteAvatar();
       onChanged(null);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "حذف تصویر ناموفق بود.",
-      );
+      setError(audienceError(err, "حذف تصویر انجام نشد."));
     } finally {
       setUploading(false);
     }

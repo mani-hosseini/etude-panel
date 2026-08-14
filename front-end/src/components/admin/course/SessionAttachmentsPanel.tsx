@@ -15,7 +15,8 @@ import {
   adminQueryKeys,
   useAdminAttachmentsQuery,
 } from "@/lib/api/admin-queries";
-import { ApiError, resolveMediaUrl } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
+import { resolveMediaUrl } from "@/lib/api/http";
 import { toFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,7 @@ export function SessionAttachmentsPanel({
       await invalidate();
     },
     onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "آپلود ناموفق بود.");
+      setError(audienceError(err, "آپلود فایل انجام نشد."));
     },
   });
 
@@ -75,18 +76,9 @@ export function SessionAttachmentsPanel({
   }
 
   if (query.isError) {
-    const raw =
-      query.error instanceof ApiError
-        ? query.error.message
-        : "خطا در دریافت فایل‌های پیوست";
-    const message =
-      query.error instanceof ApiError &&
-      (query.error.status === 404 || /cannot get/i.test(raw))
-        ? "آپلود فایل پیوست روی API زنده هنوز فعال نیست. بعد از دیپلوی بک‌اند و اجرای prisma migrate این تب کار می‌کند."
-        : raw;
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {message}
+        {audienceError(query.error, "فایل‌های پیوست الان در دسترس نیستند.")}
       </div>
     );
   }

@@ -34,9 +34,18 @@ export function clearTokens() {
   }
 }
 
+function redirectStudentToLogin() {
+  if (typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path === "/login" || path === "/") return;
+  window.localStorage.removeItem("etude-panel-session-v2");
+  window.location.replace("/login");
+}
+
 export const studentHttp = createApiRequester({
   getAccess: getStoredAccessToken,
   getRefresh: getStoredRefreshToken,
   setTokens,
   clearTokens,
+  onUnauthorized: redirectStudentToLogin,
 });

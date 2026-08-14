@@ -105,11 +105,14 @@ export async function adminLoginWithApi(email: string, password: string) {
     return { ok: true as const };
   } catch (error) {
     if (error instanceof ApiError) {
-      return { ok: false as const, message: error.message };
+      return {
+        ok: false as const,
+        message: error.message || "ایمیل یا رمز عبور نادرست است.",
+      };
     }
     return {
       ok: false as const,
-      message: "ارتباط با سرور برقرار نشد. Backend را بررسی کنید.",
+      message: "اتصال برقرار نشد. کمی بعد دوباره تلاش کنید.",
     };
   }
 }

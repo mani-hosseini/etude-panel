@@ -34,9 +34,17 @@ export function clearAdminTokens() {
   }
 }
 
+function redirectAdminToLogin() {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname === "/admin/login") return;
+  window.localStorage.removeItem("etude-admin-session-v1");
+  window.location.replace("/admin/login");
+}
+
 export const adminHttp = createApiRequester({
   getAccess: getAdminAccessToken,
   getRefresh: getAdminRefreshToken,
   setTokens: setAdminTokens,
   clearTokens: clearAdminTokens,
+  onUnauthorized: redirectAdminToLogin,
 });

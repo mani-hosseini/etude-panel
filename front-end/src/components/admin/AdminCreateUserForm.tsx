@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminQueryKeys } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 
 type AdminCreateUserFormProps = {
   onClose: () => void;
@@ -39,7 +39,7 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
       onClose();
     },
     onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "ثبت هنرجو ناموفق بود.");
+      setError(audienceError(err, "ثبت هنرجو انجام نشد."));
     },
   });
 

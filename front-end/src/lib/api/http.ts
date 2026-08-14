@@ -1,5 +1,7 @@
 /** Shared HTTP helpers for student + admin API clients. */
 
+import { toAudienceMessage } from "@/lib/api/errors";
+
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
   "http://localhost:4000/api/v1";
@@ -39,7 +41,7 @@ export class ApiError extends Error {
   code: string;
 
   constructor(status: number, code: string, message: string) {
-    super(message);
+    super(toAudienceMessage(status, code, message));
     this.status = status;
     this.code = code;
   }
@@ -66,15 +68,26 @@ type TokenStore = {
   getRefresh: () => string | null;
   setTokens: (access: string, refresh: string) => void;
   clearTokens: () => void;
+  /** Called after a failed refresh / expired session. Redirect; do not toast. */
+  onUnauthorized?: () => void;
 };
 
 export async function parseResponseData<T>(response: Response): Promise<{
   data: T;
   meta?: PaginationMeta;
 }> {
-  const json = (await response.json()) as
-    | ApiSuccessPayload<T>
-    | ApiErrorPayload;
+  let json: ApiSuccessPayload<T> | ApiErrorPayload;
+  try {
+    json = (await response.json()) as
+      | ApiSuccessPayload<T>
+      | ApiErrorPayload;
+  } catch {
+    throw new ApiError(
+      response.status,
+      response.status >= 500 ? "INTERNAL_SERVER_ERROR" : "BAD_RESPONSE",
+      "خطای ناشناخته از سرور",
+    );
+  }
 
   if (!response.ok || !("success" in json) || json.success === false) {
     const err = json as ApiErrorPayload;
@@ -92,6 +105,12 @@ export async function parseResponseData<T>(response: Response): Promise<{
 }
 
 export function createApiRequester(store: TokenStore) {
+  function expireSessionAndHang(): Promise<Response> {
+    store.clearTokens();
+    store.onUnauthorized?.();
+    return new Promise<Response>(() => {});
+  }
+
   async function refreshAccessToken(): Promise<string | null> {
     const refreshToken = store.getRefresh();
     if (!refreshToken) return null;
@@ -130,12 +149,21 @@ export function createApiRequester(store: TokenStore) {
     const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
     let response = await fetch(url, { ...init, headers });
 
-    if (response.status === 401 && useAuth && store.getRefresh()) {
-      const nextToken = await refreshAccessToken();
-      if (nextToken) {
-        headers.set("Authorization", `Bearer ${nextToken}`);
-        response = await fetch(url, { ...init, headers });
+    if (response.status === 401 && useAuth) {
+      if (store.getRefresh()) {
+        let nextToken: string | null = null;
+        try {
+          nextToken = await refreshAccessToken();
+        } catch {
+          throw new ApiError(0, "NETWORK", "اتصال برقرار نشد.");
+        }
+        if (nextToken) {
+          headers.set("Authorization", `Bearer ${nextToken}`);
+          response = await fetch(url, { ...init, headers });
+          if (response.status !== 401) return response;
+        }
       }
+      return expireSessionAndHang();
     }
 
     return response;
@@ -151,16 +179,22 @@ export function createApiRequester(store: TokenStore) {
     }
 
     const useAuth = options.auth !== false;
-    const response = await authorizedFetch(
-      path,
-      {
-        method: options.method ?? (options.body ? "POST" : "GET"),
-        headers,
-        body:
-          options.body !== undefined ? JSON.stringify(options.body) : undefined,
-      },
-      useAuth,
-    );
+    let response: Response;
+    try {
+      response = await authorizedFetch(
+        path,
+        {
+          method: options.method ?? (options.body ? "POST" : "GET"),
+          headers,
+          body:
+            options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        },
+        useAuth,
+      );
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(0, "NETWORK", "اتصال برقرار نشد.");
+    }
 
     return parseResponseData<T>(response);
   }
@@ -171,14 +205,20 @@ export function createApiRequester(store: TokenStore) {
     options: { method?: string; auth?: boolean } = {},
   ): Promise<T> {
     const useAuth = options.auth !== false;
-    const response = await authorizedFetch(
-      path,
-      {
-        method: options.method ?? "POST",
-        body: formData,
-      },
-      useAuth,
-    );
+    let response: Response;
+    try {
+      response = await authorizedFetch(
+        path,
+        {
+          method: options.method ?? "POST",
+          body: formData,
+        },
+        useAuth,
+      );
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(0, "NETWORK", "اتصال برقرار نشد.");
+    }
     const { data } = await parseResponseData<T>(response);
     return data;
   }

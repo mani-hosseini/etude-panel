@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
 import { useAdminCoursesQuery } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -56,9 +56,7 @@ export function AdminCoursesPage() {
   if (query.isError) {
     return (
       <Card className="rounded-2xl border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {query.error instanceof ApiError
-          ? query.error.message
-          : "خطا در دریافت دوره‌ها"}
+        {audienceError(query.error, "فهرست دوره‌ها الان در دسترس نیست.")}
       </Card>
     );
   }
