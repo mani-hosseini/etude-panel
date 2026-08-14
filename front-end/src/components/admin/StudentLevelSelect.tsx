@@ -14,12 +14,14 @@ type StudentLevelSelectProps = {
   value: string;
   onValueChange: (value: string) => void;
   id?: string;
+  includeAll?: boolean;
 };
 
 export function StudentLevelSelect({
   value,
   onValueChange,
   id,
+  includeAll = false,
 }: StudentLevelSelectProps) {
   return (
     <Select value={value} onValueChange={onValueChange}>
@@ -27,6 +29,9 @@ export function StudentLevelSelect({
         <SelectValue placeholder="انتخاب سطح" />
       </SelectTrigger>
       <SelectContent>
+        {includeAll ? (
+          <SelectItem value="all">همه سطوح</SelectItem>
+        ) : null}
         {STUDENT_LEVELS.map((n) => (
           <SelectItem key={n} value={String(n)}>
             <span className="flex items-center gap-2">
