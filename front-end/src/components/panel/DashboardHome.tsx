@@ -14,6 +14,7 @@ import { StatCard } from "@/components/panel/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
 import {
   queryErrorMessage,
@@ -22,6 +23,7 @@ import {
 import { resolveAvatarUrl } from "@/lib/avatar";
 import { toFa, weekdayPlural, cleanCourseTitle } from "@/lib/format";
 import { scheduleLessonLabel } from "@/lib/schedule-window";
+import { parseStudentLevel, STUDENT_LEVEL_STYLE, studentLevelEdgeGlow } from "@/lib/student-level";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { routes } from "@/lib/routes";
 
@@ -54,6 +56,8 @@ export function DashboardHome() {
   const data = query.data;
   const nextLesson = data.nextLesson;
   const currentSession = data.currentSession;
+  const level = parseStudentLevel(data.student.level);
+  const levelStyle = STUDENT_LEVEL_STYLE[level];
 
   return (
     <div className="space-y-8">
@@ -74,18 +78,26 @@ export function DashboardHome() {
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-2xl font-bold text-brand shadow-md sm:size-20 sm:text-3xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={resolveAvatarUrl(data.student.avatarUrl)}
-                alt={session.displayName}
-                className="size-full object-cover"
-              />
+            <div
+              className="size-16 shrink-0 rounded-2xl sm:size-20"
+              style={{ boxShadow: studentLevelEdgeGlow(levelStyle.color) }}
+            >
+              <div className="flex size-full items-center justify-center overflow-hidden rounded-2xl bg-white text-2xl font-bold text-brand sm:text-3xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveAvatarUrl(data.student.avatarUrl)}
+                  alt={session.displayName}
+                  className="size-full object-cover"
+                />
+              </div>
             </div>
             <div>
-              <h2 className="text-2xl font-bold sm:text-3xl">
-                {session.displayName} عزیز خوش آمدید!
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-2xl font-bold sm:text-3xl">
+                  {session.displayName} عزیز خوش آمدید!
+                </h2>
+                <StudentLevelBadge level={level} className="text-[11px]" />
+              </div>
               <p className="mt-2 text-sm text-white/80">
                 {data.primaryCourse
                   ? `${cleanCourseTitle(data.primaryCourse.title)} · ${data.primaryCourse.teacher}`

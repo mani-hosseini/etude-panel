@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
+import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
 import { useDashboardQuery } from "@/lib/api/queries";
 import { resolveAvatarUrl } from "@/lib/avatar";
+import { parseStudentLevel, STUDENT_LEVEL_STYLE, studentLevelEdgeGlow } from "@/lib/student-level";
 import { logoutWithApi } from "@/lib/auth";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,9 @@ export function PanelSidebar({
   const router = useRouter();
   const dashboard = useDashboardQuery();
   const avatarUrl = resolveAvatarUrl(dashboard.data?.student.avatarUrl);
+  const level = parseStudentLevel(dashboard.data?.student.level);
+  const levelStyle = STUDENT_LEVEL_STYLE[level];
+  const glowReady = Boolean(dashboard.data);
 
   const logout = () => {
     void logoutWithApi().then(() => {
@@ -89,18 +94,32 @@ export function PanelSidebar({
       </nav>
 
       <div className="border-t border-white/10 p-4">
-        <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/8 px-3 py-2.5 ring-1 ring-white/10">
-          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-sm font-bold text-brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={avatarUrl}
-              alt={studentName}
-              className="size-full object-cover"
-            />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] text-white/55">هنرجو</p>
-            <p className="truncate text-sm font-semibold">{studentName}</p>
+        <div className="relative mb-3 rounded-2xl bg-white/8 px-3 py-3 ring-1 ring-white/10">
+          <div className="flex items-center gap-3">
+            <div
+              className="size-14 shrink-0 rounded-full"
+              style={
+                glowReady
+                  ? { boxShadow: studentLevelEdgeGlow(levelStyle.color) }
+                  : undefined
+              }
+            >
+              <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-white text-sm font-bold text-brand">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarUrl}
+                  alt={studentName}
+                  className="size-full object-cover"
+                />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] text-white/55">هنرجو</p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <p className="truncate text-sm font-semibold">{studentName}</p>
+                <StudentLevelBadge level={level} />
+              </div>
+            </div>
           </div>
         </div>
         <button

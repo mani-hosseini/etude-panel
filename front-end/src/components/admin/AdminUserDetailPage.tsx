@@ -13,7 +13,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { StudentLevelSelect } from "@/components/admin/StudentLevelSelect";
 import {
   Select,
   SelectContent,
@@ -29,6 +31,7 @@ import {
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
 import { ApiError } from "@/lib/api/http";
+import { parseStudentLevel } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
@@ -45,8 +48,7 @@ function AdminUserEditForm({
 }) {
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
-  const [level, setLevel] = useState(user.level ?? "");
-  const [studentCode, setStudentCode] = useState(user.studentCode ?? "");
+  const [level, setLevel] = useState(() => String(parseStudentLevel(user.level)));
   const [phone, setPhone] = useState(user.phone ?? "");
   const [nationalId, setNationalId] = useState(user.nationalId ?? "");
   const [address, setAddress] = useState(user.address ?? "");
@@ -61,8 +63,7 @@ function AdminUserEditForm({
       adminApi.updateUser(user.id, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        level: level.trim() || undefined,
-        studentCode: studentCode.trim() || undefined,
+        level,
         phone: phone.trim(),
         nationalId: nationalId.trim(),
         address: address.trim(),
@@ -123,21 +124,11 @@ function AdminUserEditForm({
           {isStudent ? (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="admin-level">سطح</Label>
-                <Input
+                <Label htmlFor="admin-level">سطح هنرجو</Label>
+                <StudentLevelSelect
                   id="admin-level"
                   value={level}
-                  onChange={(e) => setLevel(e.target.value)}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="admin-code">کد هنرجو</Label>
-                <Input
-                  id="admin-code"
-                  value={studentCode}
-                  onChange={(e) => setStudentCode(e.target.value)}
-                  className="rounded-xl"
+                  onValueChange={setLevel}
                 />
               </div>
               <div className="space-y-1.5">
@@ -319,7 +310,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
         title={user.displayName}
         description={
           isStudent
-            ? `کد هنرجو: ${user.studentCode ?? "—"} · ${user.isActive ? "فعال" : "غیرفعال"}`
+            ? `${user.isActive ? "فعال" : "غیرفعال"}`
             : user.email ?? "ادمین"
         }
         backHref={adminRoutes.users}
@@ -348,7 +339,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
           <div>
             <p className="font-semibold text-slate-900">{user.displayName}</p>
             <p className="text-xs text-slate-500">
-              {isStudent ? (user.studentCode ?? "هنرجو") : (user.email ?? "ادمین")}
+              {isStudent ? "هنرجو" : (user.email ?? "ادمین")}
             </p>
           </div>
         </div>
@@ -359,7 +350,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
           <Badge variant={user.isActive ? "success" : "warning"}>
             {user.isActive ? "فعال" : "غیرفعال"}
           </Badge>
-          {user.level ? <Badge variant="outline">{user.level}</Badge> : null}
+          {isStudent ? <StudentLevelBadge level={user.level} /> : null}
         </div>
         <p className="mt-3 text-xs text-slate-500">
           عضویت از {toFa(new Date(user.createdAt).toLocaleDateString("fa-IR"))}

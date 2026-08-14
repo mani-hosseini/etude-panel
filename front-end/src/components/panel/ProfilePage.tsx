@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { api } from "@/lib/api/client";
@@ -22,6 +23,7 @@ import {
   useProfileQuery,
 } from "@/lib/api/queries";
 import { saveSession } from "@/lib/auth";
+import { parseStudentLevel } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
 
 function ProfileEditForm({
@@ -34,7 +36,6 @@ function ProfileEditForm({
   const queryClient = useQueryClient();
   const [firstName, setFirstName] = useState(student.firstName);
   const [lastName, setLastName] = useState(student.lastName);
-  const [level, setLevel] = useState(student.level);
   const [phone, setPhone] = useState(student.phone ?? "");
   const [nationalId, setNationalId] = useState(student.nationalId ?? "");
   const [address, setAddress] = useState(student.address ?? "");
@@ -47,7 +48,6 @@ function ProfileEditForm({
       api.updateProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        level: level.trim() || undefined,
         phone: phone.trim(),
         nationalId: nationalId.trim(),
         address: address.trim(),
@@ -82,7 +82,7 @@ function ProfileEditForm({
       <div className="border-b border-border px-5 py-4 sm:px-6">
         <h3 className="text-base font-bold">ویرایش اطلاعات</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          نام، سطح و در صورت نیاز رمز عبور خود را به‌روز کنید
+          نام و در صورت نیاز رمز عبور خود را به‌روز کنید
         </p>
       </div>
       <form
@@ -116,13 +116,13 @@ function ProfileEditForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="profile-level">سطح</Label>
-            <Input
-              id="profile-level"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="rounded-xl"
-            />
+            <Label>سطح</Label>
+            <div className="flex h-10 items-center gap-2 rounded-xl border border-input bg-muted/40 px-3">
+              <StudentLevelBadge level={student.level} />
+              <span className="text-[11px] text-muted-foreground">
+                فقط ادمین می‌تواند تغییر دهد
+              </span>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="profile-phone">شماره تلفن</Label>
@@ -254,7 +254,8 @@ export function ProfilePage() {
             <div className="text-center sm:text-right">
               <h3 className="text-2xl font-bold sm:text-3xl">{fullName}</h3>
               <p className="mt-1.5 text-sm text-white/80">
-                {student.programTitle} · سطح {student.level}
+                {student.programTitle} · سطح{" "}
+                {toFa(parseStudentLevel(student.level))}
               </p>
               <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-xs text-white/85">
                 <Music2 className="size-3.5" strokeWidth={1.75} />
@@ -303,7 +304,7 @@ export function ProfilePage() {
               label: "مدرس",
               value: primaryCourse?.teacher ?? "—",
             },
-            { label: "سطح", value: student.level },
+            { label: "سطح", value: `سطح ${toFa(parseStudentLevel(student.level))}` },
             {
               label: "زمان کلاس",
               value: primaryCourse ? `${primaryCourse.timeShort}` : "—",

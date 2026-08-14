@@ -124,7 +124,6 @@ export const api = {
   updateProfile: (body: {
     firstName?: string;
     lastName?: string;
-    level?: string;
     phone?: string;
     nationalId?: string;
     address?: string;
