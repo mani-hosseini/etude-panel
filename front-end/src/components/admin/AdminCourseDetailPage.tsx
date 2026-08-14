@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { CourseSchedulePanel } from "@/components/admin/course/CourseSchedulePanel";
 import { CourseSessionsPanel } from "@/components/admin/course/CourseSessionsPanel";
 import { CourseTipsPanel } from "@/components/admin/course/CourseTipsPanel";
 import { Badge } from "@/components/ui/badge";
@@ -66,9 +65,8 @@ export function AdminCourseDetailPage({ courseSlug }: { courseSlug: string }) {
       </div>
 
       <Tabs defaultValue="sessions" dir="rtl">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="sessions">جلسات</TabsTrigger>
-          <TabsTrigger value="schedule">برنامه</TabsTrigger>
           <TabsTrigger value="tips">نکات تمرین</TabsTrigger>
           <TabsTrigger value="settings">تنظیمات</TabsTrigger>
         </TabsList>
@@ -79,9 +77,6 @@ export function AdminCourseDetailPage({ courseSlug }: { courseSlug: string }) {
             courseSlug={course.slug}
             sessions={course.sessions}
           />
-        </TabsContent>
-        <TabsContent value="schedule">
-          <CourseSchedulePanel courseId={course.id} />
         </TabsContent>
         <TabsContent value="tips">
           <CourseTipsPanel courseId={course.id} />
