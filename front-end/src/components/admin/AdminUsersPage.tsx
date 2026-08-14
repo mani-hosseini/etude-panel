@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentLevelBadge } from "@/components/ui/student-level-badge";
+import { StudentLevelSelect } from "@/components/admin/StudentLevelSelect";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { adminApi } from "@/lib/api/admin-client";
 import {
@@ -32,6 +33,7 @@ export function AdminUsersPage() {
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<RoleFilter>("STUDENT");
+  const [level, setLevel] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -41,8 +43,9 @@ export function AdminUsersPage() {
       limit: 20,
       search: search || undefined,
       role: role === "ALL" ? undefined : role,
+      level: level === "all" ? undefined : level,
     }),
-    [page, search, role],
+    [page, search, role, level],
   );
 
   const query = useAdminUsersQuery(params);
@@ -160,7 +163,7 @@ export function AdminUsersPage() {
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(
             [
               { id: "STUDENT", label: "هنرجو" },
@@ -174,6 +177,7 @@ export function AdminUsersPage() {
               onClick={() => {
                 setRole(item.id);
                 setPage(1);
+                if (item.id === "ADMIN") setLevel("all");
               }}
               className={cn(
                 "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
@@ -185,6 +189,19 @@ export function AdminUsersPage() {
               {item.label}
             </button>
           ))}
+          {role !== "ADMIN" ? (
+            <div className="w-40">
+              <StudentLevelSelect
+                id="users-level-filter"
+                includeAll
+                value={level}
+                onValueChange={(value) => {
+                  setLevel(value);
+                  setPage(1);
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex w-full gap-2 sm:max-w-sm">
