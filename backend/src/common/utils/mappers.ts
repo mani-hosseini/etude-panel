@@ -8,6 +8,13 @@ export function normalizeName(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
 }
 
+/** Student rank 1–10. Unknown legacy values (e.g. «پایه») become 1. */
+export function normalizeStudentLevel(value?: string | null): string {
+  const n = Number.parseInt(String(value ?? '').trim(), 10);
+  if (n >= 1 && n <= 10) return String(n);
+  return '1';
+}
+
 export function toPersianDigits(value: string | number): string {
   return String(value).replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]!);
 }

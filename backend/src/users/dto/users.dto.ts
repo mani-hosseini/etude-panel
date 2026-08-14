@@ -4,6 +4,7 @@ import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -53,10 +54,11 @@ export class UpdateUserDto {
   @MaxLength(255)
   email?: string;
 
-  @ApiPropertyOptional({ example: 'پایه' })
+  @ApiPropertyOptional({ example: '1', description: 'سطح هنرجو از ۱ تا ۱۰' })
   @IsOptional()
-  @IsString()
-  @MaxLength(64)
+  @IsIn(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], {
+    message: 'سطح باید بین ۱ تا ۱۰ باشد.',
+  })
   level?: string;
 
   @ApiPropertyOptional()
