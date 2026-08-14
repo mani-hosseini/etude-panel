@@ -84,6 +84,7 @@ export type ListUsersParams = {
   isActive?: boolean;
   search?: string;
   sort?: string;
+  level?: string;
 };
 
 export type CourseStatus = "ACTIVE" | "UPCOMING" | "COMPLETED";
@@ -279,6 +280,7 @@ export const adminApi = {
       isActive: params.isActive,
       search: params.search,
       sort: params.sort,
+      level: params.level,
     });
     const { data, meta } = await adminHttp.request<{ users: AdminUser[] }>(
       `/users${query}`,

@@ -57,6 +57,7 @@ export class UsersService {
       ...(typeof query.isActive === 'boolean'
         ? { isActive: query.isActive }
         : {}),
+      ...(query.level ? { level: query.level } : {}),
       ...(query.search
         ? {
             OR: [
