@@ -94,7 +94,7 @@ export function PanelSidebar({
       </nav>
 
       <div className="border-t border-white/10 p-4">
-        <div className="relative mb-3 rounded-2xl bg-white/8 px-3 py-3 ring-1 ring-white/10">
+        <div className="relative mb-3 rounded-2xl bg-white px-3 py-3">
           <div className="flex items-center gap-3">
             <div
               className="size-14 shrink-0 rounded-full"
@@ -104,7 +104,7 @@ export function PanelSidebar({
                   : undefined
               }
             >
-              <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-white text-sm font-bold text-brand">
+              <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-bold text-brand">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={avatarUrl}
@@ -113,13 +113,13 @@ export function PanelSidebar({
                 />
               </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] text-white/55">هنرجو</p>
-              <div className="mt-0.5 flex items-center gap-1.5">
-                <p className="truncate text-sm font-semibold">{studentName}</p>
-                <StudentLevelBadge level={level} />
-              </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-slate-500">هنرجو</p>
+              <p className="mt-0.5 truncate text-sm font-semibold text-navy">
+                {studentName}
+              </p>
             </div>
+            <StudentLevelBadge level={level} layout="stack" className="ms-auto" />
           </div>
         </div>
         <button
