@@ -15,7 +15,7 @@ import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { api } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import type { ProfilePayload } from "@/lib/api/types";
 import {
   queryErrorMessage,
@@ -71,9 +71,7 @@ function ProfileEditForm({
     },
     onError: (err) => {
       setFormSuccess(null);
-      setFormError(
-        err instanceof ApiError ? err.message : "ذخیره اطلاعات ناموفق بود.",
-      );
+      setFormError(audienceError(err, "ذخیره اطلاعات انجام نشد."));
     },
   });
 

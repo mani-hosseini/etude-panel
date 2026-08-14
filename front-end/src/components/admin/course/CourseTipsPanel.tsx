@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminQueryKeys, useAdminTipsQuery } from "@/lib/api/admin-queries";
+import { audienceError } from "@/lib/api/errors";
 
 export function CourseTipsPanel({ courseId }: { courseId: string }) {
   const queryClient = useQueryClient();
@@ -37,6 +38,14 @@ export function CourseTipsPanel({ courseId }: { courseId: string }) {
 
   if (query.isPending) return <Skeleton className="h-48 rounded-2xl" />;
 
+  if (query.isError) {
+    return (
+      <p className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
+        {audienceError(query.error, "نکته‌های تمرین الان در دسترس نیستند.")}
+      </p>
+    );
+  }
+
   return (
     <div dir="rtl" className="space-y-4 text-right">
       <Card className="rounded-2xl border-slate-200 shadow-sm">
@@ -57,6 +66,11 @@ export function CourseTipsPanel({ courseId }: { courseId: string }) {
           </Button>
         </CardContent>
       </Card>
+      {create.isError ? (
+        <p className="text-sm text-rose-600">
+          {audienceError(create.error, "افزودن نکته انجام نشد.")}
+        </p>
+      ) : null}
 
       <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm">
         {(query.data?.tips ?? []).length === 0 ? (

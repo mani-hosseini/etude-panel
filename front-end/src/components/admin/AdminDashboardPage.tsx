@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BookOpen, Users, UserCheck, UserCog, UserX } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import {
   useAdminCoursesQuery,
   useAdminUsersStatsQuery,
@@ -37,13 +37,9 @@ export function AdminDashboardPage() {
   }
 
   if (statsQuery.isError) {
-    const message =
-      statsQuery.error instanceof ApiError
-        ? statsQuery.error.message
-        : "خطا در دریافت آمار";
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {message}
+        {audienceError(statsQuery.error, "آمار الان در دسترس نیست.")}
       </div>
     );
   }

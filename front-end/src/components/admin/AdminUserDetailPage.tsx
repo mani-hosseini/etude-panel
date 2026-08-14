@@ -30,7 +30,7 @@ import {
   useAdminCoursesQuery,
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { parseStudentLevel } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
@@ -77,9 +77,7 @@ function AdminUserEditForm({
     },
     onError: (err) => {
       setActionSuccess(null);
-      setActionError(
-        err instanceof ApiError ? err.message : "ذخیره کاربر ناموفق بود.",
-      );
+      setActionError(audienceError(err, "ذخیره اطلاعات انجام نشد."));
     },
   });
 
@@ -253,9 +251,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       await invalidate();
     },
     onError: (err) => {
-      setActionError(
-        err instanceof ApiError ? err.message : "افزودن دسترسی ناموفق بود.",
-      );
+      setActionError(audienceError(err, "افزودن دوره انجام نشد."));
     },
   });
 
@@ -266,9 +262,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       await invalidate();
     },
     onError: (err) => {
-      setActionError(
-        err instanceof ApiError ? err.message : "حذف دسترسی ناموفق بود.",
-      );
+      setActionError(audienceError(err, "حذف دوره انجام نشد."));
     },
   });
 
@@ -293,9 +287,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
   if (userQuery.isError || !userQuery.data) {
     return (
       <Card className="rounded-2xl border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {userQuery.error instanceof ApiError
-          ? userQuery.error.message
-          : "کاربر یافت نشد."}
+        {audienceError(userQuery.error, "هنرجو یافت نشد.")}
       </Card>
     );
   }
@@ -482,9 +474,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       ) : null}
       {removeUser.isError ? (
         <p className="text-sm text-rose-600">
-          {removeUser.error instanceof ApiError
-            ? removeUser.error.message
-            : "حذف کاربر ناموفق بود."}
+          {audienceError(removeUser.error, "حذف هنرجو انجام نشد.")}
         </p>
       ) : null}
     </div>

@@ -6,7 +6,8 @@ import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminApi } from "@/lib/api/admin-client";
-import { ApiError, resolveMediaUrl } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
+import { resolveMediaUrl } from "@/lib/api/http";
 import { cn } from "@/lib/utils";
 
 type SlideImageUploadProps = {
@@ -41,9 +42,7 @@ export function SlideImageUpload({
         onImageHintChange(file.name.replace(/\.[^.]+$/, ""));
       }
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "آپلود تصویر ناموفق بود.",
-      );
+      setError(audienceError(err, "آپلود تصویر انجام نشد."));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";

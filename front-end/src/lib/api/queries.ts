@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { ApiError, api } from "@/lib/api/client";
+import { audienceError } from "@/lib/api/errors";
+import { api } from "@/lib/api/client";
 
 export const queryKeys = {
   dashboard: ["dashboard"] as const,
@@ -21,8 +22,7 @@ export const queryKeys = {
 };
 
 function queryErrorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  return "خطا در دریافت داده از سرور";
+  return audienceError(error);
 }
 
 export function useDashboardQuery() {

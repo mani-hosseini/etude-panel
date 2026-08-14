@@ -25,6 +25,7 @@ import {
   type SessionStatus,
 } from "@/lib/api/admin-client";
 import { adminQueryKeys } from "@/lib/api/admin-queries";
+import { audienceError } from "@/lib/api/errors";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -215,7 +216,7 @@ export function CourseSessionsPanel({
       setError(null);
       await invalidate();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err) => setError(audienceError(err, "ذخیره جلسه انجام نشد.")),
   });
 
   const update = useMutation({
@@ -227,7 +228,7 @@ export function CourseSessionsPanel({
       setError(null);
       await invalidate();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err) => setError(audienceError(err, "ذخیره جلسه انجام نشد.")),
   });
 
   const remove = useMutation({

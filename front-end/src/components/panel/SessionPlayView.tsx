@@ -40,7 +40,13 @@ export function SessionPlayView({
   }
 
   if (sessionQuery.isError) {
-    throw new Error(queryErrorMessage(sessionQuery.error));
+    const message = queryErrorMessage(sessionQuery.error);
+    if (message.includes("یافت نشد")) notFound();
+    return (
+      <div className="flex h-dvh items-center justify-center bg-[#01040a] px-6 text-center text-sm text-white/80">
+        {message}
+      </div>
+    );
   }
 
   if (sessionQuery.data.status !== "available") {

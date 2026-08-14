@@ -25,7 +25,7 @@ import {
   type UpsertCourseBody,
 } from "@/lib/api/admin-client";
 import { adminQueryKeys, useAdminCourseQuery } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { adminRoutes } from "@/lib/routes";
 
 const emptyForm: UpsertCourseBody = {
@@ -114,9 +114,7 @@ export function AdminCourseFormPage({ courseId }: Props) {
       router.push(adminRoutes.course(course.slug));
     },
     onError: (err) => {
-      setError(
-        err instanceof ApiError ? err.message : "ذخیره دوره با خطا مواجه شد.",
-      );
+      setError(audienceError(err, "ذخیره دوره انجام نشد."));
     },
   });
 
@@ -127,9 +125,7 @@ export function AdminCourseFormPage({ courseId }: Props) {
   if (isEdit && courseQuery.isError) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {courseQuery.error instanceof ApiError
-          ? courseQuery.error.message
-          : "دوره یافت نشد"}
+        {audienceError(courseQuery.error, "دوره یافت نشد.")}
       </div>
     );
   }

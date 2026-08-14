@@ -21,7 +21,7 @@ import {
   useAdminCourseQuery,
   useAdminSlidesQuery,
 } from "@/lib/api/admin-queries";
-import { ApiError } from "@/lib/api/http";
+import { audienceError } from "@/lib/api/errors";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
@@ -157,9 +157,7 @@ export function AdminSessionSlidesPage({
       await invalidate();
     },
     onError: (err) => {
-      setError(
-        err instanceof ApiError ? err.message : "ذخیره اسلاید ناموفق بود.",
-      );
+      setError(audienceError(err, "ذخیره اسلاید انجام نشد."));
     },
   });
 
@@ -181,9 +179,7 @@ export function AdminSessionSlidesPage({
   if (courseQuery.isError || !courseQuery.data) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {courseQuery.error instanceof ApiError
-          ? courseQuery.error.message
-          : "دوره یافت نشد"}
+        {audienceError(courseQuery.error, "دوره یافت نشد.")}
       </div>
     );
   }
@@ -203,9 +199,7 @@ export function AdminSessionSlidesPage({
   if (slidesQuery.isError) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700">
-        {slidesQuery.error instanceof ApiError
-          ? slidesQuery.error.message
-          : "خطا در دریافت اسلایدها"}
+        {audienceError(slidesQuery.error, "اسلایدها الان در دسترس نیستند.")}
       </div>
     );
   }
