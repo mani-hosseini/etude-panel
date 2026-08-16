@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Images } from "lucide-react";
+import { ArrowRight, Images, Maximize2, X } from "lucide-react";
 
 import { DeckNavArrow } from "@/components/slides/DeckNavArrow";
 import { useDeck } from "@/components/slides/useDeck";
@@ -26,15 +27,23 @@ type AttachmentGalleryProps = {
   attachments: SessionAttachment[];
   sessionLabel: string;
   className?: string;
+  mode?: "embedded" | "fullscreen";
+  playHref?: string;
+  backHref?: string;
 };
 
 export function AttachmentGallery({
   attachments,
   sessionLabel,
   className,
+  mode = "embedded",
+  playHref,
+  backHref,
 }: AttachmentGalleryProps) {
   const total = attachments.length;
-  const { index, direction, next, prev } = useDeck(Math.max(total, 1));
+  const { index, direction, next, prev } = useDeck(Math.max(total, 1), true, {
+    capturePageKeys: mode === "fullscreen",
+  });
   const item = attachments[index];
   const progress = total > 0 ? ((index + 1) / total) * 100 : 0;
   const src = resolveMediaUrl(item?.path);
@@ -43,7 +52,10 @@ export function AttachmentGallery({
   return (
     <div
       className={cn(
-        "relative flex h-[min(72vh,700px)] flex-col overflow-hidden rounded-3xl bg-[#01040a] text-white touch-manipulation",
+        "relative flex flex-col bg-[#01040a] text-white touch-manipulation",
+        mode === "fullscreen"
+          ? "fixed inset-0 z-80 h-dvh overflow-hidden overscroll-none"
+          : "h-[min(72vh,700px)] overflow-clip rounded-3xl",
         className,
       )}
     >
@@ -54,11 +66,30 @@ export function AttachmentGallery({
 
       <header className="relative z-30 shrink-0 bg-[#01040a]/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full max-w-360 items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
-          <div className="min-w-0">
-            <p className="font-display text-sm font-bold tracking-[0.14em]">اتود</p>
-            <p className="truncate font-sans text-[11px] text-white/60">
-              {sessionLabel} · فایل‌های پیوست
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            {mode === "fullscreen" && backHref ? (
+              <Link
+                href={backHref}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/4 px-3 py-1.5 text-xs text-white/80 hover:bg-white/8"
+              >
+                <ArrowRight className="size-3.5" />
+                بازگشت
+              </Link>
+            ) : playHref ? (
+              <Link
+                href={playHref}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/4 px-3 py-1.5 text-xs text-white/80 hover:bg-white/8"
+              >
+                <Maximize2 className="size-3.5" />
+                تمام‌صفحه
+              </Link>
+            ) : null}
+            <div className="min-w-0">
+              <p className="font-display text-sm font-bold tracking-[0.14em]">اتود</p>
+              <p className="truncate font-sans text-[11px] text-white/60">
+                {sessionLabel} · فایل‌های پیوست
+              </p>
+            </div>
           </div>
           <div className="font-sans flex items-baseline gap-2 rounded-full border border-white/8 bg-white/3 px-3 py-1.5 text-sm font-bold tabular-nums">
             <span>{toFa(String(Math.min(index + 1, total || 1)).padStart(2, "0"))}</span>
@@ -142,6 +173,16 @@ export function AttachmentGallery({
           />
         </div>
       </nav>
+
+      {mode === "fullscreen" && backHref ? (
+        <Link
+          href={backHref}
+          className="absolute left-3 top-3 z-40 grid size-9 place-items-center rounded-full border border-white/10 bg-white/5 text-white/80 backdrop-blur sm:hidden"
+          aria-label="بستن"
+        >
+          <X className="size-4" />
+        </Link>
+      ) : null}
     </div>
   );
 }

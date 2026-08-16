@@ -35,14 +35,26 @@ export function SessionDetailPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryCourseId = searchParams.get("courseId");
+  const viewParam =
+    searchParams.get("view") === "attachments" ? "attachments" : "slides";
   const [workspaceView, setWorkspaceView] =
-    useState<SessionWorkspaceView>("slides");
+    useState<SessionWorkspaceView>(viewParam);
+
+  useEffect(() => {
+    setWorkspaceView(viewParam);
+  }, [viewParam]);
 
   useEffect(() => {
     if (!courseId && queryCourseId) {
-      router.replace(routes.courseSession(queryCourseId, sessionId));
+      router.replace(
+        routes.courseSession(
+          queryCourseId,
+          sessionId,
+          viewParam === "attachments" ? "attachments" : undefined,
+        ),
+      );
     }
-  }, [courseId, queryCourseId, sessionId, router]);
+  }, [courseId, queryCourseId, sessionId, router, viewParam]);
 
   const resolvedCourseId = courseId ?? queryCourseId ?? undefined;
 
@@ -65,8 +77,21 @@ export function SessionDetailPage({
     if (courseId || queryCourseId) return;
     const slug = sessionQuery.data?.courseId;
     if (!slug) return;
-    router.replace(routes.courseSession(slug, sessionId));
-  }, [courseId, queryCourseId, sessionQuery.data?.courseId, sessionId, router]);
+    router.replace(
+      routes.courseSession(
+        slug,
+        sessionId,
+        viewParam === "attachments" ? "attachments" : undefined,
+      ),
+    );
+  }, [
+    courseId,
+    queryCourseId,
+    sessionQuery.data?.courseId,
+    sessionId,
+    router,
+    viewParam,
+  ]);
 
   if (!courseId && (queryCourseId || sessionQuery.data?.courseId)) {
     return <Skeleton className="h-64 rounded-3xl" />;
@@ -157,7 +182,11 @@ export function SessionDetailPage({
         </div>
         {pathCourseId ? (
           <Link
-            href={routes.courseSessionPlay(pathCourseId, session.id)}
+            href={routes.courseSessionPlay(
+              pathCourseId,
+              session.id,
+              workspaceView === "attachments" ? "attachments" : undefined,
+            )}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-navy px-4 py-3 text-sm font-semibold text-white shadow-lift transition hover:bg-navy-soft"
           >
             <Maximize2 className="size-4" />
@@ -210,12 +239,20 @@ export function SessionDetailPage({
         courseId={pathCourseId}
         playHref={
           pathCourseId
-            ? routes.courseSessionPlay(pathCourseId, session.id)
+            ? routes.courseSessionPlay(
+                pathCourseId,
+                session.id,
+                workspaceView === "attachments" ? "attachments" : undefined,
+              )
             : routes.sessions
         }
         backHref={
           pathCourseId
-            ? routes.courseSession(pathCourseId, session.id)
+            ? routes.courseSession(
+                pathCourseId,
+                session.id,
+                workspaceView === "attachments" ? "attachments" : undefined,
+              )
             : routes.sessions
         }
       />

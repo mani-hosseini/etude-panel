@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Anim,
@@ -15,6 +15,48 @@ import type { Slide, Term } from "@/lib/session-1-slides";
 import { resolveMediaUrl } from "@/lib/api/http";
 
 const logo = "/etude-logo.png";
+
+/** Filenames in `public/slides/*.png` — skip guessing so missing files never 404. */
+const PUBLIC_SLIDE_IMAGE_IDS = new Set([
+  "accidentals",
+  "ascending",
+  "beat",
+  "beat-unit",
+  "clapping",
+  "dotted",
+  "double-bar",
+  "ledger",
+  "ledger-above",
+  "ledger-below",
+  "line-notes",
+  "logo",
+  "measure",
+  "music-symbols",
+  "note-names",
+  "note-parts",
+  "note-values",
+  "numbering",
+  "rests",
+  "rhythm-reading",
+  "simple-meters",
+  "sound",
+  "sound-instruments",
+  "space-notes",
+  "staff",
+  "strong-weak",
+  "tapping",
+  "time-signature",
+  "treble",
+  "treble-line-names",
+  "treble-notes",
+]);
+
+function slideImageSrc(slideId: string): string | null {
+  const uploaded = resolveMediaUrl(slideId);
+  if (uploaded) return uploaded;
+  if (PUBLIC_SLIDE_IMAGE_IDS.has(slideId)) return `/slides/${slideId}.png`;
+  return null;
+}
 
 function BulletList({ items }: { items: string[] }) {
   const twoCol = items.length >= 5;
@@ -69,20 +111,14 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function LargeImage({ slideId, hint }: { slideId: string; hint: string }) {
-  const uploaded = resolveMediaUrl(slideId);
-  const candidates = uploaded
-    ? [uploaded]
-    : [
-        `/slides/main1/${slideId}.png`,
-        `/slides/main1/${slideId}.jpg`,
-        `/slides/${slideId}.jpg`,
-        `/slides/${slideId}.png`,
-        `/slides/${slideId}.webp`,
-      ];
-  const [srcIndex, setSrcIndex] = useState(0);
+  const src = slideImageSrc(slideId);
   const [failed, setFailed] = useState(false);
 
-  if (failed || srcIndex >= candidates.length) {
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
     return (
       <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#0056d2]/40 bg-[#0056d2]/[0.07] px-4 py-6 text-center">
         <div className="font-display text-[13px] font-bold text-[#9bc2ff]">
@@ -96,16 +132,13 @@ function LargeImage({ slideId, hint }: { slideId: string; hint: string }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-1.5 sm:p-2">
+    <div className="flex h-full min-h-0 w-full items-center justify-center overflow-clip rounded-2xl border border-white/10 bg-black/20 p-1.5 sm:p-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={candidates[srcIndex]}
+        src={src}
         alt={hint}
         className="h-full max-h-full w-auto max-w-full object-contain"
-        onError={() => {
-          if (srcIndex + 1 < candidates.length) setSrcIndex((i) => i + 1);
-          else setFailed(true);
-        }}
+        onError={() => setFailed(true)}
       />
     </div>
   );

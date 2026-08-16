@@ -1,11 +1,13 @@
 "use client";
 
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 
+import { AttachmentGallery } from "@/components/panel/session/AttachmentGallery";
 import { SlideDeck } from "@/components/slides/SlideDeck";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   queryErrorMessage,
+  useSessionAttachmentsQuery,
   useSessionQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
@@ -22,16 +24,27 @@ export function SessionPlayView({
   sessionId,
   courseId,
 }: SessionPlayViewProps) {
+  const searchParams = useSearchParams();
+  const view =
+    searchParams.get("view") === "attachments" ? "attachments" : "slides";
   const sessionQuery = useSessionQuery(sessionId, courseId);
-  const slidesEnabled =
+  const contentEnabled =
     sessionQuery.isSuccess && sessionQuery.data.status === "available";
   const slidesQuery = useSessionSlidesQuery(
     sessionId,
     courseId,
-    slidesEnabled,
+    contentEnabled && view === "slides",
+  );
+  const attachmentsQuery = useSessionAttachmentsQuery(
+    sessionId,
+    courseId,
+    contentEnabled && view === "attachments",
   );
 
-  if (sessionQuery.isPending || (slidesEnabled && slidesQuery.isPending)) {
+  const contentPending =
+    view === "attachments" ? attachmentsQuery.isPending : slidesQuery.isPending;
+
+  if (sessionQuery.isPending || (contentEnabled && contentPending)) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[#01040a] text-white/70">
         <Skeleton className="h-8 w-40 bg-white/10" />
@@ -53,25 +66,44 @@ export function SessionPlayView({
     notFound();
   }
 
+  const resolvedCourseId =
+    courseId ?? sessionQuery.data.courseId ?? undefined;
+  const sessionLabel = `جلسه ${toFa(sessionQuery.data.number)}`;
+  const backHref = resolvedCourseId
+    ? routes.courseSession(
+        resolvedCourseId,
+        sessionId,
+        view === "attachments" ? "attachments" : undefined,
+      )
+    : routes.sessions;
+
+  if (view === "attachments") {
+    if (attachmentsQuery.isError) {
+      notFound();
+    }
+
+    return (
+      <AttachmentGallery
+        mode="fullscreen"
+        attachments={attachmentsQuery.data?.attachments ?? []}
+        sessionLabel={sessionLabel}
+        backHref={backHref}
+      />
+    );
+  }
+
   if (slidesQuery.isError || !slidesQuery.data) {
     notFound();
   }
-
-  const resolvedCourseId =
-    courseId ?? sessionQuery.data.courseId ?? undefined;
 
   return (
     <SlideDeck
       mode="fullscreen"
       slides={toDeckSlides(slidesQuery.data.slides)}
-      sessionLabel={`جلسه ${toFa(sessionQuery.data.number)}`}
+      sessionLabel={sessionLabel}
       sessionId={sessionId}
       courseId={resolvedCourseId}
-      backHref={
-        resolvedCourseId
-          ? routes.courseSession(resolvedCourseId, sessionId)
-          : routes.sessions
-      }
+      backHref={backHref}
     />
   );
 }

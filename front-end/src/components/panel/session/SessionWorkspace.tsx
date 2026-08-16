@@ -33,7 +33,7 @@ export function SessionWorkspace({
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border shadow-soft">
+    <div className="overflow-clip rounded-3xl border border-border shadow-soft">
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -46,6 +46,8 @@ export function SessionWorkspace({
             <AttachmentGallery
               attachments={attachments}
               sessionLabel={sessionLabel}
+              playHref={playHref}
+              backHref={backHref}
             />
           ) : (
             <SlideDeck

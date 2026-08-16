@@ -53,7 +53,9 @@ export function SlideDeck({
   courseId,
 }: SlideDeckProps) {
   const total = slides.length;
-  const { index, direction, next, prev, goTo } = useDeck(total);
+  const { index, direction, next, prev, goTo } = useDeck(total, true, {
+    capturePageKeys: mode === "fullscreen",
+  });
   useSlideProgressSync({
     sessionId: sessionId ?? "",
     courseId,
@@ -77,10 +79,10 @@ export function SlideDeck({
   return (
     <div
       className={cn(
-        "relative flex flex-col overflow-hidden overscroll-none bg-[#01040a] text-white touch-manipulation",
+        "relative flex flex-col bg-[#01040a] text-white touch-manipulation",
         mode === "fullscreen"
-          ? "fixed inset-0 z-80 h-dvh"
-          : "h-[min(72vh,700px)] rounded-3xl",
+          ? "fixed inset-0 z-80 h-dvh overflow-hidden overscroll-none"
+          : "h-[min(72vh,700px)] overflow-clip rounded-3xl",
         className,
       )}
     >
@@ -147,7 +149,7 @@ export function SlideDeck({
             initial="enter"
             animate="center"
             exit="exit"
-            className="absolute inset-0 overflow-hidden px-3 sm:px-5 lg:px-6"
+            className="absolute inset-0 overflow-clip px-3 sm:px-5 lg:px-6"
           >
             <div className="mx-auto flex h-full w-full max-w-360 items-stretch justify-center py-2">
               <SlideView slide={slide} />

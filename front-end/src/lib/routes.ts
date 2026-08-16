@@ -1,15 +1,36 @@
 /** Clean dashboard paths — courseId is the public slug (e.g. theory-basics). */
 
+export type SessionPlayViewKind = "slides" | "attachments";
+
+function withSessionView(path: string, view?: SessionPlayViewKind) {
+  if (view === "attachments") return `${path}?view=attachments`;
+  return path;
+}
+
 export const routes = {
   dashboard: "/dashboard",
   courses: "/dashboard/courses",
   course: (courseId: string) => `/dashboard/courses/${courseId}`,
   courseSessions: (courseId: string) =>
     `/dashboard/courses/${courseId}/sessions`,
-  courseSession: (courseId: string, sessionId: string) =>
-    `/dashboard/courses/${courseId}/sessions/${sessionId}`,
-  courseSessionPlay: (courseId: string, sessionId: string) =>
-    `/dashboard/courses/${courseId}/sessions/${sessionId}/play`,
+  courseSession: (
+    courseId: string,
+    sessionId: string,
+    view?: SessionPlayViewKind,
+  ) =>
+    withSessionView(
+      `/dashboard/courses/${courseId}/sessions/${sessionId}`,
+      view,
+    ),
+  courseSessionPlay: (
+    courseId: string,
+    sessionId: string,
+    view?: SessionPlayViewKind,
+  ) =>
+    withSessionView(
+      `/dashboard/courses/${courseId}/sessions/${sessionId}/play`,
+      view,
+    ),
   courseSchedule: (courseId: string) =>
     `/dashboard/courses/${courseId}/schedule`,
   /** Nav default: primary enrolled course */

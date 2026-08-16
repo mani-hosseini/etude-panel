@@ -4,7 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 
 import { TOTAL_SLIDES } from "@/lib/session-1-slides";
 
-export function useDeck(total = TOTAL_SLIDES, enabled = true) {
+type UseDeckOptions = {
+  /** Space / PageUp / PageDown / Home / End navigate the deck instead of the page. */
+  capturePageKeys?: boolean;
+};
+
+export function useDeck(
+  total = TOTAL_SLIDES,
+  enabled = true,
+  options: UseDeckOptions = {},
+) {
+  const capturePageKeys = options.capturePageKeys ?? false;
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -29,6 +39,14 @@ export function useDeck(total = TOTAL_SLIDES, enabled = true) {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      const isPageKey =
+        e.key === " " ||
+        e.key === "PageDown" ||
+        e.key === "PageUp" ||
+        e.key === "Home" ||
+        e.key === "End";
+      if (isPageKey && !capturePageKeys) return;
 
       if (e.key === "ArrowLeft" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
@@ -72,7 +90,7 @@ export function useDeck(total = TOTAL_SLIDES, enabled = true) {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [enabled, goTo, next, prev, total]);
+  }, [capturePageKeys, enabled, goTo, next, prev, total]);
 
   return { index, direction, next, prev, goTo, busy };
 }

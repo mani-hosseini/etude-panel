@@ -38,7 +38,7 @@ export function SlideShell({
       initial="hidden"
       animate="show"
       className={cn(
-        "relative mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden",
+        "relative mx-auto flex h-full min-h-0 w-full flex-col overflow-clip",
         wide ? "max-w-350" : "max-w-260",
         className,
       )}
@@ -137,7 +137,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "relative min-h-0 overflow-hidden rounded-2xl p-2.5 shadow-[0_12px_40px_-20px_rgba(0,86,210,0.55)] sm:p-3",
+        "relative min-h-0 overflow-clip rounded-2xl p-2.5 shadow-[0_12px_40px_-20px_rgba(0,86,210,0.55)] sm:p-3",
         strong
           ? "border border-[#3b84ff]/45 bg-linear-to-br from-[#0056d2]/40 via-[#003ea8]/25 to-white/5"
           : "border border-white/15 bg-linear-to-br from-[#0a1628]/90 via-[#071018]/80 to-[#0056d2]/15",
