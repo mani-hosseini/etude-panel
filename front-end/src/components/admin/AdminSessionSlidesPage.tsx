@@ -207,16 +207,6 @@ export function AdminSessionSlidesPage({
   const slides = slidesQuery.data.slides;
   const slug = courseQuery.data.slug;
 
-  const move = (index: number, dir: -1 | 1) => {
-    const next = index + dir;
-    if (next < 0 || next >= slides.length) return;
-    const ids = slides.map((s) => s.id);
-    const tmp = ids[index];
-    ids[index] = ids[next];
-    ids[next] = tmp;
-    reorder.mutate(ids);
-  };
-
   const openCreate = () => {
     setEditingId(null);
     setCreating(true);
@@ -283,7 +273,7 @@ export function AdminSessionSlidesPage({
             formError={error}
             onEdit={openEdit}
             onDelete={(id) => remove.mutate(id)}
-            onMove={move}
+            onReorder={(slideIds) => reorder.mutate(slideIds)}
             onSave={() => save.mutate()}
             onCloseEditor={closeEditor}
           />

@@ -15,6 +15,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  formatTimeRange,
+  normalizeClock,
+} from '../common/utils/session-time';
+import {
   buildPaginationMeta,
 } from '../common/dto/pagination-query.dto';
 import {
@@ -245,6 +249,8 @@ export class AdminCatalogService {
           status: dto.status ?? SessionStatus.LOCKED,
           durationLabel: dto.durationLabel ?? '۹۰ دقیقه',
           dateLabel: dto.dateLabel ?? 'قفل',
+          timeStart: normalizeClock(dto.timeStart),
+          timeEnd: normalizeClock(dto.timeEnd),
         },
         include: {
             _count: { select: { slides: true, attachments: true } },
@@ -283,15 +289,19 @@ export class AdminCatalogService {
             ? { durationLabel: dto.durationLabel }
             : {}),
           ...(dto.dateLabel !== undefined ? { dateLabel: dto.dateLabel } : {}),
+          ...(dto.timeStart !== undefined
+            ? { timeStart: normalizeClock(dto.timeStart) }
+            : {}),
+          ...(dto.timeEnd !== undefined
+            ? { timeEnd: normalizeClock(dto.timeEnd) }
+            : {}),
         },
         include: {
             _count: { select: { slides: true, attachments: true } },
           },
       });
 
-      if (dto.status !== undefined) {
-        await this.syncScheduleFromSessions(existing.courseId);
-      }
+      await this.syncScheduleFromSessions(existing.courseId);
 
       return this.mapSession(session);
     } catch (error) {
@@ -631,12 +641,23 @@ export class AdminCatalogService {
    * AVAILABLE → DONE, first after last available → NEXT, rest PLANNED.
    */
   private async syncScheduleFromSessions(courseId: string) {
-    const sessions = await this.prisma.courseSession.findMany({
-      where: { courseId },
-      orderBy: { number: 'asc' },
-      select: { id: true, number: true, status: true },
-    });
-    if (sessions.length === 0) return;
+    const [course, sessions] = await Promise.all([
+      this.prisma.course.findUnique({ where: { id: courseId } }),
+      this.prisma.courseSession.findMany({
+        where: { courseId },
+        orderBy: { number: 'asc' },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          title: true,
+          dateLabel: true,
+          timeStart: true,
+          timeEnd: true,
+        },
+      }),
+    ]);
+    if (!course || sessions.length === 0) return;
 
     let lastAvailableNumber = 0;
     for (const session of sessions) {
@@ -664,12 +685,26 @@ export class AdminCatalogService {
         status = LessonStatus.NEXT;
       }
 
-      if (lesson.status !== status) {
-        await this.prisma.scheduleLesson.update({
-          where: { id: lesson.id },
-          data: { status },
-        });
-      }
+      const time = formatTimeRange(
+        linked?.timeStart,
+        linked?.timeEnd,
+        course.time,
+      );
+      const dateLabel =
+        linked?.dateLabel &&
+        linked.dateLabel !== 'قفل' &&
+        linked.dateLabel !== '—'
+          ? linked.dateLabel
+          : lesson.dateLabel;
+
+      await this.prisma.scheduleLesson.update({
+        where: { id: lesson.id },
+        data: {
+          status,
+          time,
+          dateLabel,
+        },
+      });
     }
   }
 
@@ -768,6 +803,9 @@ export class AdminCatalogService {
       status: session.status,
       durationLabel: session.durationLabel,
       dateLabel: session.dateLabel,
+      timeStart: session.timeStart,
+      timeEnd: session.timeEnd,
+      timeLabel: formatTimeRange(session.timeStart, session.timeEnd),
       slideCount: session._count.slides,
       attachmentCount: session._count.attachments,
       createdAt: session.createdAt,

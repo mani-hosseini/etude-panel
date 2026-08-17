@@ -157,6 +157,16 @@ export class UpsertSessionDto {
   @IsString()
   @MaxLength(64)
   dateLabel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  timeStart?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  timeEnd?: string;
 }
 
 export class CreateSessionDto {
@@ -193,6 +203,16 @@ export class CreateSessionDto {
   @IsString()
   @MaxLength(64)
   dateLabel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  timeStart?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  timeEnd?: string;
 }
 
 export class SlideTermDto {

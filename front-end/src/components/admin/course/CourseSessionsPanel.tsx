@@ -26,7 +26,7 @@ import {
 } from "@/lib/api/admin-client";
 import { adminQueryKeys } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
-import { toFa } from "@/lib/format";
+import { toFa, formatTimeRange, parseTimeRange } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,8 @@ type SessionFormState = {
   status: SessionStatus;
   durationLabel: string;
   dateLabel: string;
+  timeStart: string;
+  timeEnd: string;
 };
 
 const emptyCreate: SessionFormState = {
@@ -54,9 +56,15 @@ const emptyCreate: SessionFormState = {
   status: "LOCKED",
   durationLabel: "۱۲۰ دقیقه",
   dateLabel: "",
+  timeStart: "11:00",
+  timeEnd: "13:00",
 };
 
-function sessionToForm(session: AdminSession): SessionFormState {
+function sessionToForm(
+  session: AdminSession,
+  courseTimeShort?: string,
+): SessionFormState {
+  const fallback = parseTimeRange(courseTimeShort);
   return {
     number: String(session.number),
     title: session.title,
@@ -65,6 +73,8 @@ function sessionToForm(session: AdminSession): SessionFormState {
     status: session.status,
     durationLabel: session.durationLabel,
     dateLabel: session.dateLabel,
+    timeStart: session.timeStart || fallback?.start || "11:00",
+    timeEnd: session.timeEnd || fallback?.end || "13:00",
   };
 }
 
@@ -80,6 +90,8 @@ function formToBody(form: SessionFormState) {
     status: form.status,
     durationLabel: form.durationLabel.trim() || "۱۲۰ دقیقه",
     dateLabel: form.dateLabel.trim() || "—",
+    timeStart: form.timeStart || null,
+    timeEnd: form.timeEnd || null,
   };
 }
 
@@ -167,10 +179,39 @@ function SessionFields({
           placeholder="مثلاً ۱۴۰۵/۰۵/۱۵"
         />
         <p className="text-[11px] text-slate-400">
-          این تاریخ در «پیشرفت جلسات» پنل هنرجو نمایش داده می‌شود.
+          این تاریخ در «جلسه بعدی» و برنامه پنل هنرجو نمایش داده می‌شود.
         </p>
       </div>
       <div className="space-y-1.5">
+        <Label>ساعت جلسه</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <p className="text-[11px] text-slate-400">شروع</p>
+            <Input
+              type="time"
+              dir="ltr"
+              value={form.timeStart}
+              onChange={(e) => set("timeStart")(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[11px] text-slate-400">پایان</p>
+            <Input
+              type="time"
+              dir="ltr"
+              value={form.timeEnd}
+              onChange={(e) => set("timeEnd")(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          نمایش در پنل هنرجو:{" "}
+          {formatTimeRange(form.timeStart, form.timeEnd, "—")}
+        </p>
+      </div>
+      <div className="space-y-1.5 sm:col-span-2">
         <Label>مدت جلسه</Label>
         <Input
           value={form.durationLabel}
@@ -186,14 +227,22 @@ function SessionFields({
 export function CourseSessionsPanel({
   courseId,
   courseSlug,
+  courseTimeShort,
   sessions,
 }: {
   courseId: string;
   courseSlug: string;
+  courseTimeShort?: string;
   sessions: AdminSession[];
 }) {
   const queryClient = useQueryClient();
-  const [createForm, setCreateForm] = useState<SessionFormState>(emptyCreate);
+  const courseTimes = parseTimeRange(courseTimeShort);
+  const initialForm: SessionFormState = {
+    ...emptyCreate,
+    timeStart: courseTimes?.start ?? emptyCreate.timeStart,
+    timeEnd: courseTimes?.end ?? emptyCreate.timeEnd,
+  };
+  const [createForm, setCreateForm] = useState<SessionFormState>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<SessionFormState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -212,7 +261,7 @@ export function CourseSessionsPanel({
   const create = useMutation({
     mutationFn: () => adminApi.createSession(courseId, formToBody(createForm)),
     onSuccess: async () => {
-      setCreateForm(emptyCreate);
+      setCreateForm(initialForm);
       setError(null);
       await invalidate();
     },
@@ -243,7 +292,7 @@ export function CourseSessionsPanel({
       return;
     }
     setEditingId(session.id);
-    setEditForm(sessionToForm(session));
+    setEditForm(sessionToForm(session, courseTimeShort));
     setError(null);
   };
 
@@ -310,6 +359,12 @@ export function CourseSessionsPanel({
                           {toFa(session.slideCount)} اسلاید
                           {(session.attachmentCount ?? 0) > 0
                             ? ` · ${toFa(session.attachmentCount ?? 0)} پیوست`
+                            : ""}
+                          {session.dateLabel && session.dateLabel !== "قفل"
+                            ? ` · ${toFa(session.dateLabel)}`
+                            : ""}
+                          {session.timeLabel
+                            ? ` · ${toFa(session.timeLabel)}`
                             : ""}
                         </span>
                       </div>

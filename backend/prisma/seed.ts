@@ -164,6 +164,8 @@ async function main() {
               : number === 3
                 ? '۱۴۰۵/۰۶/۱۲'
                 : 'قفل',
+        timeStart: '11:00',
+        timeEnd: '13:00',
       },
     });
     theorySessions.push(session);
@@ -264,6 +266,8 @@ async function main() {
         status: number === 1 ? SessionStatus.UPCOMING : SessionStatus.LOCKED,
         durationLabel: '۹۰ دقیقه',
         dateLabel: number === 1 ? 'سه‌شنبهٔ جاری' : 'قفل',
+        timeStart: '16:00',
+        timeEnd: '17:30',
       },
     });
   }
@@ -279,6 +283,8 @@ async function main() {
         status: SessionStatus.LOCKED,
         durationLabel: '۶۰ دقیقه',
         dateLabel: 'به‌زودی',
+        timeStart: '10:00',
+        timeEnd: '11:00',
       },
     });
   }

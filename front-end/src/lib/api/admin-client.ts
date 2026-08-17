@@ -132,6 +132,9 @@ export type AdminSession = {
   status: SessionStatus;
   durationLabel: string;
   dateLabel: string;
+  timeStart?: string | null;
+  timeEnd?: string | null;
+  timeLabel?: string;
   slideCount: number;
   attachmentCount?: number;
   createdAt: string;
@@ -410,6 +413,8 @@ export const adminApi = {
       status?: SessionStatus;
       durationLabel?: string;
       dateLabel?: string;
+      timeStart?: string | null;
+      timeEnd?: string | null;
     },
   ) =>
     adminHttp.requestData<AdminSession>(
@@ -427,6 +432,8 @@ export const adminApi = {
       status: SessionStatus;
       durationLabel: string;
       dateLabel: string;
+      timeStart?: string | null;
+      timeEnd?: string | null;
     }>,
   ) =>
     adminHttp.requestData<AdminSession>(`/admin/sessions/${id}`, {

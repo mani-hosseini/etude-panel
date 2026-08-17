@@ -73,6 +73,7 @@ export function AdminCourseDetailPage({ courseSlug }: { courseSlug: string }) {
           <CourseSessionsPanel
             courseId={course.id}
             courseSlug={course.slug}
+            courseTimeShort={course.timeShort}
             sessions={course.sessions}
           />
         </TabsContent>

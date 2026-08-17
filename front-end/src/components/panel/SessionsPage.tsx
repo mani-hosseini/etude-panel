@@ -186,7 +186,10 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground sm:justify-end">
                     <span className="inline-flex items-center gap-1.5">
                       <CalendarClock className="size-3.5" strokeWidth={1.75} />
-                      {session.dateLabel}
+                      {toFa(session.dateLabel)}
+                      {session.timeLabel
+                        ? ` · ${toFa(session.timeLabel)}`
+                        : ""}
                     </span>
                     {session.slideCount > 0 ? (
                       <span className="inline-flex items-center gap-1.5">

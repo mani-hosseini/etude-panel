@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
 import {
@@ -33,7 +33,7 @@ type SlideListProps = {
   formError?: string | null;
   onEdit: (slide: AdminSlide) => void;
   onDelete: (id: string) => void;
-  onMove: (index: number, dir: -1 | 1) => void;
+  onReorder: (slideIds: string[]) => void;
   onSave: () => void;
   onCloseEditor: () => void;
 };
@@ -49,11 +49,13 @@ export function SlideList({
   formError,
   onEdit,
   onDelete,
-  onMove,
+  onReorder,
   onSave,
   onCloseEditor,
 }: SlideListProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!editingId && !creating) return;
@@ -74,6 +76,30 @@ export function SlideList({
     );
   }
 
+  const finishDrag = (toIndex: number | null) => {
+    if (
+      dragIndex === null ||
+      toIndex === null ||
+      dragIndex === toIndex ||
+      reorderPending
+    ) {
+      setDragIndex(null);
+      setOverIndex(null);
+      return;
+    }
+    const ids = slides.map((slide) => slide.id);
+    const [moved] = ids.splice(dragIndex, 1);
+    if (!moved) {
+      setDragIndex(null);
+      setOverIndex(null);
+      return;
+    }
+    ids.splice(toIndex, 0, moved);
+    setDragIndex(null);
+    setOverIndex(null);
+    onReorder(ids);
+  };
+
   return (
     <div dir="rtl" className="space-y-3 text-right">
       {creating ? (
@@ -90,12 +116,35 @@ export function SlideList({
         </div>
       ) : null}
 
+      {slides.length > 1 ? (
+        <p className="text-xs text-slate-500">
+          برای جابه‌جایی، دستگیرهٔ سمت چپ هر اسلاید را بکشید و رها کنید.
+        </p>
+      ) : null}
+
       <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm">
         <div className="divide-y divide-slate-100">
           {slides.map((slide, index) => {
             const isEditing = editingId === slide.id;
+            const isDragging = dragIndex === index;
+            const isOver = overIndex === index && dragIndex !== index;
             return (
-              <div key={slide.id} className="bg-white">
+              <div
+                key={slide.id}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (overIndex !== index) setOverIndex(index);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  finishDrag(index);
+                }}
+                className={cn(
+                  "bg-white transition-colors",
+                  isDragging && "opacity-50",
+                  isOver && "bg-brand/8 ring-1 ring-inset ring-brand/30",
+                )}
+              >
                 <div
                   className={cn(
                     "flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5",
@@ -105,7 +154,7 @@ export function SlideList({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-start gap-2">
                       <span className="text-xs font-semibold text-slate-500">
-                        #{toFa(slide.sortOrder)}
+                        #{toFa(index + 1)}
                       </span>
                       <Badge variant="outline" className="rounded-lg">
                         {kindLabel[slide.kind]}
@@ -121,29 +170,30 @@ export function SlideList({
                       {slide.body}
                     </p>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-1">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-9 rounded-lg"
-                      disabled={index === 0 || reorderPending}
-                      onClick={() => onMove(index, -1)}
+                  <div className="flex shrink-0 flex-wrap items-center gap-1">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      draggable={!reorderPending}
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", slide.id);
+                        setDragIndex(index);
+                      }}
+                      onDragEnd={() => {
+                        setDragIndex(null);
+                        setOverIndex(null);
+                      }}
+                      aria-label="جابه‌جایی اسلاید"
+                      className={cn(
+                        "inline-flex size-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700",
+                        reorderPending
+                          ? "cursor-not-allowed opacity-50"
+                          : "cursor-grab active:cursor-grabbing",
+                      )}
                     >
-                      <ArrowUp className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-9 rounded-lg"
-                      disabled={
-                        index === slides.length - 1 || reorderPending
-                      }
-                      onClick={() => onMove(index, 1)}
-                    >
-                      <ArrowDown className="size-4" />
-                    </Button>
+                      <GripVertical className="size-4" />
+                    </div>
                     <Button
                       type="button"
                       size="sm"

@@ -17,6 +17,7 @@ import {
   normalizeStudentLevel,
   toPersianDigits,
 } from '../common/utils/mappers';
+import { formatTimeRange } from '../common/utils/session-time';
 import {
   buildPaginationMeta,
   PaginationQueryDto,
@@ -164,6 +165,7 @@ export class CatalogService {
             slideCount,
             percent,
             session._count.attachments,
+            course.timeShort,
           );
         }),
       },
@@ -183,7 +185,13 @@ export class CatalogService {
       }),
     ]);
     return {
-      ...this.mapSession(session, slideCount, 0, attachmentCount),
+      ...this.mapSession(
+        session,
+        slideCount,
+        0,
+        attachmentCount,
+        course.timeShort,
+      ),
       courseId: course.slug,
       courseTitle: course.title,
     };
@@ -291,6 +299,8 @@ export class CatalogService {
           status: true,
           title: true,
           dateLabel: true,
+          timeStart: true,
+          timeEnd: true,
         },
       }),
       this.mapCourseWithProgress(course),
@@ -305,6 +315,7 @@ export class CatalogService {
         status: SESSION_STATUS_API[s.status],
         title: s.title,
         dateLabel: s.dateLabel,
+        timeLabel: formatTimeRange(s.timeStart, s.timeEnd, course.timeShort),
       })),
     };
   }
@@ -439,6 +450,7 @@ export class CatalogService {
             currentSession._count.slides,
             0,
             currentSession._count.attachments,
+            primaryEnrollment?.course.timeShort ?? '',
           )
         : null,
       schedulePreview: scheduleWindow.map((lesson) => ({
@@ -773,17 +785,24 @@ export class CatalogService {
           : `جلسۀ ${toPersianDigits(session.number)}`);
 
       const dateLabel =
-        linked?.dateLabel && linked.dateLabel !== 'جلسهٔ بعدی'
-          ? linked.dateLabel
-          : session.dateLabel && session.dateLabel !== 'قفل'
-            ? session.dateLabel
+        session.dateLabel &&
+        session.dateLabel !== 'قفل' &&
+        session.dateLabel !== '—'
+          ? session.dateLabel
+          : linked?.dateLabel && linked.dateLabel !== 'جلسهٔ بعدی'
+            ? linked.dateLabel
             : '—';
+
+      const time =
+        formatTimeRange(session.timeStart, session.timeEnd) ||
+        linked?.time ||
+        courseMeta.time;
 
       return {
         id: linked?.id ?? session.id,
         title,
         day: linked?.day ?? courseMeta.day,
-        time: linked?.time ?? courseMeta.time,
+        time,
         dateLabel,
         room: linked?.room ?? courseMeta.room,
         teacher: linked?.teacher ?? courseMeta.teacher,
@@ -905,13 +924,28 @@ export class CatalogService {
     certificateReady: boolean;
     accessNote: string | null;
   }) {
-    const sessionsDone = await this.prisma.courseSession.count({
-      where: { courseId: course.id, status: SessionStatus.AVAILABLE },
-    });
+    const [sessionsDone, nextSession] = await Promise.all([
+      this.prisma.courseSession.count({
+        where: { courseId: course.id, status: SessionStatus.AVAILABLE },
+      }),
+      this.prisma.courseSession.findFirst({
+        where: {
+          courseId: course.id,
+          status: { in: [SessionStatus.UPCOMING, SessionStatus.LOCKED] },
+        },
+        orderBy: { number: 'asc' },
+        select: { timeStart: true, timeEnd: true },
+      }),
+    ]);
     const progress =
       course.sessionsTotal > 0
         ? Math.round((sessionsDone / course.sessionsTotal) * 100)
         : 0;
+    const nextTime = formatTimeRange(
+      nextSession?.timeStart,
+      nextSession?.timeEnd,
+      course.timeShort,
+    );
 
     return {
       id: course.slug,
@@ -933,7 +967,7 @@ export class CatalogService {
       progress,
       weeklyHours: course.weeklyHours,
       status: COURSE_STATUS_API[course.status],
-      nextLesson: `${course.day} ${course.timeShort}`,
+      nextLesson: `${course.day} ${nextTime}`,
       accessNote: course.accessNote ?? undefined,
       certificateReady: course.certificateReady,
     };
@@ -949,10 +983,13 @@ export class CatalogService {
       status: SessionStatus;
       durationLabel: string;
       dateLabel: string;
+      timeStart?: string | null;
+      timeEnd?: string | null;
     },
     slideCount: number,
     progressPercent = 0,
     attachmentCount = 0,
+    fallbackTime = '',
   ) {
     return {
       id: String(session.number),
@@ -966,6 +1003,11 @@ export class CatalogService {
       attachmentCount,
       durationLabel: session.durationLabel,
       dateLabel: session.dateLabel,
+      timeLabel: formatTimeRange(
+        session.timeStart,
+        session.timeEnd,
+        fallbackTime,
+      ),
       progressPercent,
     };
   }

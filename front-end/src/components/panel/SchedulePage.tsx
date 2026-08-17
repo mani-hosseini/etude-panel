@@ -173,7 +173,7 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
           })}
         </div>
         <p className="mt-3 text-[11px] text-muted-foreground">
-          تاریخ هر جلسه از پنل ادمین (جلسات دوره) تنظیم می‌شود.
+          تاریخ و ساعت هر جلسه از پنل ادمین (جلسات دوره) تنظیم می‌شود.
         </p>
       </section>
 
@@ -196,7 +196,7 @@ function ScheduleContent({ courseId }: { courseId?: string }) {
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock3 className="size-3.5" />
-                  {lesson.time}
+                  {toFa(lesson.time)}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="size-3.5" />

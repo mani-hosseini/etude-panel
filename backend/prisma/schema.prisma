@@ -146,6 +146,8 @@ model CourseSession {
   status        SessionStatus @default(LOCKED)
   durationLabel String        @db.VarChar(32)
   dateLabel     String        @db.VarChar(64)
+  timeStart     String?       @db.VarChar(8)
+  timeEnd       String?       @db.VarChar(8)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

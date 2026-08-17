@@ -39,6 +39,7 @@ export type CourseSession = {
   attachmentCount?: number;
   durationLabel: string;
   dateLabel: string;
+  timeLabel?: string;
   courseId?: string;
   courseTitle?: string;
   progressPercent?: number;
@@ -120,6 +121,7 @@ export type SchedulePayload = {
     status: SessionStatus;
     title?: string;
     dateLabel?: string;
+    timeLabel?: string;
   }>;
 };
 
