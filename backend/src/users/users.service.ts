@@ -10,7 +10,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   buildPaginationMeta,
 } from '../common/dto/pagination-query.dto';
-import { normalizeName, isUuid, normalizeStudentLevel } from '../common/utils/mappers';
+import {
+  normalizeName,
+  isUuid,
+  normalizeStudentLevel,
+  slideProgressPercent,
+} from '../common/utils/mappers';
 import {
   EnrollCourseDto,
   ListUsersQueryDto,
@@ -520,10 +525,13 @@ export class UsersService {
         rows.push({
           userId: enrollment.userId,
           courseId: enrollment.courseId,
-          percent:
-            row && slideCount > 0
-              ? Math.round(((row.lastSlideIndex + 1) / slideCount) * 100)
-              : 0,
+          percent: row
+            ? slideProgressPercent(
+                row.lastSlideIndex,
+                slideCount,
+                row.completedAt,
+              )
+            : 0,
         });
       }
     }

@@ -2,6 +2,7 @@ import { CatalogService } from './catalog.service';
 import {
   LESSON_STATUS_API,
   SESSION_STATUS_API,
+  slideProgressPercent,
   toPersianDigits,
 } from '../common/utils/mappers';
 import {
@@ -43,6 +44,15 @@ describe('session time helpers', () => {
   it('normalizes clock values', () => {
     expect(normalizeClock('9:05')).toBe('09:05');
     expect(normalizeClock('')).toBeNull();
+  });
+});
+
+describe('slideProgressPercent', () => {
+  it('uses farthest viewed index and never drops after completion', () => {
+    expect(slideProgressPercent(0, 10)).toBe(10);
+    expect(slideProgressPercent(4, 10)).toBe(50);
+    expect(slideProgressPercent(9, 10)).toBe(100);
+    expect(slideProgressPercent(0, 10, new Date())).toBe(100);
   });
 });
 

@@ -44,3 +44,17 @@ export const SLIDE_KIND_API = {
   VISUAL: 'visual',
   OUTRO: 'outro',
 } as const;
+
+/** Farthest-viewed slide completion. Once completed, stays at 100%. */
+export function slideProgressPercent(
+  lastSlideIndex: number,
+  slideCount: number,
+  completedAt?: Date | string | null,
+): number {
+  if (slideCount <= 0) return 0;
+  if (completedAt) return 100;
+  return Math.min(
+    100,
+    Math.round(((Math.max(lastSlideIndex, 0) + 1) / slideCount) * 100),
+  );
+}

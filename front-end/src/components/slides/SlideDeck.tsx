@@ -56,7 +56,7 @@ export function SlideDeck({
   const { index, direction, next, prev, goTo } = useDeck(total, true, {
     capturePageKeys: mode === "fullscreen",
   });
-  useSlideProgressSync({
+  const { farthestIndex } = useSlideProgressSync({
     sessionId: sessionId ?? "",
     courseId,
     enabled: Boolean(sessionId),
@@ -66,7 +66,8 @@ export function SlideDeck({
   });
 
   const slide = slides[index]!;
-  const progress = total > 0 ? ((index + 1) / total) * 100 : 0;
+  const progress =
+    total > 0 ? ((Math.max(index, farthestIndex) + 1) / total) * 100 : 0;
   const label =
     slide.kind === "visual"
       ? `${slide.title} · تصویر`
@@ -152,7 +153,7 @@ export function SlideDeck({
             className="absolute inset-0 overflow-clip px-3 sm:px-5 lg:px-6"
           >
             <div className="mx-auto flex h-full w-full max-w-360 items-stretch justify-center py-2">
-              <SlideView slide={slide} />
+              <SlideView slide={slide} sessionLabel={sessionLabel} />
             </div>
           </motion.section>
         </AnimatePresence>

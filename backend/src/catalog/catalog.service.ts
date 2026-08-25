@@ -15,6 +15,7 @@ import {
   isUuid,
   normalizeName,
   normalizeStudentLevel,
+  slideProgressPercent,
   toPersianDigits,
 } from '../common/utils/mappers';
 import { formatTimeRange } from '../common/utils/session-time';
@@ -154,12 +155,13 @@ export class CatalogService {
         sessions: rows.map((session) => {
           const progress = progressBySession.get(session.id);
           const slideCount = session._count.slides;
-          const percent =
-            progress && slideCount > 0
-              ? Math.round(
-                  ((progress.lastSlideIndex + 1) / slideCount) * 100,
-                )
-              : 0;
+          const percent = progress
+            ? slideProgressPercent(
+                progress.lastSlideIndex,
+                slideCount,
+                progress.completedAt,
+              )
+            : 0;
           return this.mapSession(
             session,
             slideCount,
@@ -634,8 +636,15 @@ export class CatalogService {
       0,
       Math.min(lastSlideIndex, Math.max(slideCount - 1, 0)),
     );
+    const existing = await this.prisma.sessionProgress.findUnique({
+      where: {
+        userId_sessionId: { userId, sessionId: session.id },
+      },
+    });
+    const farthest = Math.max(existing?.lastSlideIndex ?? 0, clamped);
     const completed =
-      slideCount > 0 && clamped >= slideCount - 1 ? new Date() : null;
+      existing?.completedAt ??
+      (slideCount > 0 && farthest >= slideCount - 1 ? new Date() : null);
 
     const progress = await this.prisma.sessionProgress.upsert({
       where: {
@@ -644,25 +653,24 @@ export class CatalogService {
       create: {
         userId,
         sessionId: session.id,
-        lastSlideIndex: clamped,
+        lastSlideIndex: farthest,
         completedAt: completed,
       },
       update: {
-        lastSlideIndex: clamped,
+        lastSlideIndex: farthest,
         ...(completed ? { completedAt: completed } : {}),
       },
     });
-
-    const percent =
-      slideCount > 0
-        ? Math.round(((progress.lastSlideIndex + 1) / slideCount) * 100)
-        : 0;
 
     return {
       sessionId: String(session.number),
       lastSlideIndex: progress.lastSlideIndex,
       slideCount,
-      progressPercent: percent,
+      progressPercent: slideProgressPercent(
+        progress.lastSlideIndex,
+        slideCount,
+        progress.completedAt,
+      ),
       completedAt: progress.completedAt,
     };
   }
@@ -685,15 +693,13 @@ export class CatalogService {
       },
     });
     const lastSlideIndex = row?.lastSlideIndex ?? 0;
-    const percent =
-      slideCount > 0
-        ? Math.round(((lastSlideIndex + 1) / slideCount) * 100)
-        : 0;
     return {
       sessionId: String(session.number),
       lastSlideIndex,
       slideCount,
-      progressPercent: row ? percent : 0,
+      progressPercent: row
+        ? slideProgressPercent(lastSlideIndex, slideCount, row.completedAt)
+        : 0,
       completedAt: row?.completedAt ?? null,
     };
   }
