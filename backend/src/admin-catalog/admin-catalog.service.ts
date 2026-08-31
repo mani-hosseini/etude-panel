@@ -1,5 +1,3 @@
-import { existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
 import {
   ConflictException,
   Injectable,
@@ -14,6 +12,7 @@ import {
   SlideKind,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadsService } from '../uploads/uploads.service';
 import {
   formatTimeRange,
   normalizeClock,
@@ -47,7 +46,10 @@ function slugify(input: string) {
 
 @Injectable()
 export class AdminCatalogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploads: UploadsService,
+  ) {}
 
   async listCourses(query: AdminListCoursesQueryDto) {
     const where: Prisma.CourseWhereInput = {
@@ -451,22 +453,22 @@ export class AdminCatalogService {
       where: { sessionId },
       _max: { sortOrder: true },
     });
-    const path = `/uploads/attachments/${file.filename}`;
+    const stored = await this.uploads.save('attachments', file);
     try {
       const attachment = await this.prisma.sessionAttachment.create({
         data: {
           sessionId,
-          path,
+          path: stored.path,
           filename: file.originalname.slice(0, 255),
-          mimeType: file.mimetype,
-          size: file.size,
+          mimeType: stored.mimeType,
+          size: stored.size,
           caption: caption?.trim() || null,
           sortOrder: (maxOrder._max.sortOrder ?? 0) + 1,
         },
       });
       return this.mapAttachment(attachment);
     } catch (error) {
-      this.unlinkAttachmentFile(path);
+      await this.uploads.remove(stored.path);
       throw error;
     }
   }
@@ -487,7 +489,7 @@ export class AdminCatalogService {
   async deleteAttachment(id: string) {
     const existing = await this.ensureAttachment(id);
     await this.prisma.sessionAttachment.delete({ where: { id } });
-    this.unlinkAttachmentFile(existing.path);
+    await this.uploads.remove(existing.path);
     return { deleted: true };
   }
 
@@ -734,17 +736,6 @@ export class AdminCatalogService {
     });
     if (!attachment) throw new NotFoundException('فایل پیوست یافت نشد.');
     return attachment;
-  }
-
-  private unlinkAttachmentFile(path: string) {
-    if (!path.startsWith('/uploads/attachments/')) return;
-    const abs = join(process.cwd(), path.replace(/^\//, ''));
-    if (!existsSync(abs)) return;
-    try {
-      unlinkSync(abs);
-    } catch {
-      /* ignore missing files */
-    }
   }
 
   private mapCourse(

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ImagePlus, Loader2 } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
+import { RemoteImg } from "@/components/media/remote-img";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -191,11 +192,18 @@ function AttachmentRow({
     <Card className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
       <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <RemoteImg
             src={preview}
             alt={item.caption || item.filename}
             className="size-full object-cover"
+            fallback={
+              <div className="flex size-full flex-col items-center justify-center gap-1 px-2 text-center">
+                <ImagePlus className="size-5 text-slate-300" />
+                <span className="text-[10px] leading-4 text-slate-400">
+                  فایل نیست؛ دوباره آپلود کنید
+                </span>
+              </div>
+            }
           />
         ) : (
           <ImagePlus className="size-6 text-slate-300" />

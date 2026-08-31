@@ -5,6 +5,7 @@ import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { RemoteImg } from "@/components/media/remote-img";
 import { adminApi } from "@/lib/api/admin-client";
 import { audienceError } from "@/lib/api/errors";
 import { resolveMediaUrl } from "@/lib/api/http";
@@ -61,11 +62,18 @@ export function SlideImageUpload({
       <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
         <div className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
           {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <RemoteImg
               src={previewUrl}
               alt={imageHint || "پیش‌نمایش"}
               className="size-full object-contain"
+              fallback={
+                <div className="flex size-full flex-col items-center justify-center gap-1 px-2 text-center">
+                  <ImagePlus className="size-6 text-slate-300" />
+                  <span className="text-[10px] leading-4 text-slate-400">
+                    فایل نیست؛ دوباره آپلود کنید
+                  </span>
+                </div>
+              }
             />
           ) : (
             <ImagePlus className="size-8 text-slate-300" />

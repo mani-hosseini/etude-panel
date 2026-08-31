@@ -6,8 +6,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
-import { join } from 'path';
 import { AppModule } from './app.module';
+import { UploadsService } from './uploads/uploads.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -19,10 +19,6 @@ async function bootstrap() {
 
   const apiPrefix = config.getOrThrow<string>('apiPrefix');
   app.setGlobalPrefix(apiPrefix);
-
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads/',
-  });
 
   const isProd = config.get<string>('nodeEnv') === 'production';
 
@@ -44,6 +40,7 @@ async function bootstrap() {
     }),
   );
   app.use(cookieParser());
+  app.use(app.get(UploadsService).middleware());
 
   const allowedOrigins = config.getOrThrow<string[]>('corsOrigin');
   app.enableCors({

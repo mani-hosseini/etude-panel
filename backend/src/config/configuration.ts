@@ -91,6 +91,10 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   SEED_STUDENT_PASSWORD?: string;
+
+  @IsOptional()
+  @IsString()
+  UPLOAD_DIR?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -135,4 +139,5 @@ export default () => ({
     ttl: parseInt(process.env.THROTTLE_TTL_MS ?? '60000', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),
   },
+  uploadDir: process.env.UPLOAD_DIR?.trim() || undefined,
 });

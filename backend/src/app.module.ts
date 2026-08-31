@@ -14,6 +14,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AdminCatalogModule } from './admin-catalog/admin-catalog.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AdminCatalogModule } from './admin-catalog/admin-catalog.module';
       ],
     }),
     PrismaModule,
+    UploadsModule,
     AuthModule,
     UsersModule,
     CatalogModule,

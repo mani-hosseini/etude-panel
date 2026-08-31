@@ -6,6 +6,7 @@ import { ArrowRight, Images, Maximize2, X } from "lucide-react";
 
 import { DeckNavArrow } from "@/components/slides/DeckNavArrow";
 import { useDeck } from "@/components/slides/useDeck";
+import { RemoteImg } from "@/components/media/remote-img";
 import { resolveMediaUrl } from "@/lib/api/http";
 import type { SessionAttachment } from "@/lib/api/types";
 import { toFa } from "@/lib/format";
@@ -126,11 +127,21 @@ export function AttachmentGallery({
               exit="exit"
               className="absolute inset-0 flex items-center justify-center px-3 py-3 sm:px-6"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <RemoteImg
                 src={src}
                 alt={caption}
                 className="max-h-full max-w-full rounded-2xl object-contain shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8)]"
+                fallback={
+                  <div className="flex max-w-md flex-col items-center gap-3 px-6 text-center">
+                    <span className="grid size-14 place-items-center rounded-2xl bg-white/6 text-white/70">
+                      <Images className="size-6" />
+                    </span>
+                    <p className="text-sm text-white/80">{caption}</p>
+                    <p className="text-xs leading-6 text-white/50">
+                      این فایل روی سرور پیدا نشد. از پنل ادمین دوباره آپلود کنید.
+                    </p>
+                  </div>
+                }
               />
             </motion.section>
           </AnimatePresence>
