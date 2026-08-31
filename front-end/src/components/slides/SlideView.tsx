@@ -23,8 +23,19 @@ const PUBLIC_SLIDE_IMAGE_IDS = new Set([
   "beat",
   "beat-unit",
   "clapping",
+  "compound-68",
+  "compound-convert",
+  "compound-count-68",
+  "compound-count-98",
+  "compound-count-128",
+  "compound-count-128-alt",
+  "compound-def",
+  "diatonic-chromatic",
   "dotted",
   "double-bar",
+  "half-whole",
+  "intervals-intro",
+  "langu",
   "ledger",
   "ledger-above",
   "ledger-below",
@@ -38,6 +49,7 @@ const PUBLIC_SLIDE_IMAGE_IDS = new Set([
   "numbering",
   "rests",
   "rhythm-reading",
+  "simple-intervals",
   "simple-meters",
   "sound",
   "sound-instruments",
@@ -177,10 +189,16 @@ function CoverSlide({ slide }: { slide: Slide }) {
   );
 }
 
-function LessonSlide({ slide }: { slide: Slide }) {
+function LessonSlide({
+  slide,
+  sessionLabel,
+}: {
+  slide: Slide;
+  sessionLabel: string;
+}) {
   return (
     <SlideShell wide className="gap-1.5">
-      <Chapter n={slide.chapter} label="جلسهٔ اول" />
+      <Chapter n={slide.chapter} label={sessionLabel} />
       <Title>{slide.title}</Title>
 
       <Anim className="shrink-0">
@@ -242,10 +260,16 @@ function VisualSlide({ slide }: { slide: Slide }) {
   );
 }
 
-function OutroSlide({ slide }: { slide: Slide }) {
+function OutroSlide({
+  slide,
+  sessionLabel,
+}: {
+  slide: Slide;
+  sessionLabel: string;
+}) {
   return (
     <SlideShell className="gap-1.5">
-      <Chapter n={slide.chapter} label="پایان جلسهٔ اول" />
+      <Chapter n={slide.chapter} label={`پایان ${sessionLabel}`} />
       <Title>{slide.title}</Title>
       <Body className="mb-1! max-w-[78ch]! line-clamp-3">{slide.body}</Body>
 
@@ -277,7 +301,7 @@ function OutroSlide({ slide }: { slide: Slide }) {
                 آکادمی تخصصی پیانو اتود
               </div>
               <div className="text-[10px] text-white/70">
-                Masterclass · Session 01
+                Masterclass · {sessionLabel}
               </div>
             </div>
           </div>
@@ -289,10 +313,17 @@ function OutroSlide({ slide }: { slide: Slide }) {
   );
 }
 
-export function SlideView({ slide }: { slide: Slide }) {
+export function SlideView({
+  slide,
+  sessionLabel = "جلسهٔ اول",
+}: {
+  slide: Slide;
+  sessionLabel?: string;
+}) {
   const kind = (slide.kind ?? "lesson").toLowerCase();
   if (kind === "cover") return <CoverSlide slide={slide} />;
   if (kind === "visual") return <VisualSlide slide={slide} />;
-  if (kind === "outro") return <OutroSlide slide={slide} />;
-  return <LessonSlide slide={slide} />;
+  if (kind === "outro")
+    return <OutroSlide slide={slide} sessionLabel={sessionLabel} />;
+  return <LessonSlide slide={slide} sessionLabel={sessionLabel} />;
 }
