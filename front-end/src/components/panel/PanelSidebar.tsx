@@ -6,6 +6,7 @@ import {
   Award,
   BookOpen,
   CalendarDays,
+  ClipboardCheck,
   LayoutDashboard,
   LogOut,
   UserRound,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: routes.dashboard, label: copy.nav.dashboard, icon: LayoutDashboard },
   { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
+  { href: routes.exams, label: copy.nav.exams, icon: ClipboardCheck },
   { href: routes.schedule, label: copy.nav.schedule, icon: CalendarDays },
   { href: routes.certificates, label: copy.nav.certificates, icon: Award },
   { href: routes.profile, label: copy.nav.profile, icon: UserRound },

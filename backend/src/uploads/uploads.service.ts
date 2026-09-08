@@ -14,11 +14,20 @@ import {
   IMAGE_MIME_EXT,
   type UploadKind,
 } from './image-upload';
+import {
+  PDF_MIME,
+  PRIVATE_UPLOAD_KIND,
+  assertPdfBuffer,
+} from './pdf-upload';
 
-const KEY_PATTERN = /^(attachments|slides|avatars)\/[A-Za-z0-9._-]+$/;
+/** Public media served from `/uploads/…`. Student PDFs are intentionally excluded. */
+const PUBLIC_KEY_PATTERN =
+  /^(attachments|slides|avatars|exams)\/[A-Za-z0-9._-]+$/;
+const PRIVATE_KEY_PATTERN = /^exam-submissions\/[A-Za-z0-9._-]+$/;
 
 export type StoredUpload = {
   path: string;
+  key: string;
   filename: string;
   mimeType: string;
   size: number;
@@ -48,7 +57,7 @@ export class UploadsService {
       originalname?: string;
     },
   ): Promise<StoredUpload> {
-    const buffer = await this.toBuffer(file);
+    const buffer = await this.toBuffer(file, 'فایل تصویر ارسال نشده است.');
     const ext = IMAGE_MIME_EXT[file.mimetype];
     if (!ext) {
       throw new BadRequestException(
@@ -56,32 +65,43 @@ export class UploadsService {
       );
     }
 
-    const filename = `${kind.slice(0, -1)}-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}${ext}`;
+    const prefix = kind === 'exams' ? 'exam' : kind.slice(0, -1);
+    const filename = `${prefix}-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}${ext}`;
     const key = `${kind}/${filename}`;
-
-    const bytes = new Uint8Array(buffer);
-
-    await this.prisma.storedFile.upsert({
-      where: { key },
-      create: {
-        key,
-        mimeType: file.mimetype,
-        size: buffer.length,
-        data: bytes,
-      },
-      update: {
-        mimeType: file.mimetype,
-        size: buffer.length,
-        data: bytes,
-      },
-    });
-
-    await this.writeDiskCache(key, buffer);
+    await this.persist(key, file.mimetype, buffer);
 
     return {
       path: `/uploads/${key}`,
+      key,
       filename,
       mimeType: file.mimetype,
+      size: buffer.length,
+    };
+  }
+
+  async savePdf(file: {
+    buffer?: Buffer;
+    path?: string;
+    mimetype: string;
+    size: number;
+    originalname?: string;
+  }): Promise<StoredUpload> {
+    const buffer = await this.toBuffer(file, 'فایل PDF ارسال نشده است.');
+    assertPdfBuffer({
+      buffer,
+      mimetype: file.mimetype,
+      size: file.size || buffer.length,
+    });
+
+    const filename = `submission-${Date.now().toString(36)}-${randomBytes(4).toString('hex')}.pdf`;
+    const key = `${PRIVATE_UPLOAD_KIND}/${filename}`;
+    await this.persist(key, PDF_MIME, buffer);
+
+    return {
+      path: `/uploads/${key}`,
+      key,
+      filename,
+      mimeType: PDF_MIME,
       size: buffer.length,
     };
   }
@@ -89,6 +109,13 @@ export class UploadsService {
   async remove(publicPath: string) {
     const key = this.keyFromPublicPath(publicPath);
     if (!key) return;
+    await this.removeByKey(key);
+  }
+
+  async removeByKey(key: string) {
+    if (!PUBLIC_KEY_PATTERN.test(key) && !PRIVATE_KEY_PATTERN.test(key)) {
+      return;
+    }
     await this.prisma.storedFile.deleteMany({ where: { key } });
     await this.removeDisk(key);
   }
@@ -96,24 +123,15 @@ export class UploadsService {
   async resolve(
     key: string,
   ): Promise<{ data: Buffer; mimeType: string } | null> {
-    if (!KEY_PATTERN.test(key)) return null;
+    if (!PUBLIC_KEY_PATTERN.test(key)) return null;
+    return this.readStored(key);
+  }
 
-    const abs = join(this.rootDir(), key);
-    if (existsSync(abs)) {
-      try {
-        const data = await readFile(abs);
-        return { data, mimeType: this.mimeFromKey(key) };
-      } catch {
-        /* fall through to the database copy */
-      }
-    }
-
-    const row = await this.prisma.storedFile.findUnique({ where: { key } });
-    if (!row) return null;
-
-    const data = Buffer.from(row.data);
-    await this.writeDiskCache(key, data);
-    return { data, mimeType: row.mimeType };
+  async resolvePrivate(
+    key: string,
+  ): Promise<{ data: Buffer; mimeType: string } | null> {
+    if (!PRIVATE_KEY_PATTERN.test(key)) return null;
+    return this.readStored(key);
   }
 
   middleware() {
@@ -169,18 +187,61 @@ export class UploadsService {
   keyFromPublicPath(publicPath: string) {
     if (!publicPath.startsWith('/uploads/')) return null;
     const key = publicPath.slice('/uploads/'.length);
-    return KEY_PATTERN.test(key) ? key : null;
+    return PUBLIC_KEY_PATTERN.test(key) ? key : null;
   }
 
-  private async toBuffer(file: {
-    buffer?: Buffer;
-    path?: string;
-  }): Promise<Buffer> {
+  private async persist(key: string, mimeType: string, buffer: Buffer) {
+    const bytes = new Uint8Array(buffer);
+    await this.prisma.storedFile.upsert({
+      where: { key },
+      create: {
+        key,
+        mimeType,
+        size: buffer.length,
+        data: bytes,
+      },
+      update: {
+        mimeType,
+        size: buffer.length,
+        data: bytes,
+      },
+    });
+    await this.writeDiskCache(key, buffer);
+  }
+
+  private async readStored(
+    key: string,
+  ): Promise<{ data: Buffer; mimeType: string } | null> {
+    const abs = join(this.rootDir(), key);
+    if (existsSync(abs)) {
+      try {
+        const data = await readFile(abs);
+        return { data, mimeType: this.mimeFromKey(key) };
+      } catch {
+        /* fall through to the database copy */
+      }
+    }
+
+    const row = await this.prisma.storedFile.findUnique({ where: { key } });
+    if (!row) return null;
+
+    const data = Buffer.from(row.data);
+    await this.writeDiskCache(key, data);
+    return { data, mimeType: row.mimeType };
+  }
+
+  private async toBuffer(
+    file: {
+      buffer?: Buffer;
+      path?: string;
+    },
+    emptyMessage: string,
+  ): Promise<Buffer> {
     if (file.buffer?.length) return file.buffer;
     if (file.path && existsSync(file.path)) {
       return readFile(file.path);
     }
-    throw new BadRequestException('فایل تصویر ارسال نشده است.');
+    throw new BadRequestException(emptyMessage);
   }
 
   private async writeDiskCache(key: string, data: Buffer) {
@@ -206,7 +267,10 @@ export class UploadsService {
 
   private mimeFromKey(key: string) {
     const ext = key.slice(key.lastIndexOf('.')).toLowerCase();
-    const match = Object.entries(IMAGE_MIME_EXT).find(([, value]) => value === ext);
+    if (ext === '.pdf') return PDF_MIME;
+    const match = Object.entries(IMAGE_MIME_EXT).find(
+      ([, value]) => value === ext,
+    );
     return match?.[0] ?? 'application/octet-stream';
   }
 }

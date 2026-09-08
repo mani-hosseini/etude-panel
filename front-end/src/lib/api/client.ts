@@ -9,6 +9,8 @@ import type {
   CourseCard,
   ApiSlide,
   SessionAttachment,
+  StudentExam,
+  ExamSubmissionSummary,
 } from "@/lib/api/types";
 
 export { ApiError };
@@ -182,4 +184,21 @@ export const api = {
       "/profile/avatar",
       { method: "DELETE" },
     ),
+
+  exams: () =>
+    studentHttp.requestData<{ exams: StudentExam[] }>("/exams"),
+
+  exam: (id: string) => studentHttp.requestData<StudentExam>(`/exams/${id}`),
+
+  submitExamPdf: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return studentHttp.upload<{
+      submitted: boolean;
+      submission: ExamSubmissionSummary;
+    }>(`/exams/${id}/submission`, formData);
+  },
+
+  downloadOwnExamPdf: (id: string) =>
+    studentHttp.download(`/exams/${id}/submission/file`),
 };

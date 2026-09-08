@@ -6,6 +6,7 @@ import {
   Award,
   BookOpen,
   CalendarDays,
+  ClipboardCheck,
   LayoutDashboard,
   Menu,
   UserRound,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 const mobileNav = [
   { href: routes.dashboard, label: copy.nav.dashboard, icon: LayoutDashboard },
   { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
+  { href: routes.exams, label: copy.nav.exams, icon: ClipboardCheck },
   { href: routes.schedule, label: copy.nav.schedule, icon: CalendarDays },
   { href: routes.certificates, label: copy.nav.certificates, icon: Award },
   { href: routes.profile, label: copy.nav.profile, icon: UserRound },
@@ -125,7 +127,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
           </footer>
 
           <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-            <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
+            <div className="mx-auto grid max-w-lg grid-cols-6 gap-1">
               {mobileNav.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);

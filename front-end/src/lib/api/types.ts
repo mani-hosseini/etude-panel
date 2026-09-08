@@ -176,3 +176,29 @@ export type SessionAttachment = {
   mimeType: string;
   sortOrder: number;
 };
+
+export type ExamStatus = "DRAFT" | "PUBLISHED" | "CLOSED";
+
+export type ExamSubmissionSummary = {
+  id: string;
+  submittedAt: string;
+  originalName: string;
+  size: number;
+};
+
+export type StudentExam = {
+  id: string;
+  title: string;
+  description: string;
+  status: Exclude<ExamStatus, "DRAFT">;
+  dueAt: string | null;
+  duePassed: boolean;
+  canSubmit: boolean;
+  submitted: boolean;
+  answersVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+  examImagePath: string | null;
+  answerImagePath: string | null;
+  submission: ExamSubmissionSummary | null;
+};

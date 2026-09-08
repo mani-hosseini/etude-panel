@@ -230,5 +230,26 @@ export function createApiRequester(store: TokenStore) {
       return data;
     },
     upload,
+    download: async (path: string): Promise<Blob> => {
+      let response: Response;
+      try {
+        response = await authorizedFetch(path, { method: "GET" }, true);
+      } catch (error) {
+        if (error instanceof ApiError) throw error;
+        throw new ApiError(0, "NETWORK", "اتصال برقرار نشد.");
+      }
+
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || contentType.includes("application/json")) {
+        await parseResponseData(response);
+        throw new ApiError(
+          response.status,
+          "BAD_RESPONSE",
+          "دانلود فایل انجام نشد.",
+        );
+      }
+
+      return response.blob();
+    },
   };
 }

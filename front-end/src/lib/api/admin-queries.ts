@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   adminApi,
   type ListCoursesParams,
+  type ListExamsParams,
   type ListUsersParams,
 } from "@/lib/api/admin-client";
 
@@ -20,6 +21,8 @@ export const adminQueryKeys = {
   attachments: (sessionId: string) =>
     ["admin", "attachments", sessionId] as const,
   tips: (courseId: string) => ["admin", "tips", courseId] as const,
+  exams: (params: ListExamsParams) => ["admin", "exams", params] as const,
+  exam: (id: string) => ["admin", "exam", id] as const,
 };
 
 export function useAdminUsersStatsQuery() {
@@ -80,5 +83,20 @@ export function useAdminTipsQuery(courseId: string) {
     queryKey: adminQueryKeys.tips(courseId),
     queryFn: () => adminApi.tips(courseId),
     enabled: Boolean(courseId),
+  });
+}
+
+export function useAdminExamsQuery(params: ListExamsParams = {}) {
+  return useQuery({
+    queryKey: adminQueryKeys.exams(params),
+    queryFn: () => adminApi.exams(params),
+  });
+}
+
+export function useAdminExamQuery(id: string) {
+  return useQuery({
+    queryKey: adminQueryKeys.exam(id),
+    queryFn: () => adminApi.exam(id),
+    enabled: Boolean(id),
   });
 }

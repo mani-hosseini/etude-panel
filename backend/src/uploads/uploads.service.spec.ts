@@ -60,6 +60,7 @@ describe('UploadsService', () => {
 
     expect(saved.path.startsWith('/uploads/attachments/')).toBe(true);
     expect(saved.filename.endsWith('.jpg')).toBe(true);
+    expect(saved.key.startsWith('attachments/')).toBe(true);
     expect(store.size).toBe(1);
 
     const key = service.keyFromPublicPath(saved.path);
@@ -100,5 +101,45 @@ describe('UploadsService', () => {
     expect(await service.resolve('../secret.png')).toBeNull();
     expect(await service.resolve('attachments/../../etc/passwd')).toBeNull();
     expect(service.keyFromPublicPath('/uploads/attachments/../../x')).toBeNull();
+  });
+
+  it('stores exam images as public media', async () => {
+    const buffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const saved = await service.save('exams', {
+      buffer,
+      mimetype: 'image/png',
+      size: buffer.length,
+    });
+    expect(saved.path.startsWith('/uploads/exams/')).toBe(true);
+    const key = service.keyFromPublicPath(saved.path);
+    expect(key).toBeTruthy();
+    const resolved = await service.resolve(key!);
+    expect(resolved?.data.equals(buffer)).toBe(true);
+  });
+
+  it('keeps student PDFs private from the public resolver', async () => {
+    const buffer = Buffer.from('%PDF-1.4 minimal');
+    const saved = await service.savePdf({
+      buffer,
+      mimetype: 'application/pdf',
+      size: buffer.length,
+      originalname: 'answers.pdf',
+    });
+    expect(saved.key.startsWith('exam-submissions/')).toBe(true);
+    expect(await service.resolve(saved.key)).toBeNull();
+    const privateFile = await service.resolvePrivate(saved.key);
+    expect(privateFile?.mimeType).toBe('application/pdf');
+    expect(privateFile?.data.equals(buffer)).toBe(true);
+  });
+
+  it('rejects forged PDFs that are not actually PDF bytes', async () => {
+    await expect(
+      service.savePdf({
+        buffer: Buffer.from('not-a-pdf'),
+        mimetype: 'application/pdf',
+        size: 9,
+        originalname: 'answers.pdf',
+      }),
+    ).rejects.toThrow('فایل PDF نامعتبر است.');
   });
 });

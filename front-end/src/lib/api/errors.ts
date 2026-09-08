@@ -69,6 +69,7 @@ export function toAudienceMessage(
     if (trimmed.includes("دوره")) return "دوره یافت نشد.";
     if (trimmed.includes("جلسه")) return "جلسه یافت نشد.";
     if (trimmed.includes("اسلاید")) return "اسلاید یافت نشد.";
+    if (trimmed.includes("آزمون")) return "آزمون یافت نشد.";
     if (trimmed.includes("پیوست") || trimmed.includes("فایل")) {
       return "فایل یافت نشد.";
     }

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Users, UserCheck, UserCog, UserX } from "lucide-react";
+import { BookOpen, ClipboardCheck, Users, UserCheck, UserCog, UserX } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { audienceError } from "@/lib/api/errors";
 import {
   useAdminCoursesQuery,
+  useAdminExamsQuery,
   useAdminUsersStatsQuery,
 } from "@/lib/api/admin-queries";
 import { toFa } from "@/lib/format";
@@ -22,6 +23,7 @@ const cards = [
 export function AdminDashboardPage() {
   const statsQuery = useAdminUsersStatsQuery();
   const coursesQuery = useAdminCoursesQuery({ page: 1, limit: 5 });
+  const examsQuery = useAdminExamsQuery({ page: 1, limit: 5 });
 
   if (statsQuery.isPending) {
     return (
@@ -78,7 +80,7 @@ export function AdminDashboardPage() {
         })}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -115,6 +117,46 @@ export function AdminDashboardPage() {
             className="mt-4 inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
           >
             مدیریت دوره‌ها
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">آزمون‌ها</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                برگه، پاسخ‌نامه و PDF پاسخ هنرجویان.
+              </p>
+            </div>
+            <ClipboardCheck className="size-5 text-brand" />
+          </div>
+          <div className="mt-4 space-y-2">
+            {examsQuery.isPending ? (
+              <Skeleton className="h-16 rounded-xl" />
+            ) : (examsQuery.data?.exams ?? []).length === 0 ? (
+              <p className="text-sm text-slate-500">هنوز آزمونی ساخته نشده.</p>
+            ) : (
+              (examsQuery.data?.exams ?? []).slice(0, 3).map((exam) => (
+                <Link
+                  key={exam.id}
+                  href={adminRoutes.exam(exam.id)}
+                  className="block rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 transition hover:border-brand/30 hover:bg-brand/5"
+                >
+                  <p className="text-sm font-semibold text-slate-900">
+                    {exam.title}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {toFa(exam.submissionsCount)} پاسخ ارسال‌شده
+                  </p>
+                </Link>
+              ))
+            )}
+          </div>
+          <Link
+            href={adminRoutes.exams}
+            className="mt-4 inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          >
+            مدیریت آزمون‌ها
           </Link>
         </div>
 

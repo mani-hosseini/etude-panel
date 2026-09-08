@@ -41,6 +41,7 @@ export const copy = {
     dashboard: "صفحه اصلی",
     courses: "دوره‌ها",
     sessions: "جلسات",
+    exams: "آزمون‌ها",
     certificates: "مدارک",
     schedule: "برنامه کلاس",
     profile: "پروفایل",

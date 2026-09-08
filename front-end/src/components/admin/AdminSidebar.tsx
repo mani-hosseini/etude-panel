@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
+  ClipboardCheck,
   ExternalLink,
   LayoutDashboard,
   LogOut,
@@ -31,6 +32,12 @@ const navItems = [
     label: "دوره‌ها",
     description: "محتوا و جلسات",
     icon: BookOpen,
+  },
+  {
+    href: adminRoutes.exams,
+    label: "آزمون‌ها",
+    description: "برگه، پاسخ‌نامه و ارسال‌ها",
+    icon: ClipboardCheck,
   },
   {
     href: adminRoutes.users,
@@ -104,7 +111,7 @@ export function AdminSidebar({
           <div className="min-w-0">
             <p className="text-xs font-semibold text-slate-800">مدیریت محتوا</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
-              دوره، جلسه و اسلاید را از یکجا کنترل کنید.
+              دوره، جلسه، آزمون و اسلاید را از یکجا کنترل کنید.
             </p>
           </div>
         </div>

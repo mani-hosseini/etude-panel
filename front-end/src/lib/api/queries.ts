@@ -19,6 +19,8 @@ export const queryKeys = {
   schedule: (courseId?: string) =>
     ["schedule", courseId ?? "primary"] as const,
   profile: ["profile"] as const,
+  exams: ["exams"] as const,
+  exam: (id: string) => ["exam", id] as const,
 };
 
 function queryErrorMessage(error: unknown) {
@@ -96,6 +98,21 @@ export function useProfileQuery() {
   return useQuery({
     queryKey: queryKeys.profile,
     queryFn: () => api.profile(),
+  });
+}
+
+export function useExamsQuery() {
+  return useQuery({
+    queryKey: queryKeys.exams,
+    queryFn: () => api.exams(),
+  });
+}
+
+export function useExamQuery(id: string) {
+  return useQuery({
+    queryKey: queryKeys.exam(id),
+    queryFn: () => api.exam(id),
+    enabled: Boolean(id),
   });
 }
 

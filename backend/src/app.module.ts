@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AdminCatalogModule } from './admin-catalog/admin-catalog.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { ExamsModule } from './exams/exams.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { UploadsModule } from './uploads/uploads.module';
     UsersModule,
     CatalogModule,
     AdminCatalogModule,
+    ExamsModule,
     HealthModule,
   ],
   providers: [

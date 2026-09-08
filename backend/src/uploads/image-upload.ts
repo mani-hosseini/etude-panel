@@ -9,7 +9,11 @@ export const IMAGE_MIME_EXT: Record<string, string> = {
 
 export const IMAGE_ALLOWED_MIME = new Set(Object.keys(IMAGE_MIME_EXT));
 
-export type UploadKind = 'attachments' | 'slides' | 'avatars';
+export type UploadKind =
+  | 'attachments'
+  | 'slides'
+  | 'avatars'
+  | 'exams';
 
 export function imageMulterOptions(maxBytes: number) {
   return {

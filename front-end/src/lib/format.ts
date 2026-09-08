@@ -59,3 +59,22 @@ export function cleanCourseTitle(title: string): string {
     .replace(/\s*سطح\s*پایه\s*/g, "")
     .trim();
 }
+
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return toFa(0) + " بایت";
+  if (bytes < 1024) return `${toFa(bytes)} بایت`;
+  if (bytes < 1024 * 1024) {
+    return `${toFa((bytes / 1024).toFixed(1))} کیلوبایت`;
+  }
+  return `${toFa((bytes / (1024 * 1024)).toFixed(1))} مگابایت`;
+}
+
+export function formatDateTimeFa(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("fa-IR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}

@@ -37,6 +37,8 @@ export const routes = {
   sessions: "/dashboard/sessions",
   schedule: "/dashboard/schedule",
   certificates: "/dashboard/certificates",
+  exams: "/dashboard/exams",
+  exam: (id: string) => `/dashboard/exams/${id}`,
   profile: "/dashboard/profile",
   login: "/login",
   register: "/",
@@ -55,6 +57,9 @@ export const adminRoutes = {
   /** Session content by course slug + session number */
   courseSession: (slug: string, sessionNumber: number | string) =>
     `/admin/courses/${slug}/sessions/${sessionNumber}`,
+  exams: "/admin/exams",
+  examNew: "/admin/exams/new",
+  exam: (id: string) => `/admin/exams/${id}`,
 } as const;
 
 export function isNavActive(pathname: string, href: string): boolean {
@@ -67,6 +72,9 @@ export function isNavActive(pathname: string, href: string): boolean {
   }
   if (href === routes.certificates) {
     return pathname === routes.certificates || pathname.includes("/certificate");
+  }
+  if (href === routes.exams) {
+    return pathname === routes.exams || pathname.startsWith(`${routes.exams}/`);
   }
   if (href === routes.courses) {
     return pathname === routes.courses;

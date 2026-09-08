@@ -199,6 +199,59 @@ export type AdminPracticeTip = {
   sortOrder: number;
 };
 
+export type ExamStatus = "DRAFT" | "PUBLISHED" | "CLOSED";
+
+export type AdminExam = {
+  id: string;
+  title: string;
+  description: string;
+  examImagePath: string | null;
+  answerImagePath: string | null;
+  status: ExamStatus;
+  dueAt: string | null;
+  sortOrder: number;
+  submissionsCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminExamSubmission = {
+  id: string;
+  examId: string;
+  submittedAt: string;
+  updatedAt: string;
+  originalName: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    studentCode: string | null;
+  };
+};
+
+export type AdminExamDetail = AdminExam & {
+  submissions: AdminExamSubmission[];
+};
+
+export type UpsertExamBody = {
+  title: string;
+  description?: string;
+  status?: ExamStatus;
+  dueAt?: string | null;
+  sortOrder?: number;
+};
+
+export type ListExamsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: ExamStatus;
+};
+
 export type AdminCourseDetail = AdminCourse & {
   sessions: AdminSession[];
 };
@@ -626,4 +679,60 @@ export const adminApi = {
       size: number;
     }>("/admin/uploads/slide-image", formData);
   },
+
+  exams: async (params: ListExamsParams = {}) => {
+    const query = qs({
+      page: params.page,
+      limit: params.limit,
+      search: params.search,
+      status: params.status,
+    });
+    const { data, meta } = await adminHttp.request<{ exams: AdminExam[] }>(
+      `/admin/exams${query}`,
+    );
+    return {
+      exams: data.exams,
+      meta: meta as PaginationMeta | undefined,
+    };
+  },
+
+  exam: (id: string) =>
+    adminHttp.requestData<AdminExamDetail>(`/admin/exams/${id}`),
+
+  createExam: (body: UpsertExamBody) =>
+    adminHttp.requestData<AdminExam>("/admin/exams", {
+      method: "POST",
+      body,
+    }),
+
+  updateExam: (id: string, body: UpsertExamBody) =>
+    adminHttp.requestData<AdminExam>(`/admin/exams/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  deleteExam: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/admin/exams/${id}`, {
+      method: "DELETE",
+    }),
+
+  uploadExamImage: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return adminHttp.upload<AdminExam>(`/admin/exams/${id}/exam-image`, formData);
+  },
+
+  uploadExamAnswerImage: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return adminHttp.upload<AdminExam>(
+      `/admin/exams/${id}/answer-image`,
+      formData,
+    );
+  },
+
+  downloadExamSubmission: (examId: string, submissionId: string) =>
+    adminHttp.download(
+      `/admin/exams/${examId}/submissions/${submissionId}/file`,
+    ),
 };

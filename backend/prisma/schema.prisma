@@ -43,6 +43,12 @@ enum SlideKind {
   OUTRO
 }
 
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   firstName    String   @db.VarChar(40)
@@ -63,10 +69,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens   RefreshToken[]
-  enrollments     Enrollment[]
-  achievements    UserAchievement[]
-  sessionProgress SessionProgress[]
+  refreshTokens    RefreshToken[]
+  enrollments      Enrollment[]
+  achievements     UserAchievement[]
+  sessionProgress  SessionProgress[]
+  examSubmissions  ExamSubmission[]
 
   @@unique([firstName, lastName])
   @@index([role])
@@ -272,6 +279,43 @@ model SessionProgress {
   session CourseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sessionId])
+}
+
+model Exam {
+  id              String     @id @default(uuid()) @db.Uuid
+  title           String     @db.VarChar(200)
+  description     String     @default("") @db.VarChar(2000)
+  examImagePath   String     @default("") @db.VarChar(512)
+  answerImagePath String     @default("") @db.VarChar(512)
+  status          ExamStatus @default(DRAFT)
+  dueAt           DateTime?
+  sortOrder       Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  submissions ExamSubmission[]
+
+  @@index([status, sortOrder])
+}
+
+model ExamSubmission {
+  id           String   @id @default(uuid()) @db.Uuid
+  examId       String   @db.Uuid
+  userId       String   @db.Uuid
+  fileKey      String   @db.VarChar(512)
+  filename     String   @db.VarChar(255)
+  originalName String   @db.VarChar(255)
+  mimeType     String   @db.VarChar(64)
+  size         Int
+  submittedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, userId])
+  @@index([examId, submittedAt])
+  @@index([userId])
 }
 
 /// Durable copy of uploaded media. Disk under `uploads/` is only a cache and

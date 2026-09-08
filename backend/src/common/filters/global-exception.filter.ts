@@ -69,12 +69,24 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         return HttpStatus.CONFLICT;
       case 'TOO_MANY_REQUESTS':
         return HttpStatus.TOO_MANY_REQUESTS;
+      case 'PAYLOAD_TOO_LARGE':
+        return HttpStatus.PAYLOAD_TOO_LARGE;
       default:
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }
   }
 
   private mapException(exception: unknown, isProduction: boolean): ErrorBody {
+    if (this.isMulterLimit(exception)) {
+      return {
+        success: false,
+        error: {
+          code: 'PAYLOAD_TOO_LARGE',
+          message: 'حجم فایل بیش از حد مجاز است.',
+        },
+      };
+    }
+
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const payload = exception.getResponse();
@@ -87,6 +99,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const normalizedMessage = Array.isArray(message)
         ? message.join(', ')
         : message;
+
+      if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
+        return {
+          success: false,
+          error: {
+            code: 'PAYLOAD_TOO_LARGE',
+            message: 'حجم فایل بیش از حد مجاز است.',
+          },
+        };
+      }
 
       return {
         success: false,
@@ -135,6 +157,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     };
   }
 
+  private isMulterLimit(exception: unknown): boolean {
+    if (!exception || typeof exception !== 'object') return false;
+    const code = (exception as { code?: unknown }).code;
+    const name = (exception as { name?: unknown }).name;
+    return (
+      code === 'LIMIT_FILE_SIZE' ||
+      (name === 'MulterError' &&
+        typeof code === 'string' &&
+        code.startsWith('LIMIT_'))
+    );
+  }
+
   private codeFromStatus(status: number): string {
     switch (status) {
       case HttpStatus.BAD_REQUEST:
@@ -151,6 +185,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         return 'TOO_MANY_REQUESTS';
       case HttpStatus.UNPROCESSABLE_ENTITY:
         return 'VALIDATION_ERROR';
+      case HttpStatus.PAYLOAD_TOO_LARGE:
+        return 'PAYLOAD_TOO_LARGE';
       default:
         return status >= 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST';
     }

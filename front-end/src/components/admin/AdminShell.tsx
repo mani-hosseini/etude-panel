@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, LayoutDashboard, Menu, Users, X } from "lucide-react";
+import { BookOpen, ClipboardCheck, LayoutDashboard, Menu, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const mobileNav = [
   { href: adminRoutes.root, label: "صفحه اصلی", icon: LayoutDashboard },
   { href: adminRoutes.courses, label: "دوره‌ها", icon: BookOpen },
+  { href: adminRoutes.exams, label: "آزمون‌ها", icon: ClipboardCheck },
   { href: adminRoutes.users, label: "کاربران", icon: Users },
 ] as const;
 
@@ -22,6 +23,11 @@ function resolveTitle(pathname: string) {
     if (pathname.endsWith("/new")) return "دوره جدید";
     if (pathname !== adminRoutes.courses) return "جزئیات دوره";
     return "دوره‌ها";
+  }
+  if (pathname.startsWith(adminRoutes.exams)) {
+    if (pathname.endsWith("/new")) return "آزمون جدید";
+    if (pathname !== adminRoutes.exams) return "جزئیات آزمون";
+    return "آزمون‌ها";
   }
   return (
     mobileNav.find((item) => isNavActive(pathname, item.href))?.label ??
@@ -104,7 +110,7 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
           </main>
 
           <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-            <div className="mx-auto grid max-w-lg grid-cols-3 gap-1">
+            <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
               {mobileNav.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);
