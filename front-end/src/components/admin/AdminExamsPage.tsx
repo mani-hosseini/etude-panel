@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
 import { useAdminExamsQuery } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
-import { formatDateTimeFa, toFa } from "@/lib/format";
+import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
 export function AdminExamsPage() {
@@ -62,7 +62,7 @@ export function AdminExamsPage() {
       <AdminPageHeader
         eyebrow="ارزیابی هنرجویان"
         title="آزمون‌ها"
-        description="برگه آزمون و پاسخ‌نامه را آپلود کنید و PDF پاسخ هنرجویان را دریافت کنید."
+        description="پاسخ‌نامه و برگه سوالات را جداگانه آپلود کنید؛ پاسخ PDF هنرجویان فقط اینجا دیده می‌شود."
         actions={
           <Button asChild className="rounded-xl">
             <Link href={adminRoutes.examNew}>
@@ -118,7 +118,6 @@ export function AdminExamsPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">عنوان</th>
                   <th className="px-4 py-3 font-medium">وضعیت</th>
-                  <th className="px-4 py-3 font-medium">مهلت</th>
                   <th className="px-4 py-3 font-medium">ارسال‌ها</th>
                   <th className="px-4 py-3 font-medium">اقدام</th>
                 </tr>
@@ -141,9 +140,6 @@ export function AdminExamsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <ExamStatusBadge status={exam.status} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {exam.dueAt ? formatDateTimeFa(exam.dueAt) : "—"}
                     </td>
                     <td className="px-4 py-3 font-sans tabular-nums text-slate-700">
                       {toFa(exam.submissionsCount)}

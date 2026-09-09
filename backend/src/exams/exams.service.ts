@@ -11,12 +11,13 @@ import {
 } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
+import type { PrivatePdfKind } from '../uploads/pdf-upload';
 import {
   AdminListExamsQueryDto,
   UpsertExamDto,
 } from './dto/exams.dto';
 
-const IMAGE_PATH_RE = /^\/uploads\/exams\/[A-Za-z0-9._-]+$/;
+type PaperField = 'exam' | 'answer';
 
 export function sanitizeOriginalName(name: string): string {
   const cleaned = (name || 'submission.pdf')
@@ -88,15 +89,17 @@ export class ExamsService {
       throw new NotFoundException('آزمون یافت نشد.');
     }
     const submission = exam.submissions[0] ?? null;
-    return this.mapStudentExam(exam, submission, true);
+    return this.mapStudentExam(exam, submission);
   }
 
   async submitPdf(userId: string, examId: string, file: Express.Multer.File) {
     const exam = await this.ensureExam(examId);
     this.assertStudentCanSubmit(exam);
 
-    const stored = await this.uploads.savePdf(file);
-    const originalName = sanitizeOriginalName(file.originalname ?? stored.filename);
+    const stored = await this.uploads.savePdf(file, 'exam-submissions');
+    const originalName = sanitizeOriginalName(
+      file.originalname ?? stored.filename,
+    );
 
     try {
       const previous = await this.prisma.examSubmission.findUnique({
@@ -146,6 +149,28 @@ export class ExamsService {
       throw new NotFoundException('پاسخ این آزمون هنوز ارسال نشده است.');
     }
     return this.streamPrivatePdf(submission.fileKey, submission.originalName);
+  }
+
+  async downloadExamPdfForStudent(_userId: string, examId: string) {
+    const exam = await this.ensureVisibleExam(examId);
+    if (!exam.examFileKey) {
+      throw new NotFoundException('برگه آزمون یافت نشد.');
+    }
+    return this.streamPrivatePdf(
+      exam.examFileKey,
+      exam.examOriginalName || 'exam.pdf',
+    );
+  }
+
+  async downloadAnswerPdfForStudent(_userId: string, examId: string) {
+    const exam = await this.ensureVisibleExam(examId);
+    if (!exam.answerFileKey) {
+      throw new NotFoundException('پاسخ‌نامه یافت نشد.');
+    }
+    return this.streamPrivatePdf(
+      exam.answerFileKey,
+      exam.answerOriginalName || 'answer-sheet.pdf',
+    );
   }
 
   async listForAdmin(query: AdminListExamsQueryDto) {
@@ -234,7 +259,6 @@ export class ExamsService {
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
         status,
-        dueAt: dto.dueAt ?? null,
         sortOrder: dto.sortOrder ?? (maxOrder._max.sortOrder ?? 0) + 1,
       },
       include: { _count: { select: { submissions: true } } },
@@ -247,8 +271,8 @@ export class ExamsService {
     const nextStatus = dto.status ?? existing.status;
     this.assertPublishable(
       nextStatus,
-      existing.examImagePath,
-      existing.answerImagePath,
+      existing.examFileKey,
+      existing.answerFileKey,
     );
 
     const exam = await this.prisma.exam.update({
@@ -260,7 +284,6 @@ export class ExamsService {
             ? dto.description.trim()
             : existing.description,
         status: nextStatus,
-        dueAt: dto.dueAt === undefined ? existing.dueAt : dto.dueAt,
         sortOrder: dto.sortOrder ?? existing.sortOrder,
       },
       include: { _count: { select: { submissions: true } } },
@@ -279,20 +302,42 @@ export class ExamsService {
 
     const keys = [
       ...exam.submissions.map((row) => row.fileKey),
-      this.uploads.keyFromPublicPath(exam.examImagePath),
-      this.uploads.keyFromPublicPath(exam.answerImagePath),
-    ].filter((key): key is string => Boolean(key));
+      exam.examFileKey,
+      exam.answerFileKey,
+    ].filter(Boolean);
 
     await Promise.all(keys.map((key) => this.uploads.removeByKey(key)));
     return { deleted: true };
   }
 
-  async replaceExamImage(examId: string, file: Express.Multer.File) {
-    return this.replaceImage(examId, 'examImagePath', file);
+  async replaceExamPdf(examId: string, file: Express.Multer.File) {
+    return this.replacePaper(examId, 'exam', file);
   }
 
-  async replaceAnswerImage(examId: string, file: Express.Multer.File) {
-    return this.replaceImage(examId, 'answerImagePath', file);
+  async replaceAnswerPdf(examId: string, file: Express.Multer.File) {
+    return this.replacePaper(examId, 'answer', file);
+  }
+
+  async downloadExamPdfForAdmin(examId: string) {
+    const exam = await this.ensureExam(examId);
+    if (!exam.examFileKey) {
+      throw new NotFoundException('برگه آزمون یافت نشد.');
+    }
+    return this.streamPrivatePdf(
+      exam.examFileKey,
+      exam.examOriginalName || 'exam.pdf',
+    );
+  }
+
+  async downloadAnswerPdfForAdmin(examId: string) {
+    const exam = await this.ensureExam(examId);
+    if (!exam.answerFileKey) {
+      throw new NotFoundException('پاسخ‌نامه یافت نشد.');
+    }
+    return this.streamPrivatePdf(
+      exam.answerFileKey,
+      exam.answerOriginalName || 'answer-key.pdf',
+    );
   }
 
   async downloadSubmissionPdf(examId: string, submissionId: string) {
@@ -305,43 +350,50 @@ export class ExamsService {
     return this.streamPrivatePdf(submission.fileKey, submission.originalName);
   }
 
-  duePassed(dueAt: Date | null) {
-    return Boolean(dueAt && dueAt.getTime() <= Date.now());
+  canSubmit(exam: { status: ExamStatus; examFileKey: string }) {
+    return exam.status === ExamStatus.PUBLISHED && Boolean(exam.examFileKey);
   }
 
-  canSubmit(exam: { status: ExamStatus; dueAt: Date | null; examImagePath: string }) {
-    return (
-      exam.status === ExamStatus.PUBLISHED &&
-      Boolean(exam.examImagePath) &&
-      !this.duePassed(exam.dueAt)
-    );
-  }
-
-  private async replaceImage(
+  private async replacePaper(
     examId: string,
-    field: 'examImagePath' | 'answerImagePath',
+    field: PaperField,
     file: Express.Multer.File,
   ) {
     const existing = await this.ensureExam(examId);
-    const stored = await this.uploads.save('exams', file);
-    if (!IMAGE_PATH_RE.test(stored.path)) {
-      await this.uploads.remove(stored.path);
-      throw new BadRequestException('آپلود تصویر انجام نشد.');
-    }
+    const kind: PrivatePdfKind =
+      field === 'exam' ? 'exam-papers' : 'exam-answers';
+    const stored = await this.uploads.savePdf(file, kind);
+    const originalName = sanitizeOriginalName(
+      file.originalname ?? stored.filename,
+    );
+
+    const data =
+      field === 'exam'
+        ? {
+            examFileKey: stored.key,
+            examOriginalName: originalName,
+            examSize: stored.size,
+          }
+        : {
+            answerFileKey: stored.key,
+            answerOriginalName: originalName,
+            answerSize: stored.size,
+          };
+    const previousKey =
+      field === 'exam' ? existing.examFileKey : existing.answerFileKey;
 
     try {
       const exam = await this.prisma.exam.update({
         where: { id: examId },
-        data: { [field]: stored.path },
+        data,
         include: { _count: { select: { submissions: true } } },
       });
-      const previous = existing[field];
-      if (previous && previous !== stored.path) {
-        await this.uploads.remove(previous);
+      if (previousKey && previousKey !== stored.key) {
+        await this.uploads.removeByKey(previousKey);
       }
       return this.mapAdminExam(exam);
     } catch (error) {
-      await this.uploads.remove(stored.path);
+      await this.uploads.removeByKey(stored.key);
       throw error;
     }
   }
@@ -349,7 +401,7 @@ export class ExamsService {
   private async streamPrivatePdf(fileKey: string, downloadName: string) {
     const file = await this.uploads.resolvePrivate(fileKey);
     if (!file) {
-      throw new NotFoundException('فایل پاسخ یافت نشد.');
+      throw new NotFoundException('فایل PDF یافت نشد.');
     }
     return new StreamableFile(file.data, {
       type: file.mimeType,
@@ -360,31 +412,35 @@ export class ExamsService {
 
   private assertStudentCanSubmit(exam: {
     status: ExamStatus;
-    dueAt: Date | null;
-    examImagePath: string;
+    examFileKey: string;
   }) {
     if (exam.status === ExamStatus.CLOSED) {
-      throw new ForbiddenException('مهلت ارسال این آزمون به پایان رسیده است.');
+      throw new ForbiddenException('این آزمون بسته شده است.');
     }
-    if (exam.status !== ExamStatus.PUBLISHED || !exam.examImagePath) {
+    if (exam.status !== ExamStatus.PUBLISHED || !exam.examFileKey) {
       throw new NotFoundException('آزمون یافت نشد.');
-    }
-    if (this.duePassed(exam.dueAt)) {
-      throw new ForbiddenException('مهلت ارسال این آزمون به پایان رسیده است.');
     }
   }
 
   private assertPublishable(
     status: ExamStatus,
-    examImagePath: string,
-    answerImagePath: string,
+    examFileKey: string,
+    answerFileKey: string,
   ) {
     if (status === ExamStatus.DRAFT) return;
-    if (!examImagePath || !answerImagePath) {
+    if (!examFileKey && !answerFileKey) {
       throw new BadRequestException(
-        'برای انتشار آزمون، عکس برگه و پاسخ‌نامه را آپلود کنید.',
+        'برای انتشار آزمون، حداقل یکی از فایل‌های PDF را آپلود کنید.',
       );
     }
+  }
+
+  private async ensureVisibleExam(id: string) {
+    const exam = await this.ensureExam(id);
+    if (exam.status === ExamStatus.DRAFT) {
+      throw new NotFoundException('آزمون یافت نشد.');
+    }
+    return exam;
   }
 
   private async ensureExam(id: string) {
@@ -412,10 +468,13 @@ export class ExamsService {
       id: string;
       title: string;
       description: string;
-      examImagePath: string;
-      answerImagePath: string;
+      examFileKey: string;
+      examOriginalName: string;
+      examSize: number;
+      answerFileKey: string;
+      answerOriginalName: string;
+      answerSize: number;
       status: ExamStatus;
-      dueAt: Date | null;
       createdAt: Date;
       updatedAt: Date;
     },
@@ -425,28 +484,24 @@ export class ExamsService {
       originalName: string;
       size: number;
     } | null,
-    includeImages = false,
   ) {
-    const answersVisible =
-      Boolean(submission) || exam.status === ExamStatus.CLOSED;
-    const canSubmit = this.canSubmit(exam);
+    const answersVisible = Boolean(exam.answerFileKey);
     return {
       id: exam.id,
       title: exam.title,
       description: exam.description,
       status: exam.status,
-      dueAt: exam.dueAt?.toISOString() ?? null,
-      duePassed: this.duePassed(exam.dueAt),
-      canSubmit,
+      canSubmit: this.canSubmit(exam),
       submitted: Boolean(submission),
       answersVisible,
       createdAt: exam.createdAt.toISOString(),
       updatedAt: exam.updatedAt.toISOString(),
-      examImagePath: exam.examImagePath || null,
-      answerImagePath:
-        includeImages && answersVisible
-          ? exam.answerImagePath || null
-          : null,
+      hasExamFile: Boolean(exam.examFileKey),
+      examFileName: exam.examOriginalName || null,
+      examFileSize: exam.examSize || null,
+      hasAnswerFile: answersVisible,
+      answerFileName: answersVisible ? exam.answerOriginalName || null : null,
+      answerFileSize: answersVisible ? exam.answerSize || null : null,
       submission: submission ? this.mapStudentSubmission(submission) : null,
     };
   }
@@ -455,10 +510,13 @@ export class ExamsService {
     id: string;
     title: string;
     description: string;
-    examImagePath: string;
-    answerImagePath: string;
+    examFileKey: string;
+    examOriginalName: string;
+    examSize: number;
+    answerFileKey: string;
+    answerOriginalName: string;
+    answerSize: number;
     status: ExamStatus;
-    dueAt: Date | null;
     sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
@@ -468,10 +526,13 @@ export class ExamsService {
       id: exam.id,
       title: exam.title,
       description: exam.description,
-      examImagePath: exam.examImagePath || null,
-      answerImagePath: exam.answerImagePath || null,
+      hasExamFile: Boolean(exam.examFileKey),
+      examFileName: exam.examOriginalName || null,
+      examFileSize: exam.examSize || null,
+      hasAnswerFile: Boolean(exam.answerFileKey),
+      answerFileName: exam.answerOriginalName || null,
+      answerFileSize: exam.answerSize || null,
       status: exam.status,
-      dueAt: exam.dueAt?.toISOString() ?? null,
       sortOrder: exam.sortOrder,
       submissionsCount: exam._count?.submissions ?? 0,
       createdAt: exam.createdAt.toISOString(),

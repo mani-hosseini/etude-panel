@@ -205,10 +205,13 @@ export type AdminExam = {
   id: string;
   title: string;
   description: string;
-  examImagePath: string | null;
-  answerImagePath: string | null;
+  hasExamFile: boolean;
+  examFileName: string | null;
+  examFileSize: number | null;
+  hasAnswerFile: boolean;
+  answerFileName: string | null;
+  answerFileSize: number | null;
   status: ExamStatus;
-  dueAt: string | null;
   sortOrder: number;
   submissionsCount: number;
   createdAt: string;
@@ -241,7 +244,6 @@ export type UpsertExamBody = {
   title: string;
   description?: string;
   status?: ExamStatus;
-  dueAt?: string | null;
   sortOrder?: number;
 };
 
@@ -716,20 +718,26 @@ export const adminApi = {
       method: "DELETE",
     }),
 
-  uploadExamImage: (id: string, file: File) => {
+  uploadExamFile: (id: string, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return adminHttp.upload<AdminExam>(`/admin/exams/${id}/exam-image`, formData);
+    return adminHttp.upload<AdminExam>(`/admin/exams/${id}/exam-file`, formData);
   },
 
-  uploadExamAnswerImage: (id: string, file: File) => {
+  uploadExamAnswerFile: (id: string, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
     return adminHttp.upload<AdminExam>(
-      `/admin/exams/${id}/answer-image`,
+      `/admin/exams/${id}/answer-file`,
       formData,
     );
   },
+
+  downloadExamFile: (id: string) =>
+    adminHttp.download(`/admin/exams/${id}/exam-file`),
+
+  downloadExamAnswerFile: (id: string) =>
+    adminHttp.download(`/admin/exams/${id}/answer-file`),
 
   downloadExamSubmission: (examId: string, submissionId: string) =>
     adminHttp.download(

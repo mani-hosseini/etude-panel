@@ -6,18 +6,15 @@ import {
   ArrowLeft,
   CheckCircle2,
   ClipboardCheck,
-  Clock3,
-  ImageIcon,
+  FileText,
 } from "lucide-react";
 
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
 import { PageHeader } from "@/components/panel/PageHeader";
-import { RemoteImg } from "@/components/media/remote-img";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/constants/copy";
-import { resolveMediaUrl } from "@/lib/api/http";
 import { queryErrorMessage, useExamsQuery } from "@/lib/api/queries";
-import { formatDateTimeFa, toFa } from "@/lib/format";
+import { toFa } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -43,14 +40,15 @@ export function ExamsPage() {
   }
 
   const exams = query.data.exams;
-  const openCount = exams.filter((exam) => exam.canSubmit && !exam.submitted).length;
+  const openCount = exams.filter((exam) => exam.canSubmit && !exam.submitted)
+    .length;
 
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
       <PageHeader
         eyebrow={copy.academyName}
         title="آزمون‌ها"
-        description="برگه آزمون را ببینید، پاسخ را به‌صورت PDF بفرستید و بعد از ارسال پاسخ‌نامه را مشاهده کنید."
+        description="پاسخ‌نامه را دانلود و پرینت بگیرید، برگه سوالات را حل کنید و PDF پاسخ را از داشبورد بفرستید."
       />
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -73,79 +71,55 @@ export function ExamsPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {exams.map((exam, index) => {
-            const preview = resolveMediaUrl(exam.examImagePath);
-            return (
-              <motion.div
-                key={exam.id}
-                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: index * 0.04 }}
+          {exams.map((exam, index) => (
+            <motion.div
+              key={exam.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: index * 0.04 }}
+            >
+              <Link
+                href={routes.exam(exam.id)}
+                className="group grid overflow-hidden rounded-3xl border border-border bg-white shadow-sm transition hover:border-brand/30 hover:shadow-md sm:grid-cols-[7rem_1fr]"
               >
-                <Link
-                  href={routes.exam(exam.id)}
-                  className="group grid overflow-hidden rounded-3xl border border-border bg-white shadow-sm transition hover:border-brand/30 hover:shadow-md sm:grid-cols-[9rem_1fr]"
-                >
-                  <div className="relative h-36 bg-slate-100 sm:h-auto">
-                    {preview ? (
-                      <RemoteImg
-                        src={preview}
-                        alt={exam.title}
-                        className="size-full object-cover"
-                        fallback={
-                          <div className="flex size-full items-center justify-center">
-                            <ImageIcon className="size-8 text-slate-300" />
-                          </div>
-                        }
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center">
-                        <ImageIcon className="size-8 text-slate-300" />
-                      </div>
-                    )}
+                <div className="flex h-28 items-center justify-center bg-brand/5 sm:h-auto">
+                  <FileText className="size-8 text-brand" />
+                </div>
+                <div className="flex flex-col gap-3 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-navy">
+                        {exam.title}
+                      </h3>
+                      {exam.description ? (
+                        <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                          {exam.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    <ExamStatusBadge status={exam.status} />
                   </div>
-                  <div className="flex flex-col gap-3 p-4 sm:p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className="text-base font-bold text-navy">
-                          {exam.title}
-                        </h3>
-                        {exam.description ? (
-                          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                            {exam.description}
-                          </p>
-                        ) : null}
-                      </div>
-                      <ExamStatusBadge status={exam.status} />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1">
-                        <Clock3 className="size-3.5" />
-                        {exam.dueAt
-                          ? `مهلت: ${formatDateTimeFa(exam.dueAt)}`
-                          : "بدون مهلت زمانی"}
-                      </span>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2.5 py-1",
-                          exam.submitted
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-amber-50 text-amber-700",
-                        )}
-                      >
-                        <CheckCircle2 className="size-3.5" />
-                        {exam.submitted ? "ارسال شده" : "ارسال نشده"}
-                      </span>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
-                      مشاهده آزمون
-                      <ArrowLeft className="size-4 transition group-hover:-translate-x-0.5" />
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1",
+                        exam.submitted
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700",
+                      )}
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      {exam.submitted ? "ارسال شده" : "ارسال نشده"}
                     </span>
                   </div>
-                </Link>
-              </motion.div>
-            );
-          })}
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
+                    مشاهده آزمون
+                    <ArrowLeft className="size-4 transition group-hover:-translate-x-0.5" />
+                  </span>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
         </div>
       )}
     </div>

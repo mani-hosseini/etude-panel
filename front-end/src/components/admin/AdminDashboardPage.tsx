@@ -125,7 +125,7 @@ export function AdminDashboardPage() {
             <div>
               <h3 className="text-base font-bold text-slate-900">آزمون‌ها</h3>
               <p className="mt-1 text-sm text-slate-500">
-                برگه، پاسخ‌نامه و PDF پاسخ هنرجویان.
+                برگه PDF، پاسخ‌نامه PDF و فایل پاسخ هنرجویان.
               </p>
             </div>
             <ClipboardCheck className="size-5 text-brand" />

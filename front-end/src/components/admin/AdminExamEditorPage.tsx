@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, Loader2, Search } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { ExamImageField } from "@/components/admin/exam/ExamImageField";
+import { ExamPdfField } from "@/components/admin/exam/ExamPdfField";
 import {
   EXAM_STATUS_LABEL,
   type ExamStatusValue,
@@ -36,22 +36,6 @@ import { saveBlob } from "@/lib/download";
 import { formatBytes, formatDateTimeFa, toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
-function toDatetimeLocal(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function fromDatetimeLocal(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const date = new Date(trimmed);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
-}
-
 type AdminExamEditorPageProps = {
   examId?: string;
 };
@@ -65,58 +49,48 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<ExamStatus>("DRAFT");
-  const [dueLocal, setDueLocal] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [examFile, setExamFile] = useState<File | null>(null);
   const [answerFile, setAnswerFile] = useState<File | null>(null);
-  const [examPreview, setExamPreview] = useState<string | null>(null);
-  const [answerPreview, setAnswerPreview] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [search, setSearch] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (examPreview) URL.revokeObjectURL(examPreview);
-      if (answerPreview) URL.revokeObjectURL(answerPreview);
-    };
-  }, [examPreview, answerPreview]);
+  const [downloadingPaper, setDownloadingPaper] = useState<
+    "exam" | "answer" | null
+  >(null);
 
   useEffect(() => {
     if (!query.data || hydrated) return;
     setTitle(query.data.title);
     setDescription(query.data.description);
     setStatus(query.data.status);
-    setDueLocal(toDatetimeLocal(query.data.dueAt));
     setHydrated(true);
   }, [query.data, hydrated]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const dueAt = fromDatetimeLocal(dueLocal);
       if (isNew) {
         const created = await adminApi.createExam({
           title: title.trim(),
           description: description.trim(),
-          dueAt,
           status: "DRAFT",
         });
         try {
-          if (examFile) await adminApi.uploadExamImage(created.id, examFile);
+          if (examFile) await adminApi.uploadExamFile(created.id, examFile);
           if (answerFile) {
-            await adminApi.uploadExamAnswerImage(created.id, answerFile);
+            await adminApi.uploadExamAnswerFile(created.id, answerFile);
           }
           if (status !== "DRAFT") {
             await adminApi.updateExam(created.id, {
               title: title.trim(),
               description: description.trim(),
-              dueAt,
               status,
             });
           }
           return created.id;
         } catch (error) {
-          const wrapped = error instanceof Error ? error : new Error("آپلود ناموفق بود.");
+          const wrapped =
+            error instanceof Error ? error : new Error("آپلود ناموفق بود.");
           (wrapped as Error & { examId?: string }).examId = created.id;
           throw wrapped;
         }
@@ -125,7 +99,6 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
       const updated = await adminApi.updateExam(examId, {
         title: title.trim(),
         description: description.trim(),
-        dueAt,
         status,
       });
       return updated.id;
@@ -144,17 +117,23 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
     },
   });
 
-  const uploadExamImage = useMutation({
-    mutationFn: (file: File) => adminApi.uploadExamImage(examId!, file),
+  const uploadExamFile = useMutation({
+    mutationFn: (file: File) => adminApi.uploadExamFile(examId!, file),
     onSuccess: async (exam) => {
-      await queryClient.invalidateQueries({ queryKey: adminQueryKeys.exam(exam.id) });
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.exam(exam.id),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "exams"] });
     },
   });
 
-  const uploadAnswerImage = useMutation({
-    mutationFn: (file: File) => adminApi.uploadExamAnswerImage(examId!, file),
+  const uploadAnswerFile = useMutation({
+    mutationFn: (file: File) => adminApi.uploadExamAnswerFile(examId!, file),
     onSuccess: async (exam) => {
-      await queryClient.invalidateQueries({ queryKey: adminQueryKeys.exam(exam.id) });
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.exam(exam.id),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "exams"] });
     },
   });
 
@@ -164,8 +143,9 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
     const q = search.trim();
     if (!q) return rows;
     return rows.filter((row) =>
-      `${row.student.displayName} ${row.student.studentCode ?? ""} ${row.originalName}`
-        .includes(q),
+      `${row.student.displayName} ${row.student.studentCode ?? ""} ${row.originalName}`.includes(
+        q,
+      ),
     );
   }, [detail?.submissions, search]);
 
@@ -176,28 +156,48 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
       setFormError("عنوان آزمون را وارد کنید.");
       return;
     }
-    const hasExamImage = Boolean(examFile || detail?.examImagePath);
-    const hasAnswerImage = Boolean(answerFile || detail?.answerImagePath);
-    if (status !== "DRAFT" && (!hasExamImage || !hasAnswerImage)) {
-      setFormError("برای انتشار، عکس برگه و پاسخ‌نامه را آپلود کنید.");
+    const hasExamFile = Boolean(examFile || detail?.hasExamFile);
+    const hasAnswerFile = Boolean(answerFile || detail?.hasAnswerFile);
+    if (status !== "DRAFT" && !hasExamFile && !hasAnswerFile) {
+      setFormError("برای انتشار، حداقل یکی از فایل‌های PDF را آپلود کنید.");
       return;
     }
     save.mutate();
   };
 
-  const downloadSubmission = async (
-    submissionId: string,
+  const downloadBlob = async (
+    loader: () => Promise<Blob>,
     filename: string,
+    key: string,
   ) => {
-    if (!examId) return;
-    setDownloadingId(submissionId);
+    setDownloadingId(key);
     try {
-      const blob = await adminApi.downloadExamSubmission(examId, submissionId);
+      const blob = await loader();
       saveBlob(blob, filename);
     } catch (error) {
       setFormError(audienceError(error, "دانلود فایل انجام نشد."));
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const downloadPaper = async (kind: "exam" | "answer") => {
+    if (!examId) return;
+    setDownloadingPaper(kind);
+    try {
+      const blob =
+        kind === "exam"
+          ? await adminApi.downloadExamFile(examId)
+          : await adminApi.downloadExamAnswerFile(examId);
+      const name =
+        kind === "exam"
+          ? detail?.examFileName || "exam.pdf"
+          : detail?.answerFileName || "answer-key.pdf";
+      saveBlob(blob, name);
+    } catch (error) {
+      setFormError(audienceError(error, "دانلود فایل انجام نشد."));
+    } finally {
+      setDownloadingPaper(null);
     }
   };
 
@@ -223,7 +223,7 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
       <AdminPageHeader
         eyebrow="ارزیابی هنرجویان"
         title={isNew ? "آزمون جدید" : title || "جزئیات آزمون"}
-        description="عکس برگه و پاسخ‌نامه را بارگذاری کنید؛ PDF هنرجویان فقط در همین پنل دیده می‌شود."
+        description="پاسخ‌نامه را می‌توانید زودتر منتشر کنید تا هنرجو پرینت بگیرد؛ بعد برگه سوالات را اضافه کنید. پاسخ PDF هنرجو فقط اینجا دیده می‌شود."
         backHref={adminRoutes.exams}
         backLabel="همه آزمون‌ها"
       />
@@ -250,87 +250,83 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
               rows={3}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>وضعیت</Label>
-              <Select
-                value={status}
-                onValueChange={(value) => setStatus(value as ExamStatus)}
-              >
-                <SelectTrigger className="h-12 rounded-xl bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(EXAM_STATUS_LABEL) as ExamStatusValue[]).map(
-                    (key) => (
-                      <SelectItem key={key} value={key}>
-                        {EXAM_STATUS_LABEL[key]}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="exam-due">مهلت ارسال (اختیاری)</Label>
-              <Input
-                id="exam-due"
-                type="datetime-local"
-                dir="ltr"
-                value={dueLocal}
-                onChange={(event) => setDueLocal(event.target.value)}
-              />
-            </div>
+          <div className="space-y-1.5 sm:max-w-xs">
+            <Label>وضعیت</Label>
+            <Select
+              value={status}
+              onValueChange={(value) => setStatus(value as ExamStatus)}
+            >
+              <SelectTrigger className="h-12 rounded-xl bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(EXAM_STATUS_LABEL) as ExamStatusValue[]).map(
+                  (key) => (
+                    <SelectItem key={key} value={key}>
+                      {EXAM_STATUS_LABEL[key]}
+                    </SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
           </div>
         </Card>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="rounded-2xl border-slate-200 bg-white p-5 shadow-sm">
-            <ExamImageField
-              label="عکس برگه آزمون"
-              hint="همین تصویر برای هنرجو نمایش داده می‌شود."
-              imagePath={detail?.examImagePath ?? null}
-              pendingPreviewUrl={examPreview}
-              uploading={uploadExamImage.isPending}
+            <ExamPdfField
+              label="پاسخ‌نامه"
+              hint="همین فایل بعد از انتشار برای پرینت در دسترس هنرجو است؛ می‌توانید زودتر از برگه سوالات بفرستید."
+              fileName={answerFile?.name ?? detail?.answerFileName ?? null}
+              fileSize={answerFile?.size ?? detail?.answerFileSize ?? null}
+              uploading={uploadAnswerFile.isPending}
+              downloading={downloadingPaper === "answer"}
+              onDownload={
+                !isNew && detail?.hasAnswerFile
+                  ? () => void downloadPaper("answer")
+                  : undefined
+              }
               onFile={(file) => {
                 if (isNew) {
-                  if (examPreview) URL.revokeObjectURL(examPreview);
-                  setExamFile(file);
-                  setExamPreview(URL.createObjectURL(file));
+                  setAnswerFile(file);
                   return;
                 }
-                uploadExamImage.mutate(file);
+                uploadAnswerFile.mutate(file);
               }}
             />
-            {uploadExamImage.isError ? (
+            {uploadAnswerFile.isError ? (
               <p className="mt-2 text-xs text-rose-600">
-                {audienceError(uploadExamImage.error, "آپلود برگه انجام نشد.")}
+                {audienceError(
+                  uploadAnswerFile.error,
+                  "آپلود پاسخ‌نامه انجام نشد.",
+                )}
               </p>
             ) : null}
           </Card>
           <Card className="rounded-2xl border-slate-200 bg-white p-5 shadow-sm">
-            <ExamImageField
-              label="عکس پاسخ‌نامه"
-              hint="بعد از ارسال PDF هنرجو، این تصویر برایش باز می‌شود."
-              imagePath={detail?.answerImagePath ?? null}
-              pendingPreviewUrl={answerPreview}
-              uploading={uploadAnswerImage.isPending}
+            <ExamPdfField
+              label="برگه سوالات"
+              hint="بعد از آپلود و انتشار، هنرجو می‌تواند این PDF را دانلود و حل کند."
+              fileName={examFile?.name ?? detail?.examFileName ?? null}
+              fileSize={examFile?.size ?? detail?.examFileSize ?? null}
+              uploading={uploadExamFile.isPending}
+              downloading={downloadingPaper === "exam"}
+              onDownload={
+                !isNew && detail?.hasExamFile
+                  ? () => void downloadPaper("exam")
+                  : undefined
+              }
               onFile={(file) => {
                 if (isNew) {
-                  if (answerPreview) URL.revokeObjectURL(answerPreview);
-                  setAnswerFile(file);
-                  setAnswerPreview(URL.createObjectURL(file));
+                  setExamFile(file);
                   return;
                 }
-                uploadAnswerImage.mutate(file);
+                uploadExamFile.mutate(file);
               }}
             />
-            {uploadAnswerImage.isError ? (
+            {uploadExamFile.isError ? (
               <p className="mt-2 text-xs text-rose-600">
-                {audienceError(
-                  uploadAnswerImage.error,
-                  "آپلود پاسخ‌نامه انجام نشد.",
-                )}
+                {audienceError(uploadExamFile.error, "آپلود برگه انجام نشد.")}
               </p>
             ) : null}
           </Card>
@@ -338,16 +334,13 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
 
         {formError || save.isError ? (
           <p className="text-sm text-rose-600">
-            {formError ||
-              audienceError(save.error, "ذخیره آزمون انجام نشد.")}
+            {formError || audienceError(save.error, "ذخیره آزمون انجام نشد.")}
           </p>
         ) : null}
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" className="rounded-xl" disabled={save.isPending}>
-            {save.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
+            {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
             {isNew ? "ایجاد آزمون" : "ذخیره تغییرات"}
           </Button>
           <Button asChild type="button" variant="outline" className="rounded-xl">
@@ -423,7 +416,12 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
                           className="rounded-xl"
                           disabled={downloadingId === row.id}
                           onClick={() =>
-                            void downloadSubmission(row.id, row.originalName)
+                            void downloadBlob(
+                              () =>
+                                adminApi.downloadExamSubmission(examId, row.id),
+                              row.originalName,
+                              row.id,
+                            )
                           }
                         >
                           {downloadingId === row.id ? (

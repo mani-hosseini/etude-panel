@@ -282,16 +282,19 @@ model SessionProgress {
 }
 
 model Exam {
-  id              String     @id @default(uuid()) @db.Uuid
-  title           String     @db.VarChar(200)
-  description     String     @default("") @db.VarChar(2000)
-  examImagePath   String     @default("") @db.VarChar(512)
-  answerImagePath String     @default("") @db.VarChar(512)
-  status          ExamStatus @default(DRAFT)
-  dueAt           DateTime?
-  sortOrder       Int        @default(0)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id                 String     @id @default(uuid()) @db.Uuid
+  title              String     @db.VarChar(200)
+  description        String     @default("") @db.VarChar(2000)
+  examFileKey        String     @default("") @db.VarChar(512)
+  examOriginalName   String     @default("") @db.VarChar(255)
+  examSize           Int        @default(0)
+  answerFileKey      String     @default("") @db.VarChar(512)
+  answerOriginalName String     @default("") @db.VarChar(255)
+  answerSize         Int        @default(0)
+  status             ExamStatus @default(DRAFT)
+  sortOrder          Int        @default(0)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   submissions ExamSubmission[]
 

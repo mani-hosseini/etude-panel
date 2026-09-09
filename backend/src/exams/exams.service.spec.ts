@@ -8,10 +8,13 @@ function examRow(overrides: Record<string, unknown> = {}) {
     id: 'exam-1',
     title: 'آزمون ریتم',
     description: 'برگه را حل کنید',
-    examImagePath: '/uploads/exams/exam-1.png',
-    answerImagePath: '/uploads/exams/answer-1.png',
+    examFileKey: 'exam-papers/exam-1.pdf',
+    examOriginalName: 'exam.pdf',
+    examSize: 1200,
+    answerFileKey: 'exam-answers/answer-1.pdf',
+    answerOriginalName: 'answers.pdf',
+    answerSize: 800,
     status: ExamStatus.PUBLISHED,
-    dueAt: new Date('2026-12-01T12:00:00.000Z'),
     sortOrder: 1,
     createdAt: NOW,
     updatedAt: NOW,
@@ -51,9 +54,7 @@ describe('ExamsService', () => {
     remove: jest.fn(),
     removeByKey: jest.fn(),
     resolvePrivate: jest.fn(),
-    keyFromPublicPath: jest.fn((path: string) =>
-      path.startsWith('/uploads/') ? path.slice('/uploads/'.length) : null,
-    ),
+    keyFromPublicPath: jest.fn(),
   };
 
   const service = new ExamsService(prisma as never, uploads as never);
@@ -77,18 +78,18 @@ describe('ExamsService', () => {
     );
   });
 
-  it('does not leak the answer sheet before submission', async () => {
-    prisma.exam.findUnique.mockResolvedValue(
-      examRow({ submissions: [] }),
-    );
+  it('shows the answer sheet before the student submits so they can print it', async () => {
+    prisma.exam.findUnique.mockResolvedValue(examRow({ submissions: [] }));
     const detail = await service.getForStudent('user-1', 'exam-1');
-    expect(detail.answersVisible).toBe(false);
-    expect(detail.answerImagePath).toBeNull();
-    expect(detail.examImagePath).toBe('/uploads/exams/exam-1.png');
+    expect(detail.answersVisible).toBe(true);
+    expect(detail.hasAnswerFile).toBe(true);
+    expect(detail.answerFileName).toBe('answers.pdf');
+    expect(detail.hasExamFile).toBe(true);
     expect(detail.canSubmit).toBe(true);
+    expect(detail.submitted).toBe(false);
   });
 
-  it('reveals the answer sheet after the student submits', async () => {
+  it('still shows the answer sheet after the student submits', async () => {
     prisma.exam.findUnique.mockResolvedValue(
       examRow({
         submissions: [
@@ -104,29 +105,68 @@ describe('ExamsService', () => {
     );
     const detail = await service.getForStudent('user-1', 'exam-1');
     expect(detail.answersVisible).toBe(true);
-    expect(detail.answerImagePath).toBe('/uploads/exams/answer-1.png');
+    expect(detail.hasAnswerFile).toBe(true);
+    expect(detail.answerFileName).toBe('answers.pdf');
     expect(detail.submitted).toBe(true);
   });
 
-  it('rejects submissions after the deadline', async () => {
+  it('rejects publishing when neither PDF is uploaded', async () => {
+    await expect(
+      service.create({
+        title: 'بدون فایل',
+        status: ExamStatus.PUBLISHED,
+      }),
+    ).rejects.toThrow(
+      'برای انتشار آزمون، حداقل یکی از فایل‌های PDF را آپلود کنید.',
+    );
+  });
+
+  it('allows publishing after only the answer sheet is uploaded', async () => {
+    const existing = examRow({
+      examFileKey: '',
+      examOriginalName: '',
+      examSize: 0,
+    });
+    prisma.exam.findUnique.mockResolvedValue(existing);
+    prisma.exam.update.mockResolvedValue({
+      ...existing,
+      status: ExamStatus.PUBLISHED,
+      _count: { submissions: 0 },
+    });
+
+    const result = await service.update('exam-1', {
+      title: 'آزمون ریتم',
+      status: ExamStatus.PUBLISHED,
+    });
+
+    expect(result.status).toBe(ExamStatus.PUBLISHED);
+    expect(result.hasAnswerFile).toBe(true);
+    expect(result.hasExamFile).toBe(false);
+  });
+
+  it('lets students download the answer sheet before submitting', async () => {
+    prisma.exam.findUnique.mockResolvedValue(examRow());
+    uploads.resolvePrivate.mockResolvedValue({
+      data: Buffer.from('%PDF-1.4'),
+      mimeType: 'application/pdf',
+    });
+
+    await service.downloadAnswerPdfForStudent('user-1', 'exam-1');
+
+    expect(uploads.resolvePrivate).toHaveBeenCalledWith(
+      'exam-answers/answer-1.pdf',
+    );
+  });
+
+  it('cannot submit until the exam paper is uploaded', async () => {
     prisma.exam.findUnique.mockResolvedValue(
-      examRow({ dueAt: new Date('2026-01-01T00:00:00.000Z') }),
+      examRow({ examFileKey: '', examOriginalName: '', examSize: 0 }),
     );
     await expect(
       service.submitPdf('user-1', 'exam-1', {
         originalname: 'a.pdf',
       } as Express.Multer.File),
-    ).rejects.toThrow('مهلت ارسال این آزمون به پایان رسیده است.');
-    expect(uploads.savePdf).not.toHaveBeenCalled();
-  });
-
-  it('rejects publishing without both images', async () => {
-    await expect(
-      service.create({
-        title: 'بدون عکس',
-        status: ExamStatus.PUBLISHED,
-      }),
-    ).rejects.toThrow('برای انتشار آزمون، عکس برگه و پاسخ‌نامه را آپلود کنید.');
+    ).rejects.toThrow('آزمون یافت نشد.');
   });
 
   it('replaces a previous PDF and deletes the old private file', async () => {
@@ -153,6 +193,10 @@ describe('ExamsService', () => {
     } as Express.Multer.File);
 
     expect(result.submitted).toBe(true);
+    expect(uploads.savePdf).toHaveBeenCalledWith(
+      expect.anything(),
+      'exam-submissions',
+    );
     expect(uploads.removeByKey).toHaveBeenCalledWith(
       'exam-submissions/old.pdf',
     );
@@ -166,6 +210,6 @@ describe('ExamsService', () => {
       service.submitPdf('user-1', 'exam-1', {
         originalname: 'a.pdf',
       } as Express.Multer.File),
-    ).rejects.toThrow('مهلت ارسال این آزمون به پایان رسیده است.');
+    ).rejects.toThrow('این آزمون بسته شده است.');
   });
 });

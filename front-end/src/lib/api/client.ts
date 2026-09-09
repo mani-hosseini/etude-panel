@@ -201,4 +201,9 @@ export const api = {
 
   downloadOwnExamPdf: (id: string) =>
     studentHttp.download(`/exams/${id}/submission/file`),
+
+  downloadExamPaper: (id: string) => studentHttp.download(`/exams/${id}/file`),
+
+  downloadExamAnswerKey: (id: string) =>
+    studentHttp.download(`/exams/${id}/answer-file`),
 };

@@ -16,14 +16,16 @@ import {
 } from './image-upload';
 import {
   PDF_MIME,
-  PRIVATE_UPLOAD_KIND,
+  PRIVATE_PDF_PREFIX,
   assertPdfBuffer,
+  type PrivatePdfKind,
 } from './pdf-upload';
 
-/** Public media served from `/uploads/…`. Student PDFs are intentionally excluded. */
+/** Public media served from `/uploads/…`. Exam PDFs are intentionally excluded. */
 const PUBLIC_KEY_PATTERN =
   /^(attachments|slides|avatars|exams)\/[A-Za-z0-9._-]+$/;
-const PRIVATE_KEY_PATTERN = /^exam-submissions\/[A-Za-z0-9._-]+$/;
+const PRIVATE_KEY_PATTERN =
+  /^(exam-submissions|exam-papers|exam-answers)\/[A-Za-z0-9._-]+$/;
 
 export type StoredUpload = {
   path: string;
@@ -79,13 +81,16 @@ export class UploadsService {
     };
   }
 
-  async savePdf(file: {
-    buffer?: Buffer;
-    path?: string;
-    mimetype: string;
-    size: number;
-    originalname?: string;
-  }): Promise<StoredUpload> {
+  async savePdf(
+    file: {
+      buffer?: Buffer;
+      path?: string;
+      mimetype: string;
+      size: number;
+      originalname?: string;
+    },
+    kind: PrivatePdfKind = 'exam-submissions',
+  ): Promise<StoredUpload> {
     const buffer = await this.toBuffer(file, 'فایل PDF ارسال نشده است.');
     assertPdfBuffer({
       buffer,
@@ -93,8 +98,9 @@ export class UploadsService {
       size: file.size || buffer.length,
     });
 
-    const filename = `submission-${Date.now().toString(36)}-${randomBytes(4).toString('hex')}.pdf`;
-    const key = `${PRIVATE_UPLOAD_KIND}/${filename}`;
+    const prefix = PRIVATE_PDF_PREFIX[kind];
+    const filename = `${prefix}-${Date.now().toString(36)}-${randomBytes(4).toString('hex')}.pdf`;
+    const key = `${kind}/${filename}`;
     await this.persist(key, PDF_MIME, buffer);
 
     return {

@@ -1,6 +1,5 @@
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
-  IsDate,
   IsEnum,
   IsInt,
   IsOptional,
@@ -34,16 +33,6 @@ export class UpsertExamDto {
   @IsOptional()
   @IsEnum(ExamStatus)
   status?: ExamStatus;
-
-  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === null || value === undefined || value === '') return null;
-    const date = value instanceof Date ? value : new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date;
-  })
-  @IsDate()
-  dueAt?: Date | null;
 
   @IsOptional()
   @Type(() => Number)

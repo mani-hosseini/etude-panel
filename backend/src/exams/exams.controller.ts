@@ -44,6 +44,24 @@ export class ExamsController {
     return this.exams.getForStudent(user.id, id);
   }
 
+  @Get(':id/file')
+  @ApiOperation({ summary: 'دانلود PDF برگه آزمون' })
+  downloadExamFile(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.exams.downloadExamPdfForStudent(user.id, id);
+  }
+
+  @Get(':id/answer-file')
+  @ApiOperation({ summary: 'دانلود PDF پاسخ‌نامه برای پرینت' })
+  downloadAnswerFile(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.exams.downloadAnswerPdfForStudent(user.id, id);
+  }
+
   @Post(':id/submission')
   @ApiOperation({ summary: 'ارسال یا جایگزینی PDF پاسخ آزمون' })
   @ApiConsumes('multipart/form-data')

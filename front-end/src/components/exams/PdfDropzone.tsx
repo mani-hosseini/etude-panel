@@ -13,6 +13,7 @@ type PdfDropzoneProps = {
   uploading?: boolean;
   currentFileName?: string | null;
   currentFileSize?: number | null;
+  emptyLabel?: string;
   onSelect: (file: File) => void;
 };
 
@@ -34,6 +35,7 @@ export function PdfDropzone({
   uploading = false,
   currentFileName,
   currentFileSize,
+  emptyLabel = "فایل PDF را رها کنید یا انتخاب کنید",
   onSelect,
 }: PdfDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,7 +102,7 @@ export function PdfDropzone({
             ? "در حال ارسال فایل…"
             : currentFileName
               ? "تعویض فایل PDF"
-              : "فایل PDF پاسخ را رها کنید یا انتخاب کنید"}
+              : emptyLabel}
         </p>
         <p className="mt-1 text-xs text-slate-500">
           فقط PDF — حداکثر ۱۰ مگابایت

@@ -22,11 +22,9 @@ import {
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/auth.decorators';
-import { imageMulterOptions } from '../uploads/image-upload';
+import { pdfMulterOptions } from '../uploads/pdf-upload';
 import { ExamsService } from './exams.service';
 import { AdminListExamsQueryDto, UpsertExamDto } from './dto/exams.dto';
-
-const EXAM_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 
 @ApiTags('Admin Exams')
 @ApiBearerAuth()
@@ -68,8 +66,8 @@ export class AdminExamsController {
     return this.exams.remove(id);
   }
 
-  @Post(':id/exam-image')
-  @ApiOperation({ summary: 'آپلود عکس برگه آزمون' })
+  @Post(':id/exam-file')
+  @ApiOperation({ summary: 'آپلود PDF برگه آزمون' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -78,21 +76,25 @@ export class AdminExamsController {
       required: ['file'],
     },
   })
-  @UseInterceptors(
-    FileInterceptor('file', imageMulterOptions(EXAM_IMAGE_MAX_BYTES)),
-  )
-  uploadExamImage(
+  @UseInterceptors(FileInterceptor('file', pdfMulterOptions()))
+  uploadExamFile(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) {
-      throw new BadRequestException('فایل تصویر ارسال نشده است.');
+      throw new BadRequestException('فایل PDF ارسال نشده است.');
     }
-    return this.exams.replaceExamImage(id, file);
+    return this.exams.replaceExamPdf(id, file);
   }
 
-  @Post(':id/answer-image')
-  @ApiOperation({ summary: 'آپلود عکس پاسخ‌نامه' })
+  @Get(':id/exam-file')
+  @ApiOperation({ summary: 'دانلود PDF برگه آزمون' })
+  downloadExamFile(@Param('id', ParseUUIDPipe) id: string) {
+    return this.exams.downloadExamPdfForAdmin(id);
+  }
+
+  @Post(':id/answer-file')
+  @ApiOperation({ summary: 'آپلود PDF پاسخ‌نامه' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -101,17 +103,21 @@ export class AdminExamsController {
       required: ['file'],
     },
   })
-  @UseInterceptors(
-    FileInterceptor('file', imageMulterOptions(EXAM_IMAGE_MAX_BYTES)),
-  )
-  uploadAnswerImage(
+  @UseInterceptors(FileInterceptor('file', pdfMulterOptions()))
+  uploadAnswerFile(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) {
-      throw new BadRequestException('فایل تصویر ارسال نشده است.');
+      throw new BadRequestException('فایل PDF ارسال نشده است.');
     }
-    return this.exams.replaceAnswerImage(id, file);
+    return this.exams.replaceAnswerPdf(id, file);
+  }
+
+  @Get(':id/answer-file')
+  @ApiOperation({ summary: 'دانلود PDF پاسخ‌نامه' })
+  downloadAnswerFile(@Param('id', ParseUUIDPipe) id: string) {
+    return this.exams.downloadAnswerPdfForAdmin(id);
   }
 
   @Get(':id/submissions/:submissionId/file')

@@ -103,18 +103,36 @@ describe('UploadsService', () => {
     expect(service.keyFromPublicPath('/uploads/attachments/../../x')).toBeNull();
   });
 
-  it('stores exam images as public media', async () => {
-    const buffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
-    const saved = await service.save('exams', {
-      buffer,
-      mimetype: 'image/png',
-      size: buffer.length,
-    });
-    expect(saved.path.startsWith('/uploads/exams/')).toBe(true);
-    const key = service.keyFromPublicPath(saved.path);
-    expect(key).toBeTruthy();
-    const resolved = await service.resolve(key!);
-    expect(resolved?.data.equals(buffer)).toBe(true);
+  it('accepts a PDF even when the browser sends octet-stream', async () => {
+    const buffer = Buffer.from('%PDF-1.4 exam');
+    const saved = await service.savePdf(
+      {
+        buffer,
+        mimetype: 'application/octet-stream',
+        size: buffer.length,
+        originalname: 'answer-sheet.pdf',
+      },
+      'exam-answers',
+    );
+    expect(saved.key.startsWith('exam-answers/')).toBe(true);
+    expect(saved.mimeType).toBe('application/pdf');
+  });
+
+  it('stores exam papers as private PDFs', async () => {
+    const buffer = Buffer.from('%PDF-1.4 exam');
+    const saved = await service.savePdf(
+      {
+        buffer,
+        mimetype: 'application/pdf',
+        size: buffer.length,
+        originalname: 'exam.pdf',
+      },
+      'exam-papers',
+    );
+    expect(saved.key.startsWith('exam-papers/')).toBe(true);
+    expect(await service.resolve(saved.key)).toBeNull();
+    const privateFile = await service.resolvePrivate(saved.key);
+    expect(privateFile?.data.equals(buffer)).toBe(true);
   });
 
   it('keeps student PDFs private from the public resolver', async () => {
