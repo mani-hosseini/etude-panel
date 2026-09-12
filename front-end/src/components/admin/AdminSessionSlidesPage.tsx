@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { SessionAttachmentsPanel } from "@/components/admin/course/SessionAttachmentsPanel";
+import { SessionExercisesPanel } from "@/components/admin/course/SessionExercisesPanel";
 import { type SlideFormState } from "@/components/admin/course/SlideEditorForm";
 import { SlideList } from "@/components/admin/course/SlideList";
 import { Button } from "@/components/ui/button";
@@ -238,12 +239,15 @@ export function AdminSessionSlidesPage({
       />
 
       <Tabs defaultValue="slides" className="space-y-4" dir="rtl">
-        <TabsList className="h-auto min-h-11 max-w-xl flex-wrap">
+        <TabsList className="h-auto min-h-11 max-w-3xl flex-wrap">
           <TabsTrigger value="slides">
             اسلایدها ({toFa(slides.length)})
           </TabsTrigger>
           <TabsTrigger value="attachments">
             فایل و عکس‌های پیوست ({toFa(session.attachmentCount ?? 0)})
+          </TabsTrigger>
+          <TabsTrigger value="exercises">
+            تمارین ({toFa(session.exerciseCount ?? 0)})
           </TabsTrigger>
         </TabsList>
 
@@ -281,6 +285,10 @@ export function AdminSessionSlidesPage({
 
         <TabsContent value="attachments">
           <SessionAttachmentsPanel sessionId={sessionId} courseSlug={slug} />
+        </TabsContent>
+
+        <TabsContent value="exercises">
+          <SessionExercisesPanel sessionId={sessionId} courseSlug={slug} />
         </TabsContent>
       </Tabs>
     </div>

@@ -150,6 +150,32 @@ describe('UploadsService', () => {
     expect(privateFile?.data.equals(buffer)).toBe(true);
   });
 
+  it('stores public exercise images and PDFs under /uploads/exercises', async () => {
+    const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    const savedImage = await service.savePublicMedia('exercises', {
+      buffer: image,
+      mimetype: 'image/jpeg',
+      size: image.length,
+      originalname: 'drill.jpg',
+    });
+    expect(savedImage.path.startsWith('/uploads/exercises/')).toBe(true);
+    expect(savedImage.mimeType).toBe('image/jpeg');
+    expect(await service.resolve(savedImage.key)).toBeTruthy();
+
+    const pdf = Buffer.from('%PDF-1.4 exercise');
+    const savedPdf = await service.savePublicMedia('exercises', {
+      buffer: pdf,
+      mimetype: 'application/octet-stream',
+      size: pdf.length,
+      originalname: 'homework.pdf',
+    });
+    expect(savedPdf.mimeType).toBe('application/pdf');
+    expect(savedPdf.key.startsWith('exercises/')).toBe(true);
+    const resolved = await service.resolve(savedPdf.key);
+    expect(resolved?.mimeType).toBe('application/pdf');
+    expect(resolved?.data.equals(pdf)).toBe(true);
+  });
+
   it('rejects forged PDFs that are not actually PDF bytes', async () => {
     await expect(
       service.savePdf({

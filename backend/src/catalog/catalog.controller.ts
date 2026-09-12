@@ -96,6 +96,17 @@ export class CatalogController {
     return this.catalog.getSessionAttachments(user.id, id, query.courseId);
   }
 
+  @Get('sessions/:id/exercises')
+  @ApiOperation({ summary: 'تمارین جلسه' })
+  @ApiQuery({ name: 'courseId', required: false })
+  getExercises(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query() query: CourseScopedQueryDto,
+  ) {
+    return this.catalog.getSessionExercises(user.id, id, query.courseId);
+  }
+
   @Get('sessions/:id/progress')
   @ApiOperation({ summary: 'پیشرفت اسلایدهای جلسه' })
   @ApiQuery({ name: 'courseId', required: false })

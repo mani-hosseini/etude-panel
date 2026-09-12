@@ -16,6 +16,8 @@ export const queryKeys = {
     ["session-slides", courseId ?? "primary", sessionId] as const,
   sessionAttachments: (sessionId: string, courseId?: string) =>
     ["session-attachments", courseId ?? "primary", sessionId] as const,
+  sessionExercises: (sessionId: string, courseId?: string) =>
+    ["session-exercises", courseId ?? "primary", sessionId] as const,
   schedule: (courseId?: string) =>
     ["schedule", courseId ?? "primary"] as const,
   profile: ["profile"] as const,
@@ -83,6 +85,18 @@ export function useSessionAttachmentsQuery(
   return useQuery({
     queryKey: queryKeys.sessionAttachments(sessionId, courseId),
     queryFn: () => api.sessionAttachments(sessionId, courseId),
+    enabled,
+  });
+}
+
+export function useSessionExercisesQuery(
+  sessionId: string,
+  courseId?: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.sessionExercises(sessionId, courseId),
+    queryFn: () => api.sessionExercises(sessionId, courseId),
     enabled,
   });
 }

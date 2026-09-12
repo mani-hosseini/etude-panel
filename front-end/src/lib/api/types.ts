@@ -37,6 +37,7 @@ export type CourseSession = {
   status: SessionStatus;
   slideCount: number;
   attachmentCount?: number;
+  exerciseCount?: number;
   durationLabel: string;
   dateLabel: string;
   timeLabel?: string;
@@ -174,6 +175,16 @@ export type SessionAttachment = {
   caption?: string;
   filename: string;
   mimeType: string;
+  sortOrder: number;
+};
+
+export type SessionExercise = {
+  id: string;
+  path: string;
+  caption?: string;
+  filename: string;
+  mimeType: string;
+  size: number;
   sortOrder: number;
 };
 

@@ -360,6 +360,9 @@ export function CourseSessionsPanel({
                           {(session.attachmentCount ?? 0) > 0
                             ? ` · ${toFa(session.attachmentCount ?? 0)} پیوست`
                             : ""}
+                          {(session.exerciseCount ?? 0) > 0
+                            ? ` · ${toFa(session.exerciseCount ?? 0)} تمرین`
+                            : ""}
                           {session.dateLabel && session.dateLabel !== "قفل"
                             ? ` · ${toFa(session.dateLabel)}`
                             : ""}

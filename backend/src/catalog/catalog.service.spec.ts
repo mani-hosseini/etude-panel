@@ -64,6 +64,9 @@ describe('CatalogService', () => {
     expect(typeof CatalogService.prototype.getSessionAttachments).toBe(
       'function',
     );
+    expect(typeof CatalogService.prototype.getSessionExercises).toBe(
+      'function',
+    );
     expect(typeof CatalogService.prototype.getProfile).toBe('function');
   });
 });

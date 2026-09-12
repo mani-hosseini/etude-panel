@@ -3,16 +3,18 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { AttachmentGallery } from "@/components/panel/session/AttachmentGallery";
+import { ExerciseGallery } from "@/components/panel/session/ExerciseGallery";
 import { SlideDeck } from "@/components/slides/SlideDeck";
-import type { SessionAttachment } from "@/lib/api/types";
+import type { SessionAttachment, SessionExercise } from "@/lib/api/types";
 import type { Slide } from "@/lib/session-1-slides";
 
-export type SessionWorkspaceView = "slides" | "attachments";
+export type SessionWorkspaceView = "slides" | "attachments" | "exercises";
 
 type SessionWorkspaceProps = {
   view: SessionWorkspaceView;
   slides: Slide[];
   attachments: SessionAttachment[];
+  exercises: SessionExercise[];
   sessionLabel: string;
   sessionId: string;
   courseId?: string;
@@ -24,6 +26,7 @@ export function SessionWorkspace({
   view,
   slides,
   attachments,
+  exercises,
   sessionLabel,
   sessionId,
   courseId,
@@ -48,6 +51,11 @@ export function SessionWorkspace({
               sessionLabel={sessionLabel}
               playHref={playHref}
               backHref={backHref}
+            />
+          ) : view === "exercises" ? (
+            <ExerciseGallery
+              exercises={exercises}
+              sessionLabel={sessionLabel}
             />
           ) : (
             <SlideDeck

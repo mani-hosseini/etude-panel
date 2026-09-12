@@ -13,7 +13,8 @@ export type UploadKind =
   | 'attachments'
   | 'slides'
   | 'avatars'
-  | 'exams';
+  | 'exams'
+  | 'exercises';
 
 export function imageMulterOptions(maxBytes: number) {
   return {

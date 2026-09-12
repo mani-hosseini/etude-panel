@@ -8,9 +8,20 @@ const nextConfig: NextConfig = {
     "lightningcss-linux-x64-gnu",
     "@tailwindcss/oxide",
   ],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
+    proxyClientMaxBodySize: "12mb",
+  },
   async rewrites() {
-    if (!apiProxyTarget) return [];
+    const training = [
+      { source: "/PDF/trainingen.pdf", destination: "/training/en" },
+      { source: "/PDF/trainingfa.pdf", destination: "/training/fa" },
+    ];
+    if (!apiProxyTarget) return training;
     return [
+      ...training,
       {
         source: "/api/v1/:path*",
         destination: `${apiProxyTarget}/api/v1/:path*`,

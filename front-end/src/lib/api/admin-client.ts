@@ -137,6 +137,7 @@ export type AdminSession = {
   timeLabel?: string;
   slideCount: number;
   attachmentCount?: number;
+  exerciseCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -153,6 +154,8 @@ export type AdminAttachment = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type AdminExercise = AdminAttachment;
 
 export type AdminSlideTerm = { en: string; fa: string };
 
@@ -593,6 +596,38 @@ export const adminApi = {
     adminHttp.requestData<{ attachments: AdminAttachment[] }>(
       `/admin/sessions/${sessionId}/attachments/reorder`,
       { method: "POST", body: { attachmentIds } },
+    ),
+
+  exercises: (sessionId: string) =>
+    adminHttp.requestData<{ exercises: AdminExercise[] }>(
+      `/admin/sessions/${sessionId}/exercises`,
+    ),
+
+  uploadExercise: (sessionId: string, file: File, caption?: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (caption?.trim()) formData.append("caption", caption.trim());
+    return adminHttp.upload<AdminExercise>(
+      `/admin/sessions/${sessionId}/exercises`,
+      formData,
+    );
+  },
+
+  updateExercise: (id: string, body: { caption?: string }) =>
+    adminHttp.requestData<AdminExercise>(`/admin/exercises/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  deleteExercise: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/admin/exercises/${id}`, {
+      method: "DELETE",
+    }),
+
+  reorderExercises: (sessionId: string, exerciseIds: string[]) =>
+    adminHttp.requestData<{ exercises: AdminExercise[] }>(
+      `/admin/sessions/${sessionId}/exercises/reorder`,
+      { method: "POST", body: { exerciseIds } },
     ),
 
   schedule: (courseId: string) =>

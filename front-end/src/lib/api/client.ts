@@ -9,6 +9,7 @@ import type {
   CourseCard,
   ApiSlide,
   SessionAttachment,
+  SessionExercise,
   StudentExam,
   ExamSubmissionSummary,
 } from "@/lib/api/types";
@@ -114,6 +115,17 @@ export const api = {
       courseId
         ? `/sessions/${id}/attachments?courseId=${encodeURIComponent(courseId)}`
         : `/sessions/${id}/attachments`,
+    ),
+  sessionExercises: (id: string, courseId?: string) =>
+    studentHttp.requestData<{
+      sessionId: string;
+      total: number;
+      exercises: SessionExercise[];
+      courseTitle?: string;
+    }>(
+      courseId
+        ? `/sessions/${id}/exercises?courseId=${encodeURIComponent(courseId)}`
+        : `/sessions/${id}/exercises`,
     ),
   schedule: (courseId?: string) =>
     studentHttp.requestData<SchedulePayload>(

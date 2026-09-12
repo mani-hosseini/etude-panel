@@ -64,12 +64,17 @@ export function toAudienceMessage(
     return trimmed || "ورود نامعتبر است.";
   }
 
+  if (status === 413 || code === "PAYLOAD_TOO_LARGE") {
+    return "حجم فایل حداکثر ۱۰ مگابایت باشد.";
+  }
+
   if (status === 404 || code === "NOT_FOUND") {
     if (trimmed.includes("کاربر")) return "هنرجو یافت نشد.";
     if (trimmed.includes("دوره")) return "دوره یافت نشد.";
     if (trimmed.includes("جلسه")) return "جلسه یافت نشد.";
     if (trimmed.includes("اسلاید")) return "اسلاید یافت نشد.";
     if (trimmed.includes("آزمون")) return "آزمون یافت نشد.";
+    if (trimmed.includes("تمرین")) return "تمرین یافت نشد.";
     if (trimmed.includes("پیوست") || trimmed.includes("فایل")) {
       return "فایل یافت نشد.";
     }

@@ -135,7 +135,7 @@ export class CatalogService {
         orderBy: { number: 'asc' },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        include: { _count: { select: { slides: true, attachments: true } } },
+        include: { _count: { select: { slides: true, attachments: true, exercises: true } } },
       }),
     ]);
 
@@ -168,6 +168,7 @@ export class CatalogService {
             percent,
             session._count.attachments,
             course.timeShort,
+            session._count.exercises,
           );
         }),
       },
@@ -180,9 +181,12 @@ export class CatalogService {
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
-    const [slideCount, attachmentCount] = await Promise.all([
+    const [slideCount, attachmentCount, exerciseCount] = await Promise.all([
       this.prisma.slide.count({ where: { sessionId: session.id } }),
       this.prisma.sessionAttachment.count({
+        where: { sessionId: session.id },
+      }),
+      this.prisma.sessionExercise.count({
         where: { sessionId: session.id },
       }),
     ]);
@@ -193,6 +197,7 @@ export class CatalogService {
         0,
         attachmentCount,
         course.timeShort,
+        exerciseCount,
       ),
       courseId: course.slug,
       courseTitle: course.title,
@@ -273,6 +278,43 @@ export class CatalogService {
         filename: attachment.filename,
         mimeType: attachment.mimeType,
         sortOrder: attachment.sortOrder,
+      })),
+    };
+  }
+
+  async getSessionExercises(
+    userId: string,
+    idOrNumber: string,
+    courseId?: string,
+  ) {
+    const course = courseId
+      ? await this.findEnrolledCourse(userId, courseId)
+      : await this.findCourseForSession(userId, idOrNumber);
+    const session = await this.findSession(course.id, idOrNumber);
+
+    if (session.status !== SessionStatus.AVAILABLE) {
+      throw new NotFoundException('محتوای این جلسه هنوز در دسترس نیست.');
+    }
+
+    const exercises = await this.prisma.sessionExercise.findMany({
+      where: { sessionId: session.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return {
+      courseId: course.slug,
+      courseTitle: course.title,
+      sessionId: session.id,
+      sessionNumber: session.number,
+      total: exercises.length,
+      exercises: exercises.map((exercise) => ({
+        id: exercise.id,
+        path: exercise.path,
+        caption: exercise.caption ?? undefined,
+        filename: exercise.filename,
+        mimeType: exercise.mimeType,
+        size: exercise.size,
+        sortOrder: exercise.sortOrder,
       })),
     };
   }
@@ -368,7 +410,7 @@ export class CatalogService {
             status: SessionStatus.AVAILABLE,
           },
           orderBy: { number: 'desc' },
-          include: { _count: { select: { slides: true, attachments: true } } },
+          include: { _count: { select: { slides: true, attachments: true, exercises: true } } },
         })
       : null;
 
@@ -453,6 +495,7 @@ export class CatalogService {
             0,
             currentSession._count.attachments,
             primaryEnrollment?.course.timeShort ?? '',
+            currentSession._count.exercises,
           )
         : null,
       schedulePreview: scheduleWindow.map((lesson) => ({
@@ -996,6 +1039,7 @@ export class CatalogService {
     progressPercent = 0,
     attachmentCount = 0,
     fallbackTime = '',
+    exerciseCount = 0,
   ) {
     return {
       id: String(session.number),
@@ -1007,6 +1051,7 @@ export class CatalogService {
       status: SESSION_STATUS_API[session.status],
       slideCount,
       attachmentCount,
+      exerciseCount,
       durationLabel: session.durationLabel,
       dateLabel: session.dateLabel,
       timeLabel: formatTimeRange(

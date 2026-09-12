@@ -15,7 +15,7 @@ export type SessionStatCardItem = {
 
 export function SessionStatCards({ items }: { items: SessionStatCardItem[] }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
         const Icon = item.icon;
         const interactive = Boolean(item.onSelect);

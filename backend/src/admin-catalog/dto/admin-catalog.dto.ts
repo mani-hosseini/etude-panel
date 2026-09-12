@@ -380,6 +380,26 @@ export class ReorderAttachmentsDto {
   attachmentIds!: string[];
 }
 
+export class UpdateExerciseDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  caption?: string;
+}
+
+export class UploadExerciseDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  caption?: string;
+}
+
+export class ReorderExercisesDto {
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exerciseIds!: string[];
+}
+
 export class UpsertScheduleDto {
   @IsOptional()
   @IsUUID()

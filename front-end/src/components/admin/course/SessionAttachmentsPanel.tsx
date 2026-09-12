@@ -98,6 +98,10 @@ export function SessionAttachmentsPanel({
 
   const onPick = (file: File | undefined) => {
     if (!file) return;
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
+      setError("حجم فایل حداکثر ۱۰ مگابایت باشد.");
+      return;
+    }
     setError(null);
     upload.mutate(file);
   };
@@ -107,7 +111,7 @@ export function SessionAttachmentsPanel({
       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 p-4">
         <Label>آپلود عکس کلاس</Label>
         <p className="mt-1 text-xs text-slate-500">
-          JPG / PNG / WEBP / GIF — حداکثر ۸ مگابایت. این عکس‌ها در صفحه جلسه
+          JPG / PNG / WEBP / GIF — حداکثر ۱۰ مگابایت. این عکس‌ها در صفحه جلسه
           هنرجو نمایش داده می‌شوند.
         </p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">

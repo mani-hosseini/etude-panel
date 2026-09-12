@@ -1,9 +1,11 @@
 /** Clean dashboard paths — courseId is the public slug (e.g. theory-basics). */
 
-export type SessionPlayViewKind = "slides" | "attachments";
+export type SessionPlayViewKind = "slides" | "attachments" | "exercises";
 
 function withSessionView(path: string, view?: SessionPlayViewKind) {
-  if (view === "attachments") return `${path}?view=attachments`;
+  if (view === "attachments" || view === "exercises") {
+    return `${path}?view=${view}`;
+  }
   return path;
 }
 

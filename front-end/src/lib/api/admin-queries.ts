@@ -20,6 +20,8 @@ export const adminQueryKeys = {
   slides: (sessionId: string) => ["admin", "slides", sessionId] as const,
   attachments: (sessionId: string) =>
     ["admin", "attachments", sessionId] as const,
+  exercises: (sessionId: string) =>
+    ["admin", "exercises", sessionId] as const,
   tips: (courseId: string) => ["admin", "tips", courseId] as const,
   exams: (params: ListExamsParams) => ["admin", "exams", params] as const,
   exam: (id: string) => ["admin", "exam", id] as const,
@@ -74,6 +76,14 @@ export function useAdminAttachmentsQuery(sessionId: string) {
   return useQuery({
     queryKey: adminQueryKeys.attachments(sessionId),
     queryFn: () => adminApi.attachments(sessionId),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useAdminExercisesQuery(sessionId: string) {
+  return useQuery({
+    queryKey: adminQueryKeys.exercises(sessionId),
+    queryFn: () => adminApi.exercises(sessionId),
     enabled: Boolean(sessionId),
   });
 }

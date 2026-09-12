@@ -23,7 +23,8 @@ import {
 
 /** Public media served from `/uploads/…`. Exam PDFs are intentionally excluded. */
 const PUBLIC_KEY_PATTERN =
-  /^(attachments|slides|avatars|exams)\/[A-Za-z0-9._-]+$/;
+  /^(attachments|slides|avatars|exams|exercises)\/[A-Za-z0-9._-]+$/;
+const PUBLIC_MEDIA_MAX_BYTES = 10 * 1024 * 1024;
 const PRIVATE_KEY_PATTERN =
   /^(exam-submissions|exam-papers|exam-answers)\/[A-Za-z0-9._-]+$/;
 
@@ -72,6 +73,64 @@ export class UploadsService {
     const key = `${kind}/${filename}`;
     await this.persist(key, file.mimetype, buffer);
 
+    return {
+      path: `/uploads/${key}`,
+      key,
+      filename,
+      mimeType: file.mimetype,
+      size: buffer.length,
+    };
+  }
+
+  async savePublicMedia(
+    kind: Extract<UploadKind, 'exercises'>,
+    file: {
+      buffer?: Buffer;
+      path?: string;
+      mimetype: string;
+      size: number;
+      originalname?: string;
+    },
+  ): Promise<StoredUpload> {
+    const buffer = await this.toBuffer(file, 'فایل ارسال نشده است.');
+    if (!buffer.length || buffer.length > PUBLIC_MEDIA_MAX_BYTES) {
+      throw new BadRequestException('حجم فایل حداکثر ۱۰ مگابایت باشد.');
+    }
+
+    const name = file.originalname?.toLowerCase() ?? '';
+    const looksPdf =
+      file.mimetype === PDF_MIME ||
+      name.endsWith('.pdf') ||
+      buffer.subarray(0, 4).equals(Buffer.from('%PDF'));
+
+    if (looksPdf) {
+      assertPdfBuffer({
+        buffer,
+        mimetype: file.mimetype,
+        size: file.size || buffer.length,
+      });
+      const filename = `exercise-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}.pdf`;
+      const key = `${kind}/${filename}`;
+      await this.persist(key, PDF_MIME, buffer);
+      return {
+        path: `/uploads/${key}`,
+        key,
+        filename,
+        mimeType: PDF_MIME,
+        size: buffer.length,
+      };
+    }
+
+    const ext = IMAGE_MIME_EXT[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException(
+        'فقط تصویر (JPG، PNG، WEBP، GIF) یا فایل PDF مجاز است.',
+      );
+    }
+
+    const filename = `exercise-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}${ext}`;
+    const key = `${kind}/${filename}`;
+    await this.persist(key, file.mimetype, buffer);
     return {
       path: `/uploads/${key}`,
       key,

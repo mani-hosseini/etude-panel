@@ -24,14 +24,18 @@ import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/auth.decorators';
 import { AdminCatalogService } from './admin-catalog.service';
 import { attachmentMulterOptions } from './attachment-upload';
+import { exerciseMulterOptions } from './exercise-upload';
 import {
   AdminListCoursesQueryDto,
   CreateSessionDto,
   CreateSlideDto,
   ReorderAttachmentsDto,
+  ReorderExercisesDto,
   ReorderSlidesDto,
   UpdateAttachmentDto,
+  UpdateExerciseDto,
   UploadAttachmentDto,
+  UploadExerciseDto,
   UpsertCourseDto,
   UpsertPracticeTipDto,
   UpsertScheduleDto,
@@ -187,6 +191,61 @@ export class AdminCatalogController {
     @Body() dto: ReorderAttachmentsDto,
   ) {
     return this.adminCatalog.reorderAttachments(sessionId, dto);
+  }
+
+  @Get('sessions/:sessionId/exercises')
+  @ApiOperation({ summary: 'تمارین جلسه' })
+  listExercises(@Param('sessionId', ParseUUIDPipe) sessionId: string) {
+    return this.adminCatalog.listExercises(sessionId);
+  }
+
+  @Post('sessions/:sessionId/exercises')
+  @ApiOperation({ summary: 'آپلود تمرین جلسه (عکس یا PDF تا ۱۰ مگابایت)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        caption: { type: 'string' },
+      },
+      required: ['file'],
+    },
+  })
+  @UseInterceptors(FileInterceptor('file', exerciseMulterOptions))
+  createExercise(
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: UploadExerciseDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('فایل تمرین ارسال نشده است.');
+    }
+    return this.adminCatalog.createExercise(sessionId, file, body?.caption);
+  }
+
+  @Patch('exercises/:id')
+  @ApiOperation({ summary: 'ویرایش توضیح تمرین' })
+  updateExercise(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateExerciseDto,
+  ) {
+    return this.adminCatalog.updateExercise(id, dto);
+  }
+
+  @Delete('exercises/:id')
+  @ApiOperation({ summary: 'حذف تمرین جلسه' })
+  deleteExercise(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminCatalog.deleteExercise(id);
+  }
+
+  @Post('sessions/:sessionId/exercises/reorder')
+  @ApiOperation({ summary: 'مرتب‌سازی تمارین جلسه' })
+  reorderExercises(
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Body() dto: ReorderExercisesDto,
+  ) {
+    return this.adminCatalog.reorderExercises(sessionId, dto);
   }
 
   @Get('courses/:courseId/schedule')

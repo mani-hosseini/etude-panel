@@ -25,8 +25,10 @@ import {
   CreateSessionDto,
   CreateSlideDto,
   ReorderAttachmentsDto,
+  ReorderExercisesDto,
   ReorderSlidesDto,
   UpdateAttachmentDto,
+  UpdateExerciseDto,
   UpsertCourseDto,
   UpsertPracticeTipDto,
   UpsertScheduleDto,
@@ -105,7 +107,7 @@ export class AdminCatalogService {
         sessions: {
           orderBy: { number: 'asc' },
           include: {
-            _count: { select: { slides: true, attachments: true } },
+            _count: { select: { slides: true, attachments: true, exercises: true } },
           },
         },
       },
@@ -230,7 +232,7 @@ export class AdminCatalogService {
       where: { courseId },
       orderBy: { number: 'asc' },
       include: {
-            _count: { select: { slides: true, attachments: true } },
+            _count: { select: { slides: true, attachments: true, exercises: true } },
           },
     });
     return { sessions: sessions.map((s) => this.mapSession(s)) };
@@ -255,7 +257,7 @@ export class AdminCatalogService {
           timeEnd: normalizeClock(dto.timeEnd),
         },
         include: {
-            _count: { select: { slides: true, attachments: true } },
+            _count: { select: { slides: true, attachments: true, exercises: true } },
           },
       });
       await this.syncSessionsTotal(courseId);
@@ -299,7 +301,7 @@ export class AdminCatalogService {
             : {}),
         },
         include: {
-            _count: { select: { slides: true, attachments: true } },
+            _count: { select: { slides: true, attachments: true, exercises: true } },
           },
       });
 
@@ -504,6 +506,78 @@ export class AdminCatalogService {
       ),
     );
     return this.listAttachments(sessionId);
+  }
+
+  async listExercises(sessionId: string) {
+    await this.ensureSession(sessionId);
+    const exercises = await this.prisma.sessionExercise.findMany({
+      where: { sessionId },
+      orderBy: { sortOrder: 'asc' },
+    });
+    return { exercises: exercises.map((item) => this.mapExercise(item)) };
+  }
+
+  async createExercise(
+    sessionId: string,
+    file: Express.Multer.File,
+    caption?: string,
+  ) {
+    await this.ensureSession(sessionId);
+    const maxOrder = await this.prisma.sessionExercise.aggregate({
+      where: { sessionId },
+      _max: { sortOrder: true },
+    });
+    const stored = await this.uploads.savePublicMedia('exercises', file);
+    try {
+      const exercise = await this.prisma.sessionExercise.create({
+        data: {
+          sessionId,
+          path: stored.path,
+          filename: file.originalname.slice(0, 255),
+          mimeType: stored.mimeType,
+          size: stored.size,
+          caption: caption?.trim() || null,
+          sortOrder: (maxOrder._max.sortOrder ?? 0) + 1,
+        },
+      });
+      return this.mapExercise(exercise);
+    } catch (error) {
+      await this.uploads.remove(stored.path);
+      throw error;
+    }
+  }
+
+  async updateExercise(id: string, dto: UpdateExerciseDto) {
+    await this.ensureExercise(id);
+    const exercise = await this.prisma.sessionExercise.update({
+      where: { id },
+      data: {
+        ...(dto.caption !== undefined
+          ? { caption: dto.caption.trim() || null }
+          : {}),
+      },
+    });
+    return this.mapExercise(exercise);
+  }
+
+  async deleteExercise(id: string) {
+    const existing = await this.ensureExercise(id);
+    await this.prisma.sessionExercise.delete({ where: { id } });
+    await this.uploads.remove(existing.path);
+    return { deleted: true };
+  }
+
+  async reorderExercises(sessionId: string, dto: ReorderExercisesDto) {
+    await this.ensureSession(sessionId);
+    await this.prisma.$transaction(
+      dto.exerciseIds.map((exerciseId, index) =>
+        this.prisma.sessionExercise.updateMany({
+          where: { id: exerciseId, sessionId },
+          data: { sortOrder: index + 1 },
+        }),
+      ),
+    );
+    return this.listExercises(sessionId);
   }
 
   async listSchedule(courseId: string) {
@@ -738,6 +812,14 @@ export class AdminCatalogService {
     return attachment;
   }
 
+  private async ensureExercise(id: string) {
+    const exercise = await this.prisma.sessionExercise.findUnique({
+      where: { id },
+    });
+    if (!exercise) throw new NotFoundException('تمرین یافت نشد.');
+    return exercise;
+  }
+
   private mapCourse(
     course: Prisma.CourseGetPayload<{
       include: {
@@ -780,7 +862,7 @@ export class AdminCatalogService {
   private mapSession(
     session: Prisma.CourseSessionGetPayload<{
       include: {
-        _count: { select: { slides: true; attachments: true } };
+        _count: { select: { slides: true; attachments: true; exercises: true } };
       };
     }>,
   ) {
@@ -799,6 +881,7 @@ export class AdminCatalogService {
       timeLabel: formatTimeRange(session.timeStart, session.timeEnd),
       slideCount: session._count.slides,
       attachmentCount: session._count.attachments,
+      exerciseCount: session._count.exercises,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
     };
@@ -827,6 +910,32 @@ export class AdminCatalogService {
       sortOrder: attachment.sortOrder,
       createdAt: attachment.createdAt,
       updatedAt: attachment.updatedAt,
+    };
+  }
+
+  private mapExercise(exercise: {
+    id: string;
+    sessionId: string;
+    path: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    caption: string | null;
+    sortOrder: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: exercise.id,
+      sessionId: exercise.sessionId,
+      path: exercise.path,
+      filename: exercise.filename,
+      mimeType: exercise.mimeType,
+      size: exercise.size,
+      caption: exercise.caption,
+      sortOrder: exercise.sortOrder,
+      createdAt: exercise.createdAt,
+      updatedAt: exercise.updatedAt,
     };
   }
 

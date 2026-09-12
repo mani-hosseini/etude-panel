@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Images, Maximize2, Presentation, UserRound } from "lucide-react";
+import { ArrowRight, Images, Maximize2, NotebookPen, Presentation, UserRound } from "lucide-react";
 
 import { PageHeader } from "@/components/panel/PageHeader";
 import { SessionStatCards } from "@/components/panel/session/SessionStatCards";
@@ -17,12 +17,23 @@ import {
   queryErrorMessage,
   useCourseQuery,
   useSessionAttachmentsQuery,
+  useSessionExercisesQuery,
   useSessionQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
-import { routes } from "@/lib/routes";
+import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { toDeckSlides } from "@/lib/slides";
+
+function parseWorkspaceView(value: string | null): SessionWorkspaceView {
+  if (value === "attachments" || value === "exercises") return value;
+  return "slides";
+}
+
+function playViewOf(view: SessionWorkspaceView): SessionPlayViewKind | undefined {
+  if (view === "attachments") return "attachments";
+  return undefined;
+}
 
 export function SessionDetailPage({
   sessionId,
@@ -35,8 +46,7 @@ export function SessionDetailPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryCourseId = searchParams.get("courseId");
-  const viewParam =
-    searchParams.get("view") === "attachments" ? "attachments" : "slides";
+  const viewParam = parseWorkspaceView(searchParams.get("view"));
   const [workspaceView, setWorkspaceView] =
     useState<SessionWorkspaceView>(viewParam);
 
@@ -50,7 +60,7 @@ export function SessionDetailPage({
         routes.courseSession(
           queryCourseId,
           sessionId,
-          viewParam === "attachments" ? "attachments" : undefined,
+          viewParam === "slides" ? undefined : viewParam,
         ),
       );
     }
@@ -71,6 +81,11 @@ export function SessionDetailPage({
     resolvedCourseId,
     slidesEnabled,
   );
+  const exercisesQuery = useSessionExercisesQuery(
+    sessionId,
+    resolvedCourseId,
+    slidesEnabled,
+  );
   const courseQuery = useCourseQuery(resolvedCourseId, Boolean(resolvedCourseId));
 
   useEffect(() => {
@@ -81,7 +96,7 @@ export function SessionDetailPage({
       routes.courseSession(
         slug,
         sessionId,
-        viewParam === "attachments" ? "attachments" : undefined,
+        viewParam === "slides" ? undefined : viewParam,
       ),
     );
   }, [
@@ -100,7 +115,10 @@ export function SessionDetailPage({
   if (
     sessionQuery.isPending ||
     (resolvedCourseId && courseQuery.isPending) ||
-    (slidesEnabled && (slidesQuery.isPending || attachmentsQuery.isPending))
+    (slidesEnabled &&
+      (slidesQuery.isPending ||
+        attachmentsQuery.isPending ||
+        exercisesQuery.isPending))
   ) {
     return <Skeleton className="h-64 rounded-3xl" />;
   }
@@ -121,6 +139,7 @@ export function SessionDetailPage({
       ? toDeckSlides(slidesQuery.data.slides)
       : [];
   const attachments = attachmentsQuery.data?.attachments ?? [];
+  const exercises = exercisesQuery.data?.exercises ?? [];
   const course = courseQuery.data ?? null;
   const pathCourseId =
     resolvedCourseId ?? session.courseId ?? course?.id ?? undefined;
@@ -130,6 +149,18 @@ export function SessionDetailPage({
     course?.title ??
     "دوره";
   const sessionLabel = `جلسه ${toFa(session.number)}`;
+  const selectView = (view: SessionWorkspaceView) => {
+    setWorkspaceView(view);
+    if (!pathCourseId) return;
+    router.replace(
+      routes.courseSession(
+        pathCourseId,
+        session.id,
+        view === "slides" ? undefined : view,
+      ),
+      { scroll: false },
+    );
+  };
 
   if (session.status !== "available") {
     return (
@@ -180,12 +211,12 @@ export function SessionDetailPage({
             description={session.summary}
           />
         </div>
-        {pathCourseId ? (
+        {pathCourseId && workspaceView !== "exercises" ? (
           <Link
             href={routes.courseSessionPlay(
               pathCourseId,
               session.id,
-              workspaceView === "attachments" ? "attachments" : undefined,
+              playViewOf(workspaceView),
             )}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-navy px-4 py-3 text-sm font-semibold text-white shadow-lift transition hover:bg-navy-soft"
           >
@@ -213,7 +244,7 @@ export function SessionDetailPage({
               value: toFa(slides.length),
               icon: Presentation,
               active: workspaceView === "slides",
-              onSelect: () => setWorkspaceView("slides"),
+              onSelect: () => selectView("slides"),
             },
             {
               id: "attachments",
@@ -224,7 +255,18 @@ export function SessionDetailPage({
                   : "بدون فایل",
               icon: Images,
               active: workspaceView === "attachments",
-              onSelect: () => setWorkspaceView("attachments"),
+              onSelect: () => selectView("attachments"),
+            },
+            {
+              id: "exercises",
+              label: "تمارین",
+              value:
+                exercises.length > 0
+                  ? `${toFa(exercises.length)} تمرین`
+                  : "بدون تمرین",
+              icon: NotebookPen,
+              active: workspaceView === "exercises",
+              onSelect: () => selectView("exercises"),
             },
           ]}
         />
@@ -234,6 +276,7 @@ export function SessionDetailPage({
         view={workspaceView}
         slides={slides}
         attachments={attachments}
+        exercises={exercises}
         sessionLabel={sessionLabel}
         sessionId={session.id}
         courseId={pathCourseId}
@@ -242,7 +285,7 @@ export function SessionDetailPage({
             ? routes.courseSessionPlay(
                 pathCourseId,
                 session.id,
-                workspaceView === "attachments" ? "attachments" : undefined,
+                playViewOf(workspaceView),
               )
             : routes.sessions
         }
@@ -251,7 +294,7 @@ export function SessionDetailPage({
             ? routes.courseSession(
                 pathCourseId,
                 session.id,
-                workspaceView === "attachments" ? "attachments" : undefined,
+                workspaceView === "slides" ? undefined : workspaceView,
               )
             : routes.sessions
         }

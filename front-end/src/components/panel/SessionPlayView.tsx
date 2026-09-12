@@ -3,17 +3,24 @@
 import { notFound, useSearchParams } from "next/navigation";
 
 import { AttachmentGallery } from "@/components/panel/session/AttachmentGallery";
+import { ExerciseGallery } from "@/components/panel/session/ExerciseGallery";
 import { SlideDeck } from "@/components/slides/SlideDeck";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   queryErrorMessage,
   useSessionAttachmentsQuery,
+  useSessionExercisesQuery,
   useSessionQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
-import { routes } from "@/lib/routes";
+import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { toDeckSlides } from "@/lib/slides";
+
+function parsePlayView(value: string | null): SessionPlayViewKind {
+  if (value === "attachments" || value === "exercises") return value;
+  return "slides";
+}
 
 type SessionPlayViewProps = {
   sessionId: string;
@@ -25,8 +32,7 @@ export function SessionPlayView({
   courseId,
 }: SessionPlayViewProps) {
   const searchParams = useSearchParams();
-  const view =
-    searchParams.get("view") === "attachments" ? "attachments" : "slides";
+  const view = parsePlayView(searchParams.get("view"));
   const sessionQuery = useSessionQuery(sessionId, courseId);
   const contentEnabled =
     sessionQuery.isSuccess && sessionQuery.data.status === "available";
@@ -40,9 +46,18 @@ export function SessionPlayView({
     courseId,
     contentEnabled && view === "attachments",
   );
+  const exercisesQuery = useSessionExercisesQuery(
+    sessionId,
+    courseId,
+    contentEnabled && view === "exercises",
+  );
 
   const contentPending =
-    view === "attachments" ? attachmentsQuery.isPending : slidesQuery.isPending;
+    view === "attachments"
+      ? attachmentsQuery.isPending
+      : view === "exercises"
+        ? exercisesQuery.isPending
+        : slidesQuery.isPending;
 
   if (sessionQuery.isPending || (contentEnabled && contentPending)) {
     return (
@@ -73,7 +88,7 @@ export function SessionPlayView({
     ? routes.courseSession(
         resolvedCourseId,
         sessionId,
-        view === "attachments" ? "attachments" : undefined,
+        view === "slides" ? undefined : view,
       )
     : routes.sessions;
 
@@ -89,6 +104,21 @@ export function SessionPlayView({
         sessionLabel={sessionLabel}
         backHref={backHref}
       />
+    );
+  }
+
+  if (view === "exercises") {
+    if (exercisesQuery.isError) {
+      notFound();
+    }
+
+    return (
+      <div className="min-h-dvh bg-[#f6f7fb] px-3 py-4 sm:px-6">
+        <ExerciseGallery
+          exercises={exercisesQuery.data?.exercises ?? []}
+          sessionLabel={sessionLabel}
+        />
+      </div>
     );
   }
 
