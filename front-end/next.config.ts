@@ -15,13 +15,8 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: "12mb",
   },
   async rewrites() {
-    const training = [
-      { source: "/PDF/trainingen.pdf", destination: "/training/en" },
-      { source: "/PDF/trainingfa.pdf", destination: "/training/fa" },
-    ];
-    if (!apiProxyTarget) return training;
+    if (!apiProxyTarget) return [];
     return [
-      ...training,
       {
         source: "/api/v1/:path*",
         destination: `${apiProxyTarget}/api/v1/:path*`,
