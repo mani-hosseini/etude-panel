@@ -213,5 +213,7 @@ export type StudentExam = {
   hasAnswerFile: boolean;
   answerFileName: string | null;
   answerFileSize: number | null;
+  score: number | null;
+  gradedAt: string | null;
   submission: ExamSubmissionSummary | null;
 };

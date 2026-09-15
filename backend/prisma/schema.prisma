@@ -74,6 +74,7 @@ model User {
   achievements     UserAchievement[]
   sessionProgress  SessionProgress[]
   examSubmissions  ExamSubmission[]
+  examGrades       ExamGrade[]
 
   @@unique([firstName, lastName])
   @@index([role])
@@ -315,6 +316,7 @@ model Exam {
   updatedAt          DateTime   @updatedAt
 
   submissions ExamSubmission[]
+  grades      ExamGrade[]
 
   @@index([status, sortOrder])
 }
@@ -336,6 +338,22 @@ model ExamSubmission {
 
   @@unique([examId, userId])
   @@index([examId, submittedAt])
+  @@index([userId])
+}
+
+/// Midterm / exam grade out of 100. Independent of whether a PDF was uploaded.
+model ExamGrade {
+  id        String   @id @default(uuid()) @db.Uuid
+  examId    String   @db.Uuid
+  userId    String   @db.Uuid
+  score     Decimal  @db.Decimal(4, 1)
+  gradedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, userId])
   @@index([userId])
 }
 

@@ -1,5 +1,6 @@
 import { ApiError } from "@/lib/api/http";
 import { studentHttp } from "@/lib/api/student-tokens";
+import { fileUploadFormData } from "@/lib/api/upload-form";
 import type {
   DashboardPayload,
   ProfilePayload,
@@ -202,14 +203,11 @@ export const api = {
 
   exam: (id: string) => studentHttp.requestData<StudentExam>(`/exams/${id}`),
 
-  submitExamPdf: (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return studentHttp.upload<{
+  submitExamPdf: (id: string, file: File) =>
+    studentHttp.upload<{
       submitted: boolean;
       submission: ExamSubmissionSummary;
-    }>(`/exams/${id}/submission`, formData);
-  },
+    }>(`/exams/${id}/submission`, fileUploadFormData(file)),
 
   downloadOwnExamPdf: (id: string) =>
     studentHttp.download(`/exams/${id}/submission/file`),

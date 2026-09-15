@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
+import { BookOpen, ClipboardCheck, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { ExamGradeField } from "@/components/admin/exam/ExamGradeField";
+import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,6 +30,7 @@ import { adminApi } from "@/lib/api/admin-client";
 import {
   adminQueryKeys,
   useAdminCoursesQuery,
+  useAdminExamsQuery,
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
@@ -38,6 +41,8 @@ import { adminRoutes } from "@/lib/routes";
 type AdminUserDetailPageProps = {
   userId: string;
 };
+
+const USER_EXAMS_PARAMS = { limit: 100 } as const;
 
 function AdminUserEditForm({
   user,
@@ -221,6 +226,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
   const queryClient = useQueryClient();
   const userQuery = useAdminUserQuery(userId);
   const coursesQuery = useAdminCoursesQuery({ limit: 100, isActive: true });
+  const examsQuery = useAdminExamsQuery(USER_EXAMS_PARAMS);
   const [selectedCourse, setSelectedCourse] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -236,6 +242,26 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       ),
     [coursesQuery.data?.courses, enrolledSlugs],
   );
+
+  const gradeRows = useMemo(() => {
+    const exams = examsQuery.data?.exams ?? [];
+    const byExam = new Map(
+      (userQuery.data?.examGrades ?? []).map((row) => [row.examId, row]),
+    );
+    if (exams.length === 0) {
+      return userQuery.data?.examGrades ?? [];
+    }
+    return exams.map((exam) => {
+      const grade = byExam.get(exam.id);
+      return {
+        examId: exam.id,
+        title: exam.title,
+        status: exam.status,
+        score: grade?.score ?? null,
+        gradedAt: grade?.gradedAt ?? null,
+      };
+    });
+  }, [examsQuery.data?.exams, userQuery.data?.examGrades]);
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: adminQueryKeys.user(userId) });
@@ -365,6 +391,54 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
         user={user}
         onSaved={invalidate}
       />
+
+      {isStudent ? (
+        <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h3 className="text-sm font-bold text-slate-900">نمره میان‌ترم</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              نمره از ۱۰۰ را همین‌جا وارد کنید؛ لازم نیست هنرجو PDF فرستاده باشد.
+            </p>
+          </div>
+          {(examsQuery.isPending && gradeRows.length === 0) ? (
+            <div className="space-y-3 px-5 py-4">
+              <Skeleton className="h-12 rounded-xl" />
+              <Skeleton className="h-12 rounded-xl" />
+            </div>
+          ) : gradeRows.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-slate-500">
+              <ClipboardCheck className="mx-auto mb-2 size-8 text-slate-300" />
+              هنوز آزمونی ساخته نشده است.
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {gradeRows.map((item) => (
+                <li
+                  key={item.examId}
+                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{item.title}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <ExamStatusBadge status={item.status} />
+                    </div>
+                  </div>
+                  <ExamGradeField
+                    examId={item.examId}
+                    userId={user.id}
+                    score={item.score}
+                    invalidateKeys={[
+                      adminQueryKeys.user(user.id),
+                      adminQueryKeys.exam(item.examId),
+                      adminQueryKeys.exams(USER_EXAMS_PARAMS),
+                    ]}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      ) : null}
 
       {isStudent ? (
         <Card className="rounded-2xl border-slate-200 shadow-sm">

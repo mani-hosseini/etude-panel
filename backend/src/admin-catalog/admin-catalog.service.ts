@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { sanitizeUploadOriginalName } from '../uploads/original-filename';
 import {
   formatTimeRange,
   normalizeClock,
@@ -449,6 +450,7 @@ export class AdminCatalogService {
     sessionId: string,
     file: Express.Multer.File,
     caption?: string,
+    originalName?: string,
   ) {
     await this.ensureSession(sessionId);
     const maxOrder = await this.prisma.sessionAttachment.aggregate({
@@ -461,7 +463,10 @@ export class AdminCatalogService {
         data: {
           sessionId,
           path: stored.path,
-          filename: file.originalname.slice(0, 255),
+          filename: sanitizeUploadOriginalName(
+            originalName || file.originalname,
+            stored.filename.endsWith('.pdf') ? 'پیوست.pdf' : 'پیوست.jpg',
+          ),
           mimeType: stored.mimeType,
           size: stored.size,
           caption: caption?.trim() || null,
@@ -521,6 +526,7 @@ export class AdminCatalogService {
     sessionId: string,
     file: Express.Multer.File,
     caption?: string,
+    originalName?: string,
   ) {
     await this.ensureSession(sessionId);
     const maxOrder = await this.prisma.sessionExercise.aggregate({
@@ -533,7 +539,10 @@ export class AdminCatalogService {
         data: {
           sessionId,
           path: stored.path,
-          filename: file.originalname.slice(0, 255),
+          filename: sanitizeUploadOriginalName(
+            originalName || file.originalname,
+            stored.filename.endsWith('.pdf') ? 'تمرین.pdf' : 'تمرین.jpg',
+          ),
           mimeType: stored.mimeType,
           size: stored.size,
           caption: caption?.trim() || null,

@@ -166,8 +166,14 @@ export class UsersService {
     const avgProgress = await this.computeAvgProgress(id);
     const courseProgress = await this.computeProgressByCourse(id);
 
+    const examGrades =
+      user.role === Role.STUDENT
+        ? await this.listExamGradesForStudent(id)
+        : [];
+
     return {
       ...this.mapUser({ ...user, avgProgress }),
+      examGrades,
       enrollments: user.enrollments.map((item) => {
         const stats = courseProgress.get(item.course.id);
         return {
@@ -412,6 +418,28 @@ export class UsersService {
     ]);
 
     return { total, students, admins, active, inactive };
+  }
+
+  private async listExamGradesForStudent(userId: string) {
+    const [exams, grades] = await Promise.all([
+      this.prisma.exam.findMany({
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        select: { id: true, title: true, status: true },
+      }),
+      this.prisma.examGrade.findMany({ where: { userId } }),
+    ]);
+    const gradeByExam = new Map(grades.map((row) => [row.examId, row]));
+    return exams.map((exam) => {
+      const grade = gradeByExam.get(exam.id);
+      const score = grade == null ? null : Number(grade.score);
+      return {
+        examId: exam.id,
+        title: exam.title,
+        status: exam.status,
+        score: Number.isFinite(score as number) ? score : null,
+        gradedAt: grade?.gradedAt.toISOString() ?? null,
+      };
+    });
   }
 
   private async computeAvgProgress(userId: string): Promise<number> {

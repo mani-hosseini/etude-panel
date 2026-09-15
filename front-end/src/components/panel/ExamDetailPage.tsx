@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +13,7 @@ import {
   Printer,
 } from "lucide-react";
 
+import { ExamScoreRing } from "@/components/exams/ExamScoreRing";
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
 import { PdfDropzone } from "@/components/exams/PdfDropzone";
 import { PageHeader } from "@/components/panel/PageHeader";
@@ -22,8 +23,14 @@ import { api } from "@/lib/api/client";
 import { audienceError } from "@/lib/api/errors";
 import { queryKeys, useExamQuery } from "@/lib/api/queries";
 import { saveBlob } from "@/lib/download";
-import { formatBytes, formatDateTimeFa } from "@/lib/format";
+import {
+  displayPdfName,
+  formatBytes,
+  formatDateTimeFa,
+  formatExamScore,
+} from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 type ExamDetailPageProps = {
   examId: string;
@@ -91,6 +98,13 @@ export function ExamDetailPage({ examId }: ExamDetailPageProps) {
   }
 
   const exam = query.data;
+  const examName = displayPdfName(exam.examFileName, "برگه-آزمون.pdf");
+  const answerName = displayPdfName(exam.answerFileName, "پاسخ-نامه.pdf");
+  const ownName = displayPdfName(
+    exam.submission?.originalName,
+    "پاسخ-آزمون.pdf",
+  );
+  const graded = exam.score != null;
 
   return (
     <div className="space-y-6 pb-4">
@@ -106,124 +120,96 @@ export function ExamDetailPage({ examId }: ExamDetailPageProps) {
           title={exam.title}
           description={
             exam.description ||
-            "پاسخ‌نامه را پرینت بگیرید، برگه سوالات را حل کنید و PDF پاسخ را بفرستید."
+            "نمره میان‌ترم جدا از ارسال PDF ثبت می‌شود. برگه را حل کنید و اگر لازم بود پاسخ را بفرستید."
           }
           actions={<ExamStatusBadge status={exam.status} />}
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-        <span className="rounded-full bg-slate-100 px-3 py-1">
-          {exam.submitted ? "پاسخ شما ثبت شده است" : "هنوز پاسخی ارسال نشده"}
-        </span>
+      <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-soft">
+        <div className="flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="rounded-full bg-linear-to-b from-brand/10 to-slate-50 p-2">
+              <ExamScoreRing score={exam.score} size={124} />
+            </div>
+            <div>
+              <p className="text-xs font-medium tracking-wide text-brand">
+                نمره میان‌ترم
+              </p>
+              <p className="mt-1 text-lg font-bold text-navy">
+                {graded ? formatExamScore(exam.score) : "هنوز ثبت نشده"}
+              </p>
+              <p className="mt-1 max-w-[38ch] text-sm leading-6 text-muted-foreground">
+                {graded
+                  ? exam.gradedAt
+                    ? `ثبت در ${formatDateTimeFa(exam.gradedAt)}`
+                    : "نمره توسط آموزشگاه ثبت شده است."
+                  : "بعد از تصحیح، نمره اینجا دیده می‌شود؛ لازم نیست حتماً PDF فرستاده باشید."}
+              </p>
+            </div>
+          </div>
+          <span
+            className={cn(
+              "rounded-full px-3 py-1 text-xs",
+              exam.submitted
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-slate-100 text-slate-600",
+            )}
+          >
+            {exam.submitted ? "پاسخ PDF ثبت شده" : "بدون ارسال PDF"}
+          </span>
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <FileCard
+          icon={<Printer className="size-4" />}
+          title="پاسخ‌نامه برای پرینت"
+          ready={exam.hasAnswerFile}
+          missing="پاسخ‌نامه هنوز آماده نیست."
+          name={answerName}
+          size={exam.answerFileSize}
+          downloading={downloading === "answer"}
+          actionLabel="دانلود پاسخ‌نامه"
+          onDownload={() =>
+            void downloadFile(
+              "answer",
+              () => api.downloadExamAnswerKey(examId),
+              answerName,
+            )
+          }
+        />
+        <FileCard
+          icon={<FileText className="size-4" />}
+          title="برگه سوالات"
+          ready={exam.hasExamFile}
+          missing="برگه سوالات هنوز آماده نیست."
+          name={examName}
+          size={exam.examFileSize}
+          downloading={downloading === "exam"}
+          actionLabel="دانلود برگه سوالات"
+          onDownload={() =>
+            void downloadFile(
+              "exam",
+              () => api.downloadExamPaper(examId),
+              examName,
+            )
+          }
+        />
       </div>
 
-      <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-navy">پاسخ‌نامه برای پرینت</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          این فایل را همین حالا دانلود و پرینت بگیرید؛ لازم نیست اول پاسخ بفرستید.
-        </p>
-        {exam.hasAnswerFile ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <Printer className="size-5 shrink-0 text-brand" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-800">
-                  {exam.answerFileName || "پاسخ‌نامه.pdf"}
-                </p>
-                {exam.answerFileSize ? (
-                  <p className="text-xs text-slate-500">
-                    {formatBytes(exam.answerFileSize)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <Button
-              type="button"
-              className="rounded-xl"
-              disabled={downloading === "answer"}
-              onClick={() =>
-                void downloadFile(
-                  "answer",
-                  () => api.downloadExamAnswerKey(examId),
-                  exam.answerFileName || "answer-sheet.pdf",
-                )
-              }
-            >
-              {downloading === "answer" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Download className="size-4" />
-              )}
-              دانلود پاسخ‌نامه
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-4 flex h-24 items-center justify-center rounded-2xl bg-slate-50 text-sm text-slate-500">
-            پاسخ‌نامه هنوز آپلود نشده است.
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-navy">برگه سوالات</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          فایل PDF سوالات را دانلود کنید، حل کنید و بعد پاسخ خودتان را بفرستید.
-        </p>
-        {exam.hasExamFile ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <FileText className="size-5 shrink-0 text-brand" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-800">
-                  {exam.examFileName || "برگه سوالات.pdf"}
-                </p>
-                {exam.examFileSize ? (
-                  <p className="text-xs text-slate-500">
-                    {formatBytes(exam.examFileSize)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <Button
-              type="button"
-              className="rounded-xl"
-              disabled={downloading === "exam"}
-              onClick={() =>
-                void downloadFile(
-                  "exam",
-                  () => api.downloadExamPaper(examId),
-                  exam.examFileName || "exam.pdf",
-                )
-              }
-            >
-              {downloading === "exam" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Download className="size-4" />
-              )}
-              دانلود برگه سوالات
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-4 flex h-24 items-center justify-center rounded-2xl bg-slate-50 text-sm text-slate-500">
-            برگه سوالات هنوز آماده نشده است.
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-border bg-white p-5 shadow-soft">
         <h3 className="text-sm font-bold text-navy">ارسال پاسخ PDF</h3>
         {exam.canSubmit ? (
           <>
             <p className="mt-1 text-xs leading-6 text-muted-foreground">
-              بعد از حل آزمون، فقط یک فایل PDF بفرستید. تا وقتی آزمون باز است
-              می‌توانید فایل را عوض کنید. فایل شما فقط برای ادمین دیده می‌شود.
+              اگر آزمون کتبی است، PDF پاسخ را بفرستید. نمره جداگانه توسط ادمین
+              ثبت می‌شود.
             </p>
             <div className="mt-4">
               <PdfDropzone
                 uploading={submit.isPending}
-                currentFileName={exam.submission?.originalName}
+                currentFileName={exam.submission ? ownName : null}
                 currentFileSize={exam.submission?.size}
                 emptyLabel="فایل PDF پاسخ را رها کنید یا انتخاب کنید"
                 onSelect={(file) => submit.mutate(file)}
@@ -258,7 +244,7 @@ export function ExamDetailPage({ examId }: ExamDetailPageProps) {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-emerald-900">
-                {exam.submission.originalName}
+                {ownName}
               </p>
               <p className="text-xs text-emerald-700">
                 {formatBytes(exam.submission.size)} ·{" "}
@@ -274,7 +260,7 @@ export function ExamDetailPage({ examId }: ExamDetailPageProps) {
                 void downloadFile(
                   "own",
                   () => api.downloadOwnExamPdf(examId),
-                  exam.submission?.originalName || "exam-answers.pdf",
+                  ownName,
                 )
               }
             >
@@ -293,5 +279,61 @@ export function ExamDetailPage({ examId }: ExamDetailPageProps) {
         <p className="text-sm text-rose-600">{downloadError}</p>
       ) : null}
     </div>
+  );
+}
+
+function FileCard({
+  icon,
+  title,
+  ready,
+  missing,
+  name,
+  size,
+  downloading,
+  actionLabel,
+  onDownload,
+}: {
+  icon: ReactNode;
+  title: string;
+  ready: boolean;
+  missing: string;
+  name: string;
+  size: number | null;
+  downloading: boolean;
+  actionLabel: string;
+  onDownload: () => void;
+}) {
+  return (
+    <section className="rounded-3xl border border-border bg-white p-5 shadow-soft">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-brand text-white">
+          {icon}
+        </span>
+        <h3 className="text-sm font-bold text-navy">{title}</h3>
+      </div>
+      {ready ? (
+        <div className="flex flex-col gap-3">
+          <p className="truncate text-sm font-semibold text-slate-800">{name}</p>
+          {size ? (
+            <p className="text-xs text-slate-500">{formatBytes(size)}</p>
+          ) : null}
+          <Button
+            type="button"
+            className="rounded-xl"
+            disabled={downloading}
+            onClick={onDownload}
+          >
+            {downloading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            {actionLabel}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-500">{missing}</p>
+      )}
+    </section>
   );
 }

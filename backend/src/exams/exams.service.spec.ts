@@ -1,5 +1,5 @@
 import { ExamStatus } from '@prisma/client';
-import { ExamsService, sanitizeOriginalName } from './exams.service';
+import { ExamsService } from './exams.service';
 
 const NOW = new Date('2026-09-07T12:00:00.000Z');
 
@@ -18,17 +18,11 @@ function examRow(overrides: Record<string, unknown> = {}) {
     sortOrder: 1,
     createdAt: NOW,
     updatedAt: NOW,
+    submissions: [],
+    grades: [],
     ...overrides,
   };
 }
-
-describe('sanitizeOriginalName', () => {
-  it('keeps a safe pdf name and strips path characters', () => {
-    expect(sanitizeOriginalName('پاسخ من.pdf')).toBe('پاسخ من.pdf');
-    expect(sanitizeOriginalName('../etc/passwd.pdf')).toBe('.._etc_passwd.pdf');
-    expect(sanitizeOriginalName('notes')).toBe('notes.pdf');
-  });
-});
 
 describe('ExamsService', () => {
   const prisma = {
@@ -45,6 +39,16 @@ describe('ExamsService', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       upsert: jest.fn(),
+      update: jest.fn(),
+    },
+    examGrade: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -211,5 +215,125 @@ describe('ExamsService', () => {
         originalname: 'a.pdf',
       } as Express.Multer.File),
     ).rejects.toThrow('این آزمون بسته شده است.');
+  });
+
+  it('shows the student their grade even without a PDF submission', async () => {
+    prisma.exam.findUnique.mockResolvedValue(
+      examRow({
+        submissions: [],
+        grades: [{ score: 18.5, gradedAt: NOW }],
+      }),
+    );
+    const detail = await service.getForStudent('user-1', 'exam-1');
+    expect(detail.score).toBe(18.5);
+    expect(detail.gradedAt).toBe(NOW.toISOString());
+    expect(detail.submitted).toBe(false);
+  });
+
+  it('hides a grade until the admin records one', async () => {
+    prisma.exam.findUnique.mockResolvedValue(
+      examRow({
+        submissions: [
+          {
+            id: 'sub-1',
+            submittedAt: NOW,
+            originalName: 'mine.pdf',
+            filename: 'submission-a.pdf',
+            size: 1200,
+          },
+        ],
+        grades: [],
+      }),
+    );
+    const detail = await service.getForStudent('user-1', 'exam-1');
+    expect(detail.score).toBeNull();
+    expect(detail.submitted).toBe(true);
+  });
+
+  it('never shows generated storage keys as the PDF name', async () => {
+    prisma.exam.findUnique.mockResolvedValue(
+      examRow({
+        examOriginalName: 'exam-mabc12-a1b2c3d4.pdf',
+        answerOriginalName: 'answer-lz9-abcdef.pdf',
+        grades: [{ score: 18, gradedAt: NOW }],
+      }),
+    );
+    const detail = await service.getForStudent('user-1', 'exam-1');
+    expect(detail.examFileName).toBe('برگه-آزمون.pdf');
+    expect(detail.answerFileName).toBe('پاسخ-نامه.pdf');
+    expect(detail.score).toBe(18);
+  });
+
+  it('stores the original PDF name instead of the generated storage key', async () => {
+    prisma.exam.findUnique.mockResolvedValue(examRow());
+    uploads.savePdf.mockResolvedValue({
+      key: 'exam-submissions/submission-lz8-abcdef.pdf',
+      filename: 'submission-lz8-abcdef.pdf',
+      mimeType: 'application/pdf',
+      size: 40,
+      path: '/uploads/exam-submissions/submission-lz8-abcdef.pdf',
+    });
+    prisma.examSubmission.findUnique.mockResolvedValue(null);
+    prisma.examSubmission.upsert.mockResolvedValue({
+      id: 'sub-1',
+      submittedAt: NOW,
+      originalName: 'پاسخ من.pdf',
+      size: 40,
+    });
+
+    const utf8 = 'پاسخ من.pdf';
+    const mojibake = Buffer.from(utf8, 'utf8').toString('latin1');
+    await service.submitPdf(
+      'user-1',
+      'exam-1',
+      { originalname: mojibake } as Express.Multer.File,
+      utf8,
+    );
+
+    expect(prisma.examSubmission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ originalName: utf8 }),
+        update: expect.objectContaining({ originalName: utf8 }),
+      }),
+    );
+  });
+
+  it('lets the admin save and clear a grade without a PDF', async () => {
+    prisma.exam.findUnique.mockResolvedValue(examRow());
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'user-1',
+      firstName: 'سارا',
+      lastName: 'احمدی',
+      displayName: 'سارا احمدی',
+      studentCode: 'ET-1',
+    });
+    prisma.examGrade.upsert.mockResolvedValue({
+      examId: 'exam-1',
+      userId: 'user-1',
+      score: 17,
+      gradedAt: NOW,
+    });
+
+    const saved = await service.upsertGrade('exam-1', {
+      userId: 'user-1',
+      score: 17,
+    });
+    expect(saved.score).toBe(17);
+
+    prisma.examGrade.deleteMany.mockResolvedValue({ count: 1 });
+    const cleared = await service.upsertGrade('exam-1', {
+      userId: 'user-1',
+      score: null,
+    });
+    expect(cleared.score).toBeNull();
+    expect(prisma.examGrade.deleteMany).toHaveBeenCalled();
+  });
+
+  it('does not grade a missing student', async () => {
+    prisma.exam.findUnique.mockResolvedValue(examRow());
+    prisma.user.findFirst.mockResolvedValue(null);
+    await expect(
+      service.upsertGrade('exam-1', { userId: 'missing', score: 12 }),
+    ).rejects.toThrow('هنرجو یافت نشد.');
   });
 });

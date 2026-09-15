@@ -24,7 +24,12 @@ import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/auth.decorators';
 import { pdfMulterOptions } from '../uploads/pdf-upload';
 import { ExamsService } from './exams.service';
-import { AdminListExamsQueryDto, UpsertExamDto } from './dto/exams.dto';
+import {
+  AdminListExamsQueryDto,
+  UploadOriginalNameDto,
+  UpsertExamDto,
+  UpsertExamGradeDto,
+} from './dto/exams.dto';
 
 @ApiTags('Admin Exams')
 @ApiBearerAuth()
@@ -72,7 +77,10 @@ export class AdminExamsController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: { file: { type: 'string', format: 'binary' } },
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        originalName: { type: 'string' },
+      },
       required: ['file'],
     },
   })
@@ -80,11 +88,12 @@ export class AdminExamsController {
   uploadExamFile(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: UploadOriginalNameDto,
   ) {
     if (!file) {
       throw new BadRequestException('فایل PDF ارسال نشده است.');
     }
-    return this.exams.replaceExamPdf(id, file);
+    return this.exams.replaceExamPdf(id, file, body?.originalName);
   }
 
   @Get(':id/exam-file')
@@ -99,7 +108,10 @@ export class AdminExamsController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: { file: { type: 'string', format: 'binary' } },
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        originalName: { type: 'string' },
+      },
       required: ['file'],
     },
   })
@@ -107,11 +119,12 @@ export class AdminExamsController {
   uploadAnswerFile(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: UploadOriginalNameDto,
   ) {
     if (!file) {
       throw new BadRequestException('فایل PDF ارسال نشده است.');
     }
-    return this.exams.replaceAnswerPdf(id, file);
+    return this.exams.replaceAnswerPdf(id, file, body?.originalName);
   }
 
   @Get(':id/answer-file')
@@ -127,5 +140,14 @@ export class AdminExamsController {
     @Param('submissionId', ParseUUIDPipe) submissionId: string,
   ) {
     return this.exams.downloadSubmissionPdf(id, submissionId);
+  }
+
+  @Patch(':id/grades')
+  @ApiOperation({ summary: 'ثبت یا ویرایش نمره هنرجو از ۱۰۰، حتی بدون ارسال PDF' })
+  upsertGrade(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertExamGradeDto,
+  ) {
+    return this.exams.upsertGrade(id, dto);
   }
 }

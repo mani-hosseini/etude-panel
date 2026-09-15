@@ -372,6 +372,11 @@ export class UploadAttachmentDto {
   @IsString()
   @MaxLength(200)
   caption?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  originalName?: string;
 }
 
 export class ReorderAttachmentsDto {
@@ -392,6 +397,11 @@ export class UploadExerciseDto {
   @IsString()
   @MaxLength(200)
   caption?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  originalName?: string;
 }
 
 export class ReorderExercisesDto {

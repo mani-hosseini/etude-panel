@@ -1,5 +1,6 @@
 import type { PaginationMeta } from "@/lib/api/http";
 import { adminHttp } from "@/lib/api/admin-tokens";
+import { fileUploadFormData } from "@/lib/api/upload-form";
 
 export type AdminUserEnrollment = {
   id: string;
@@ -17,6 +18,14 @@ export type AdminUserEnrollment = {
   };
 };
 
+export type AdminUserExamGrade = {
+  examId: string;
+  title: string;
+  status: "DRAFT" | "PUBLISHED" | "CLOSED";
+  score: number | null;
+  gradedAt: string | null;
+};
+
 export type AdminUserDetail = AdminUser & {
   enrollments: AdminUserEnrollment[];
   achievements: {
@@ -25,6 +34,7 @@ export type AdminUserDetail = AdminUser & {
     desc: string;
     earnedAt: string;
   }[];
+  examGrades?: AdminUserExamGrade[];
 };
 
 export type CreateStudentBody = {
@@ -239,8 +249,17 @@ export type AdminExamSubmission = {
   };
 };
 
+export type AdminExamRosterRow = {
+  student: AdminExamSubmission["student"];
+  submitted: boolean;
+  submission: AdminExamSubmission | null;
+  score: number | null;
+  gradedAt: string | null;
+};
+
 export type AdminExamDetail = AdminExam & {
   submissions: AdminExamSubmission[];
+  roster: AdminExamRosterRow[];
 };
 
 export type UpsertExamBody = {
@@ -571,15 +590,11 @@ export const adminApi = {
       `/admin/sessions/${sessionId}/attachments`,
     ),
 
-  uploadAttachment: (sessionId: string, file: File, caption?: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (caption?.trim()) formData.append("caption", caption.trim());
-    return adminHttp.upload<AdminAttachment>(
+  uploadAttachment: (sessionId: string, file: File, caption?: string) =>
+    adminHttp.upload<AdminAttachment>(
       `/admin/sessions/${sessionId}/attachments`,
-      formData,
-    );
-  },
+      fileUploadFormData(file, { caption }),
+    ),
 
   updateAttachment: (id: string, body: { caption?: string }) =>
     adminHttp.requestData<AdminAttachment>(`/admin/attachments/${id}`, {
@@ -603,15 +618,11 @@ export const adminApi = {
       `/admin/sessions/${sessionId}/exercises`,
     ),
 
-  uploadExercise: (sessionId: string, file: File, caption?: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (caption?.trim()) formData.append("caption", caption.trim());
-    return adminHttp.upload<AdminExercise>(
+  uploadExercise: (sessionId: string, file: File, caption?: string) =>
+    adminHttp.upload<AdminExercise>(
       `/admin/sessions/${sessionId}/exercises`,
-      formData,
-    );
-  },
+      fileUploadFormData(file, { caption }),
+    ),
 
   updateExercise: (id: string, body: { caption?: string }) =>
     adminHttp.requestData<AdminExercise>(`/admin/exercises/${id}`, {
@@ -753,20 +764,17 @@ export const adminApi = {
       method: "DELETE",
     }),
 
-  uploadExamFile: (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return adminHttp.upload<AdminExam>(`/admin/exams/${id}/exam-file`, formData);
-  },
+  uploadExamFile: (id: string, file: File) =>
+    adminHttp.upload<AdminExam>(
+      `/admin/exams/${id}/exam-file`,
+      fileUploadFormData(file),
+    ),
 
-  uploadExamAnswerFile: (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return adminHttp.upload<AdminExam>(
+  uploadExamAnswerFile: (id: string, file: File) =>
+    adminHttp.upload<AdminExam>(
       `/admin/exams/${id}/answer-file`,
-      formData,
-    );
-  },
+      fileUploadFormData(file),
+    ),
 
   downloadExamFile: (id: string) =>
     adminHttp.download(`/admin/exams/${id}/exam-file`),
@@ -778,4 +786,15 @@ export const adminApi = {
     adminHttp.download(
       `/admin/exams/${examId}/submissions/${submissionId}/file`,
     ),
+
+  updateExamGrade: (
+    examId: string,
+    body: { userId: string; score: number | null },
+  ) =>
+    adminHttp.requestData<{
+      examId: string;
+      userId: string;
+      score: number | null;
+      gradedAt: string | null;
+    }>(`/admin/exams/${examId}/grades`, { method: "PATCH", body }),
 };

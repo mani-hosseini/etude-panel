@@ -78,3 +78,32 @@ export function formatDateTimeFa(value: string | null | undefined): string {
     timeStyle: "short",
   }).format(date);
 }
+
+/** Exam grade is out of 100. */
+export const EXAM_SCORE_MAX = 100;
+
+export function formatExamScoreValue(score: number): string {
+  const raw = Number.isInteger(score) ? String(score) : score.toFixed(1);
+  return toFa(raw).replace(".", "٫");
+}
+
+export function formatExamScore(score: number | null | undefined): string {
+  if (score == null || !Number.isFinite(score)) return "—";
+  return `${formatExamScoreValue(score)} از ${toFa(EXAM_SCORE_MAX)}`;
+}
+
+export function displayPdfName(
+  name: string | null | undefined,
+  fallback: string,
+): string {
+  const trimmed = name?.trim();
+  if (!trimmed) return fallback;
+  if (
+    /^(exam|answer|submission|exercise|attachment|slide)-[a-z0-9]+-[a-f0-9]{6,}\.[a-z0-9]+$/i.test(
+      trimmed,
+    )
+  ) {
+    return fallback;
+  }
+  return trimmed;
+}

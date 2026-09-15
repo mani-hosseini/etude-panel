@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
@@ -21,6 +22,7 @@ import {
   type AuthUser,
 } from '../common/decorators/auth.decorators';
 import { pdfMulterOptions } from '../uploads/pdf-upload';
+import { UploadOriginalNameDto } from './dto/exams.dto';
 import { ExamsService } from './exams.service';
 
 @ApiTags('Exams')
@@ -70,6 +72,7 @@ export class ExamsController {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary' },
+        originalName: { type: 'string' },
       },
       required: ['file'],
     },
@@ -79,11 +82,12 @@ export class ExamsController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: UploadOriginalNameDto,
   ) {
     if (!file) {
       throw new BadRequestException('فایل PDF ارسال نشده است.');
     }
-    return this.exams.submitPdf(user.id, id, file);
+    return this.exams.submitPdf(user.id, id, file, body?.originalName);
   }
 
   @Get(':id/submission/file')

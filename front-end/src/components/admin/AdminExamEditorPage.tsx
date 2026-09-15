@@ -8,6 +8,7 @@ import { Download, FileText, Loader2, Search } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ExamPdfField } from "@/components/admin/exam/ExamPdfField";
+import { ExamGradeField } from "@/components/admin/exam/ExamGradeField";
 import {
   EXAM_STATUS_LABEL,
   type ExamStatusValue,
@@ -33,7 +34,7 @@ import {
 import { adminQueryKeys, useAdminExamQuery } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
 import { saveBlob } from "@/lib/download";
-import { formatBytes, formatDateTimeFa, toFa } from "@/lib/format";
+import { formatBytes, formatDateTimeFa, displayPdfName, toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
 type AdminExamEditorPageProps = {
@@ -138,16 +139,16 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
   });
 
   const detail = query.data as AdminExamDetail | undefined;
-  const filteredSubmissions = useMemo(() => {
-    const rows = detail?.submissions ?? [];
+  const roster = detail?.roster ?? [];
+  const filteredRoster = useMemo(() => {
     const q = search.trim();
-    if (!q) return rows;
-    return rows.filter((row) =>
-      `${row.student.displayName} ${row.student.studentCode ?? ""} ${row.originalName}`.includes(
+    if (!q) return roster;
+    return roster.filter((row) =>
+      `${row.student.displayName} ${row.student.studentCode ?? ""} ${row.submission?.originalName ?? ""}`.includes(
         q,
       ),
     );
-  }, [detail?.submissions, search]);
+  }, [roster, search]);
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -191,8 +192,8 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
           : await adminApi.downloadExamAnswerFile(examId);
       const name =
         kind === "exam"
-          ? detail?.examFileName || "exam.pdf"
-          : detail?.answerFileName || "answer-key.pdf";
+          ? displayPdfName(detail?.examFileName, "برگه-آزمون.pdf")
+          : displayPdfName(detail?.answerFileName, "پاسخ-نامه.pdf");
       saveBlob(blob, name);
     } catch (error) {
       setFormError(audienceError(error, "دانلود فایل انجام نشد."));
@@ -223,7 +224,7 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
       <AdminPageHeader
         eyebrow="ارزیابی هنرجویان"
         title={isNew ? "آزمون جدید" : title || "جزئیات آزمون"}
-        description="پاسخ‌نامه را می‌توانید زودتر منتشر کنید تا هنرجو پرینت بگیرد؛ بعد برگه سوالات را اضافه کنید. پاسخ PDF هنرجو فقط اینجا دیده می‌شود."
+        description="نمره میان‌ترم را حتی بدون PDF وارد کنید. اسم فایل آپلودی همان نام اصلی می‌ماند."
         backHref={adminRoutes.exams}
         backLabel="همه آزمون‌ها"
       />
@@ -277,7 +278,12 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
             <ExamPdfField
               label="پاسخ‌نامه"
               hint="همین فایل بعد از انتشار برای پرینت در دسترس هنرجو است؛ می‌توانید زودتر از برگه سوالات بفرستید."
-              fileName={answerFile?.name ?? detail?.answerFileName ?? null}
+              fileName={
+                answerFile?.name ??
+                (detail?.hasAnswerFile
+                  ? displayPdfName(detail.answerFileName, "پاسخ-نامه.pdf")
+                  : null)
+              }
               fileSize={answerFile?.size ?? detail?.answerFileSize ?? null}
               uploading={uploadAnswerFile.isPending}
               downloading={downloadingPaper === "answer"}
@@ -307,7 +313,12 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
             <ExamPdfField
               label="برگه سوالات"
               hint="بعد از آپلود و انتشار، هنرجو می‌تواند این PDF را دانلود و حل کند."
-              fileName={examFile?.name ?? detail?.examFileName ?? null}
+              fileName={
+                examFile?.name ??
+                (detail?.hasExamFile
+                  ? displayPdfName(detail.examFileName, "برگه-آزمون.pdf")
+                  : null)
+              }
               fileSize={examFile?.size ?? detail?.examFileSize ?? null}
               uploading={uploadExamFile.isPending}
               downloading={downloadingPaper === "exam"}
@@ -354,10 +365,11 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
           <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                پاسخ‌های ارسال‌شده
+                نمره همه هنرجویان
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
-                {toFa(detail?.submissionsCount ?? 0)} فایل PDF از هنرجویان
+                {toFa(roster.length)} هنرجو · {toFa(detail?.submissionsCount ?? 0)}{" "}
+                پاسخ PDF · نمره از ۱۰۰ حتی بدون فایل
               </p>
             </div>
             <div className="relative w-full sm:w-64">
@@ -370,25 +382,26 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
               />
             </div>
           </div>
-          {filteredSubmissions.length === 0 ? (
+          {filteredRoster.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <FileText className="size-8 text-slate-300" />
-              <p className="text-sm text-slate-500">هنوز فایلی ارسال نشده.</p>
+              <p className="text-sm text-slate-500">هنرجویی برای نمایش نیست.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[40rem] text-right text-sm">
+              <table className="w-full min-w-3xl text-right text-sm">
                 <thead className="bg-slate-50 text-xs text-slate-500">
                   <tr>
                     <th className="px-4 py-3 font-medium">هنرجو</th>
-                    <th className="px-4 py-3 font-medium">فایل</th>
+                    <th className="px-4 py-3 font-medium">پاسخ PDF</th>
                     <th className="px-4 py-3 font-medium">زمان ارسال</th>
+                    <th className="px-4 py-3 font-medium">نمره از ۱۰۰</th>
                     <th className="px-4 py-3 font-medium">دانلود</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSubmissions.map((row) => (
-                    <tr key={row.id} className="border-t border-slate-100">
+                  {filteredRoster.map((row) => (
+                    <tr key={row.student.id} className="border-t border-slate-100">
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-900">
                           {row.student.displayName}
@@ -398,39 +411,69 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
                         </p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="truncate text-slate-700">
-                          {row.originalName}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatBytes(row.size)}
-                        </p>
+                        {row.submission ? (
+                          <>
+                            <p className="truncate text-slate-700">
+                              {displayPdfName(
+                                row.submission.originalName,
+                                "پاسخ-آزمون.pdf",
+                              )}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {formatBytes(row.submission.size)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-slate-400">ارسال نشده</p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {formatDateTimeFa(row.submittedAt)}
+                        {row.submission
+                          ? formatDateTimeFa(row.submission.submittedAt)
+                          : "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="rounded-xl"
-                          disabled={downloadingId === row.id}
-                          onClick={() =>
-                            void downloadBlob(
-                              () =>
-                                adminApi.downloadExamSubmission(examId, row.id),
-                              row.originalName,
-                              row.id,
-                            )
-                          }
-                        >
-                          {downloadingId === row.id ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Download className="size-4" />
-                          )}
-                          دانلود
-                        </Button>
+                        <ExamGradeField
+                          examId={examId}
+                          userId={row.student.id}
+                          score={row.score}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        {row.submission ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            disabled={downloadingId === row.submission.id}
+                            onClick={() => {
+                              const submission = row.submission;
+                              if (!submission) return;
+                              void downloadBlob(
+                                () =>
+                                  adminApi.downloadExamSubmission(
+                                    examId,
+                                    submission.id,
+                                  ),
+                                displayPdfName(
+                                  submission.originalName,
+                                  "پاسخ-آزمون.pdf",
+                                ),
+                                submission.id,
+                              );
+                            }}
+                          >
+                            {downloadingId === row.submission.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Download className="size-4" />
+                            )}
+                            دانلود
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

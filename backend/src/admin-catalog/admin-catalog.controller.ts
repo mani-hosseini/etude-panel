@@ -153,6 +153,7 @@ export class AdminCatalogController {
       properties: {
         file: { type: 'string', format: 'binary' },
         caption: { type: 'string' },
+        originalName: { type: 'string' },
       },
       required: ['file'],
     },
@@ -166,7 +167,12 @@ export class AdminCatalogController {
     if (!file) {
       throw new BadRequestException('فایل تصویر ارسال نشده است.');
     }
-    return this.adminCatalog.createAttachment(sessionId, file, body?.caption);
+    return this.adminCatalog.createAttachment(
+      sessionId,
+      file,
+      body?.caption,
+      body?.originalName,
+    );
   }
 
   @Patch('attachments/:id')
@@ -208,6 +214,7 @@ export class AdminCatalogController {
       properties: {
         file: { type: 'string', format: 'binary' },
         caption: { type: 'string' },
+        originalName: { type: 'string' },
       },
       required: ['file'],
     },
@@ -221,7 +228,12 @@ export class AdminCatalogController {
     if (!file) {
       throw new BadRequestException('فایل تمرین ارسال نشده است.');
     }
-    return this.adminCatalog.createExercise(sessionId, file, body?.caption);
+    return this.adminCatalog.createExercise(
+      sessionId,
+      file,
+      body?.caption,
+      body?.originalName,
+    );
   }
 
   @Patch('exercises/:id')

@@ -62,7 +62,7 @@ export function AdminExamsPage() {
       <AdminPageHeader
         eyebrow="ارزیابی هنرجویان"
         title="آزمون‌ها"
-        description="پاسخ‌نامه و برگه سوالات را جداگانه آپلود کنید؛ پاسخ PDF هنرجویان فقط اینجا دیده می‌شود."
+        description="پاسخ‌نامه و برگه سوالات را جداگانه آپلود کنید؛ نمره هر هنرجو را از ۱۰۰ در جزئیات آزمون وارد کنید."
         actions={
           <Button asChild className="rounded-xl">
             <Link href={adminRoutes.examNew}>
