@@ -36,7 +36,7 @@ export function ExamGradeField({
   examId: string;
   userId: string;
   score: number | null;
-  invalidateKeys?: readonly unknown[][];
+  invalidateKeys?: readonly (readonly unknown[])[];
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => scoreToInput(score));
