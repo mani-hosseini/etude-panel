@@ -66,6 +66,8 @@ const PUBLIC_SLIDE_IMAGE_IDS = new Set([
 function slideImageSrc(slideId: string): string | null {
   const uploaded = resolveMediaUrl(slideId);
   if (uploaded) return uploaded;
+  // Explicit public files: /session_5/chromatic.png, /session_4/..., etc.
+  if (slideId.startsWith("/") && !slideId.startsWith("//")) return slideId;
   if (PUBLIC_SLIDE_IMAGE_IDS.has(slideId)) return `/slides/${slideId}.png`;
   return null;
 }

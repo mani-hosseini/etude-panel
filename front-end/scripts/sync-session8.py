@@ -1,0 +1,465 @@
+#!/usr/bin/env python3
+"""Push session-8 slides to the live admin API (no images)."""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+API = "https://api.etudepianoacademy.com/api/v1"
+ENV_PATH = Path("/home/mani/projects/all-etude/etude-panel/backend/.env")
+
+KIND_MAP = {
+    "cover": "COVER",
+    "lesson": "LESSON",
+    "visual": "VISUAL",
+    "outro": "OUTRO",
+}
+
+SLIDES = [
+    {
+        "sourceId": "welcome",
+        "kind": "cover",
+        "chapter": "۰۱",
+        "title": "جلسهٔ هشتم: مینور هارمونیک و ملودیک · آکوردهای سه‌صدایی",
+        "goal": "هنرجو باید بداند در این جلسه چه چیزی را قدم‌به‌قدم یاد می‌گیرد.",
+        "body": "اول دو شکل مهم گام مینور را از گام مبدأ لا مینور دقیق می‌بینیم: هارمونیک و ملودیک. بعد یاد می‌گیریم آکورد سادهٔ سه‌صدایی چیست و شش نوع رایج آن را یکی‌یکی با فرمول و مثال می‌سازیم.",
+        "bullets": [
+            "مینور هارمونیک و ملودیک از لا مینور",
+            "مینور هارمونیک: فقط درجهٔ ۷ بالا می‌رود",
+            "مینور ملودیک: در بالا رفتن ۶ و ۷ بالا می‌روند",
+            "شش آکورد: ماژور · مینور · کاسته · افزوده · Sus4 · Sus2",
+        ],
+        "terms": [
+            {"en": "A Minor", "fa": "لا مینور · گام مبدأ"},
+            {"en": "Harmonic / Melodic Minor", "fa": "مینور هارمونیک / ملودیک"},
+            {"en": "Triad", "fa": "سه‌صدایی / آکورد سه‌نتی"},
+        ],
+        "mistakes": [],
+    },
+    {
+        "sourceId": "minor-harmonic",
+        "kind": "lesson",
+        "chapter": "۰۲",
+        "title": "مینور هارمونیک",
+        "goal": "هنرجو بتواند مینور هارمونیک را از روی لا مینور تئوریک بسازد و بداند چرا درجهٔ هفتم بالا می‌رود.",
+        "body": "گام مبدأ را لا مینور تئوریک می‌گیریم: لا سی دو ر می فا سل لا. برای هارمونیک فقط درجهٔ هفتم را نیم‌پرده بالا ببرید؛ بقیهٔ نت‌ها دست‌نخورده می‌مانند. سل به سل‌دیز تبدیل می‌شود. این درجهٔ هفتمِ بالا‌رفته به تونیک لا نزدیک می‌شود و به آن نت راهنما (Leading Tone) می‌گوییم. بین درجهٔ ششم (فا) و هفتم (سل♯) فاصلهٔ ۱٫۵ پرده (سه نیم‌پرده) ساخته می‌شود که به آن دوم افزوده می‌گویند. لا مینور هارمونیک: لا سی دو ر می فا سل♯ لا.",
+        "bullets": [
+            "مبدأ: لا مینور تئوریک · لا سی دو ر می فا سل لا",
+            "فرمول: تئوریک + نیم‌پرده بالا بردن درجهٔ ۷",
+            "لا هارمونیک: لا سی دو ر می فا سل♯ لا",
+            "فاصلهٔ ۶→۷: فا تا سل♯ = ۱٫۵ پرده (دوم افزوده)",
+            "درجهٔ ۷ (سل♯) به تونیک لا می‌کشد",
+        ],
+        "terms": [
+            {"en": "A Harmonic Minor", "fa": "لا مینور هارمونیک"},
+            {"en": "Leading Tone", "fa": "نت راهنما · سل♯ به سمت لا"},
+            {"en": "Augmented Second", "fa": "دوم افزوده · فا تا سل♯"},
+        ],
+        "mistakes": [
+            "بالا بردن درجهٔ ششم (فا) به‌جای هفتم (سل)",
+            "فکر کردن که هارمونیک با تئوریک کاملاً فرق دارد؛ از لا فقط سل به سل♯ عوض می‌شود",
+        ],
+    },
+    {
+        "sourceId": "minor-melodic",
+        "kind": "lesson",
+        "chapter": "۰۳",
+        "title": "مینور ملودیک",
+        "goal": "هنرجو شکل بالا رونده و پایین‌روندهٔ لا مینور ملودیک را جداگانه بلد باشد.",
+        "body": "باز از لا مینور شروع می‌کنیم. در ملودیک، مسیر بالا و پایین یکسان نیست. هنگام بالا رفتن، درجات ششم و هفتم هر دو نیم‌پرده بالا می‌روند تا فاصلهٔ ۱٫۵ پرده‌ای هارمونیک حذف شود و ملودی نرم‌تر به لا برسد: فا به فا♯ و سل به سل♯. هنگام پایین آمدن معمولاً به شکل لا مینور تئوریک برمی‌گردیم. لا ملودیک بالا رونده: لا سی دو ر می فا♯ سل♯ لا. پایین‌رونده: لا سل فا می ر دو سی لا.",
+        "bullets": [
+            "مبدأ: لا مینور",
+            "↑ بالا رونده: درجات ۶ و ۷ بالا · فا♯ و سل♯",
+            "↑ لا ملودیک: لا سی دو ر می فا♯ سل♯ لا",
+            "↓ پایین‌رونده معمولاً = لا تئوریک",
+            "↓ لا ملودیک: لا سل فا می ر دو سی لا",
+        ],
+        "terms": [
+            {"en": "A Melodic Minor", "fa": "لا مینور ملودیک"},
+            {"en": "Ascending", "fa": "بالا رونده · فا♯ سل♯"},
+            {"en": "Descending", "fa": "پایین‌رونده · سل فا مثل تئوریک"},
+        ],
+        "mistakes": [
+            "یکسان نواختن بالا و پایین بدون توجه به سنت رایج",
+            "فقط سل را بالا بردن و فا را فراموش کردن در شکل ↑",
+        ],
+    },
+    {
+        "sourceId": "triads-intro",
+        "kind": "lesson",
+        "chapter": "۰۴",
+        "title": "آکورد سادهٔ سه‌صدایی چیست؟",
+        "goal": "هنرجو تعریف سه‌صدایی، نقش ریشه، و تفاوت انواع را بداند.",
+        "body": "آکورد یعنی چند نت که هم‌زمان شنیده می‌شوند. سه‌صدایی (Triad) ساده‌ترین آکورد کامل است و از سه نت ساخته می‌شود. نت پایین‌تر یا نت نام‌آکورد را ریشه (Root) می‌نامیم. در بیشتر آکوردها دو فاصله از ریشه می‌سازیم: یکی سوم و یکی پنجم. تغییر اندازهٔ این فاصله‌ها نوع آکورد را عوض می‌کند. Sus4 و Sus2 استثنا هستند: به‌جای سوم، فاصلهٔ چهارم یا دوم می‌گذارند.",
+        "bullets": [
+            "سه‌صدایی = سه نت هم‌زمان از یک ریشه",
+            "فرمول رایج: ریشه + سوم + پنجم",
+            "نوع آکورد = اندازهٔ سوم و پنجم",
+            "Susها: سوم ندارند · ۲ یا ۴ جایگزین سوم می‌شود",
+        ],
+        "terms": [
+            {"en": "Chord", "fa": "آکورد"},
+            {"en": "Triad", "fa": "سه‌صدایی"},
+            {"en": "Root", "fa": "ریشه / نت پایه"},
+        ],
+        "mistakes": [
+            "فکر کردن که هر سه نتِ پراکنده آکورد درست می‌سازند؛ ترتیب فاصله از ریشه مهم است",
+        ],
+    },
+    {
+        "sourceId": "major-chord",
+        "kind": "lesson",
+        "chapter": "۰۵",
+        "title": "آکورد ماژور",
+        "goal": "هنرجو بتواند آکورد ماژور را با نیم‌پرده‌ها و از روی گام ماژور بسازد.",
+        "body": "آکورد ماژور روشن و پایدار است. از ریشه تا نت وسط، فاصلهٔ سوم بزرگ است: ۴ نیم‌پرده (۲ پرده). از ریشه تا نت بالا، فاصلهٔ پنجم درست است: ۷ نیم‌پرده (۳٫۵ پرده). راه دیگر: در گام ماژور همان ریشه، درجات ۱ و ۳ و ۵ را با هم بنوازید. مثال دو ماژور: ریشه دو · سوم بزرگ می · پنجم درست سل → دو می سل (C).",
+        "bullets": [
+            "فرمول: ریشه + سوم بزرگ (۴ نیم‌پرده) + پنجم درست (۷ نیم‌پرده)",
+            "از گام ماژور: درجات ۱ · ۳ · ۵",
+            "مثال C: دو – می – سل",
+            "اگر می را نیم‌پرده پایین بیاورید، ماژور به مینور تبدیل می‌شود",
+        ],
+        "terms": [
+            {"en": "Major Chord / Triad", "fa": "آکورد / سه‌صدایی ماژور"},
+            {"en": "Major Third", "fa": "سوم بزرگ · ۴ نیم‌پرده"},
+            {"en": "Perfect Fifth", "fa": "پنجم درست · ۷ نیم‌پرده"},
+        ],
+        "mistakes": [
+            "گذاشتن سوم کوچک به‌جای سوم بزرگ",
+            "شمارش پرده به‌جای نیم‌پرده روی کیبورد",
+        ],
+    },
+    {
+        "sourceId": "minor-chord",
+        "kind": "lesson",
+        "chapter": "۰۶",
+        "title": "آکورد مینور",
+        "goal": "هنرجو بتواند آکورد مینور را بسازد و تفاوتش با ماژور را دقیق بگوید.",
+        "body": "آکورد مینور صدای نرم‌تر و غمگین‌تری از ماژور دارد. تنها تفاوت اصلی با ماژور در نت وسط است: اینجا سوم کوچک داریم، یعنی ۳ نیم‌پرده (۱٫۵ پرده) از ریشه. پنجم درست مثل ماژور می‌ماند: ۷ نیم‌پرده. راه دیگر: در گام مینور، درجات ۱ و ۳ و ۵ را با هم بنوازید. مثال اصلی از لا مینور: لا – دو – می (Am). مثال دیگر دو مینور: دو – می‌بمل – سل (Cm).",
+        "bullets": [
+            "فرمول: ریشه + سوم کوچک (۳ نیم‌پرده) + پنجم درست (۷ نیم‌پرده)",
+            "از گام مینور: درجات ۱ · ۳ · ۵",
+            "مثال Am از لا مینور: لا – دو – می",
+            "مقایسه با ماژور: فقط نت وسط نیم‌پرده پایین‌تر است",
+        ],
+        "terms": [
+            {"en": "Minor Chord / Triad", "fa": "آکورد / سه‌صدایی مینور"},
+            {"en": "A Minor Chord", "fa": "آکورد لا مینور · لا دو می"},
+            {"en": "Minor Third", "fa": "سوم کوچک · ۳ نیم‌پرده"},
+        ],
+        "mistakes": [
+            "ساختن مینور با سوم بزرگ",
+            "پایین آوردن پنجم به‌جای سوم وقتی می‌خواهید از ماژور به مینور بروید",
+        ],
+    },
+    {
+        "sourceId": "diminished-chord",
+        "kind": "lesson",
+        "chapter": "۰۷",
+        "title": "آکورد کاسته (Diminished)",
+        "goal": "هنرجو ساختار کاسته را با نیم‌پرده‌ها بداند و از مینور تشخیص دهد.",
+        "body": "آکورد کاسته تنگ و ناآرام است و حس نیاز به حل شدن دارد. از ریشه: سوم کوچک (۳ نیم‌پرده) و پنجم کاسته (۶ نیم‌پرده). یعنی نسبت به مینور، نت بالای آکورد هم نیم‌پرده پایین آمده است. می‌توانید آن را دو سوم کوچک پشت‌سرهم هم ببینید: از دو تا میb سه نیم‌پرده، از میb تا سلb سه نیم‌پرده. مثال: دو – می‌بمل – سل‌بمل (Cdim یا C°).",
+        "bullets": [
+            "فرمول: ریشه + سوم کوچک (۳) + پنجم کاسته (۶ نیم‌پرده)",
+            "دو سوم کوچک روی هم",
+            "نسبت به مینور: پنجم نیم‌پرده پایین‌تر",
+            "مثال Cdim: دو – میb – سلb",
+        ],
+        "terms": [
+            {"en": "Diminished Chord", "fa": "آکورد کاسته"},
+            {"en": "Diminished Fifth", "fa": "پنجم کاسته · ۶ نیم‌پرده"},
+            {"en": "° / dim", "fa": "نماد کاسته"},
+        ],
+        "mistakes": [
+            "گذاشتن پنجم درست مثل مینور و نامیدنش کاسته",
+            "بالا بردن پنجم به‌جای پایین آوردن آن",
+        ],
+    },
+    {
+        "sourceId": "augmented-chord",
+        "kind": "lesson",
+        "chapter": "۰۸",
+        "title": "آکورد افزوده (Augmented)",
+        "goal": "هنرجو ساختار افزوده را بداند و از ماژور تشخیص دهد.",
+        "body": "آکورد افزوده باز و معلق است. از ریشه: سوم بزرگ (۴ نیم‌پرده) و پنجم افزوده (۸ نیم‌پرده). یعنی نسبت به ماژور، فقط نت بالا نیم‌پرده بالاتر می‌رود. می‌توانید آن را دو سوم بزرگ پشت‌سرهم ببینید: از دو تا می چهار نیم‌پرده، از می تا سل♯ چهار نیم‌پرده. مثال: دو – می – سل‌دیز (Caug یا C+).",
+        "bullets": [
+            "فرمول: ریشه + سوم بزرگ (۴) + پنجم افزوده (۸ نیم‌پرده)",
+            "دو سوم بزرگ روی هم",
+            "نسبت به ماژور: پنجم نیم‌پرده بالاتر",
+            "مثال Caug: دو – می – سل♯",
+        ],
+        "terms": [
+            {"en": "Augmented Chord", "fa": "آکورد افزوده"},
+            {"en": "Augmented Fifth", "fa": "پنجم افزوده · ۸ نیم‌پرده"},
+            {"en": "+ / aug", "fa": "نماد افزوده"},
+        ],
+        "mistakes": [
+            "گذاشتن پنجم درست مثل ماژور و نامیدنش افزوده",
+            "پایین آوردن پنجم به‌جای بالا بردن آن",
+        ],
+    },
+    {
+        "sourceId": "sus4-chord",
+        "kind": "lesson",
+        "chapter": "۰۹",
+        "title": "آکورد Sus4",
+        "goal": "هنرجو بداند Sus4 سوم ندارد و چرا حس تعلیق می‌دهد.",
+        "body": "کلمهٔ Suspended یعنی معلق یا به تعویق افتاده. در Sus4 به‌جای درجهٔ سوم که آکورد را ماژور یا مینور می‌کند، چهارم درست می‌گذاریم: ۵ نیم‌پرده از ریشه. پنجم درست سر جایش می‌ماند: ۷ نیم‌پرده. چون سوم نداریم، آکورد نه کاملاً ماژور است نه مینور؛ معمولاً بعداً به ماژور یا مینور حل می‌شود. مثال Csus4: دو – فا – سل.",
+        "bullets": [
+            "فرمول: ریشه + چهارم درست (۵ نیم‌پرده) + پنجم درست (۷ نیم‌پرده)",
+            "سوم ندارد · پس نه ماژور است نه مینور",
+            "مثال Csus4: دو – فا – سل",
+            "تفاوت با ماژور C: می تبدیل شده به فا",
+        ],
+        "terms": [
+            {"en": "Sus4 / Suspended 4th", "fa": "ساس‌۴ · تعلیق با چهارم"},
+            {"en": "Perfect Fourth", "fa": "چهارم درست · ۵ نیم‌پرده"},
+            {"en": "Resolution", "fa": "حل شدن به ماژور یا مینور"},
+        ],
+        "mistakes": [
+            "گذاشتن هم‌زمان سوم و چهارم داخل Sus4",
+            "اشتباه گرفتن Sus4 با آکورد فا ماژور فقط چون فا دارد",
+        ],
+    },
+    {
+        "sourceId": "sus2-chord",
+        "kind": "lesson",
+        "chapter": "۱۰",
+        "title": "آکورد Sus2",
+        "goal": "هنرجو Sus2 را بسازد و تفاوت دقیق آن با Sus4 را بگوید.",
+        "body": "در Sus2 هم سوم نداریم، ولی به‌جای چهارم، دوم بزرگ می‌آید: ۲ نیم‌پرده (۱ پرده) بالاتر از ریشه. پنجم درست مثل قبل ۷ نیم‌پرده است. حس آن هم معلق است، اما نت وسط به ریشه نزدیک‌تر است. مثال Csus2: دو – ر – سل. تفاوت Sus2 و Sus4 فقط همان نت وسط است: ر در مقابل فا.",
+        "bullets": [
+            "فرمول: ریشه + دوم بزرگ (۲ نیم‌پرده) + پنجم درست (۷ نیم‌پرده)",
+            "سوم ندارد · مثل Sus4 معلق است",
+            "مثال Csus2: دو – ر – سل",
+            "Sus2 نت وسط نزدیک ریشه · Sus4 نت وسط دورتر (فا)",
+        ],
+        "terms": [
+            {"en": "Sus2 / Suspended 2nd", "fa": "ساس‌۲ · تعلیق با دوم"},
+            {"en": "Major Second", "fa": "دوم بزرگ · ۲ نیم‌پرده"},
+            {"en": "Sus2 vs Sus4", "fa": "تفاوت: ر در برابر فا از ریشهٔ دو"},
+        ],
+        "mistakes": [
+            "یکی دانستن Sus2 و Sus4",
+            "گذاشتن سوم کوچک یا بزرگ داخل Sus2",
+        ],
+    },
+    {
+        "sourceId": "chords-compare",
+        "kind": "lesson",
+        "chapter": "۱۱",
+        "title": "جدول مقایسه از ریشهٔ دو",
+        "goal": "هنرجو بتواند هر شش آکورد را از یک ریشه با فرمول بازسازی کند.",
+        "body": "همه را از ریشهٔ دو بسازید تا تفاوت‌ها دیده شود. اول چهار آکوردی که سوم دارند، بعد دو آکورد معلق.",
+        "bullets": [
+            "C ماژور: دو می سل · سوم بزرگ + ۵ درست",
+            "C مینور: دو میb سل · سوم کوچک + ۵ درست",
+            "C کاسته: دو میb سلb · سوم کوچک + ۵ کاسته",
+            "C افزوده: دو می سل♯ · سوم بزرگ + ۵ افزوده",
+            "Csus4: دو فا سل · ۴ درست + ۵ درست · بدون سوم",
+            "Csus2: دو ر سل · ۲ بزرگ + ۵ درست · بدون سوم",
+        ],
+        "terms": [
+            {"en": "Triad Qualities", "fa": "صفات سه‌صدایی"},
+            {"en": "Semitone count", "fa": "شمارش نیم‌پرده از ریشه"},
+        ],
+        "mistakes": [
+            "حفظ کردن فقط نام‌ها بدون مثال نت",
+            "فراموش کردن اینکه Susها سوم ندارند",
+        ],
+    },
+    {
+        "sourceId": "summary",
+        "kind": "outro",
+        "chapter": "۱۲",
+        "title": "جمع‌بندی جلسهٔ هشتم",
+        "goal": "هنرجو مسیر جلسه را با فرمول‌های کوتاه مرور کند.",
+        "body": "از لا مینور، هارمونیک فقط درجهٔ ۷ را به سل♯ بالا می‌برد و دوم افزوده می‌سازد. ملودیک در بالا رفتن فا♯ و سل♯ می‌گیرد و در پایین آمدن معمولاً تئوریک می‌شود. سه‌صدایی‌ها با تغییر سوم و پنجم، یا جایگزینی سوم با ۲ یا ۴، شش شکل رایج می‌سازند.",
+        "bullets": [
+            "لا هارمونیک: لا سی دو ر می فا سل♯ لا",
+            "لا ملودیک ↑: … فا♯ سل♯ · ↓ معمولاً تئوریک",
+            "ماژور ۴+۷ · مینور ۳+۷ · کاسته ۳+۶ · افزوده ۴+۸ نیم‌پرده",
+            "Sus4: ۵+۷ · Sus2: ۲+۷ · هر دو بدون سوم",
+        ],
+        "terms": [
+            {"en": "A Minor", "fa": "لا مینور"},
+            {"en": "Harmonic / Melodic Minor", "fa": "مینور هارمونیک / ملودیک"},
+            {"en": "Triad", "fa": "سه‌صدایی"},
+        ],
+        "mistakes": [
+            "اشتباه گرفتن کاسته با مینور یا افزوده با ماژور",
+            "یکی دانستن Sus2 و Sus4",
+        ],
+    },
+]
+
+
+def load_env() -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in ENV_PATH.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, raw = line.split("=", 1)
+        values[key.strip()] = raw.strip().strip('"').strip("'")
+    return values
+
+
+def req(method: str, path: str, token: str | None = None, data=None):
+    headers = {"Accept": "application/json"}
+    body = None
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(data, ensure_ascii=False).encode()
+    request = urllib.request.Request(
+        API + path, data=body, headers=headers, method=method
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as err:
+        payload = err.read().decode()
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError:
+            parsed = {"raw": payload}
+        print(f"HTTP {err.code} {method} {path}", file=sys.stderr)
+        print(json.dumps(parsed, ensure_ascii=False)[:1000], file=sys.stderr)
+        raise SystemExit(1)
+
+
+def payload_for_write(slide: dict) -> dict:
+    return {
+        "sourceId": slide["sourceId"],
+        "chapter": slide["chapter"],
+        "title": slide["title"],
+        "goal": slide.get("goal") or "",
+        "body": slide["body"],
+        "bullets": slide.get("bullets") or [],
+        "terms": slide.get("terms") or [],
+        "mistakes": slide.get("mistakes") or [],
+        "kind": KIND_MAP[slide["kind"]],
+        "imageHint": "",
+        "imageId": "",
+        "funFact": "",
+    }
+
+
+def main() -> None:
+    dry = "--dry-run" in sys.argv
+    env = load_env()
+    email = os.environ.get("SEED_ADMIN_EMAIL") or env.get("SEED_ADMIN_EMAIL")
+    password = os.environ.get("SEED_ADMIN_PASSWORD") or env.get("SEED_ADMIN_PASSWORD")
+    if not email or not password:
+        raise SystemExit("Admin credentials missing in backend/.env")
+
+    login = req(
+        "POST",
+        "/auth/admin/login",
+        data={"email": email, "password": password},
+    )
+    token = login["data"]["accessToken"]
+    print("admin login: ok")
+
+    course = req("GET", "/admin/courses/theory-basics", token=token)["data"]
+    session = next(
+        (s for s in course.get("sessions") or [] if s.get("number") == 8), None
+    )
+    if not session:
+        raise SystemExit("session 8 not found on theory-basics")
+
+    session_id = session["id"]
+    print(f"session 8 id: {session_id}")
+
+    if dry:
+        print(f"dry-run: would sync {len(SLIDES)} slides")
+        for i, slide in enumerate(SLIDES, 1):
+            print(f"  {i:02d}  {slide['sourceId']:<28}  {slide['kind']:<7}  {slide['title']}")
+        return
+
+    req(
+        "PATCH",
+        f"/admin/sessions/{session_id}",
+        token=token,
+        data={
+            "title": "مینور هارمونیک و ملودیک · آکوردهای سه‌صدایی",
+            "summary": "لا مینور هارمونیک و ملودیک، و شش آکورد ساده: ماژور، مینور، کاسته، افزوده، Sus4 و Sus2.",
+            "topics": [
+                "لا مینور هارمونیک و ملودیک",
+                "آکورد ماژور و مینور",
+                "کاسته · افزوده · Sus4 · Sus2",
+            ],
+            "status": "AVAILABLE",
+            "durationLabel": "۱۲۰ دقیقه",
+            "dateLabel": "فعال",
+        },
+    )
+    print("updated session metadata → AVAILABLE")
+
+    existing = req("GET", f"/admin/sessions/{session_id}/slides", token=token)[
+        "data"
+    ]["slides"]
+    by_source = {s.get("sourceId"): s for s in existing}
+    print(f"existing slides: {len(existing)}")
+
+    want_sources = {s["sourceId"] for s in SLIDES}
+    for old in existing:
+        source = old.get("sourceId")
+        if source not in want_sources:
+            req("DELETE", f"/admin/slides/{old['id']}", token=token)
+            print(f"deleted stale {source}")
+
+    for index, slide in enumerate(SLIDES, start=1):
+        body = payload_for_write(slide)
+        body["sortOrder"] = index
+        existing_row = by_source.get(slide["sourceId"])
+        if existing_row:
+            req(
+                "PATCH",
+                f"/admin/slides/{existing_row['id']}",
+                token=token,
+                data=body,
+            )
+            print(f"updated {slide['sourceId']}")
+        else:
+            req(
+                "POST",
+                f"/admin/sessions/{session_id}/slides",
+                token=token,
+                data=body,
+            )
+            print(f"created {slide['sourceId']}")
+
+    final = req("GET", f"/admin/sessions/{session_id}/slides", token=token)["data"][
+        "slides"
+    ]
+    by_source = {s.get("sourceId"): s for s in final}
+    ordered_ids = [by_source[s["sourceId"]]["id"] for s in SLIDES]
+    req(
+        "POST",
+        f"/admin/sessions/{session_id}/slides/reorder",
+        token=token,
+        data={"slideIds": ordered_ids},
+    )
+    print("reordered")
+
+    final = req("GET", f"/admin/sessions/{session_id}/slides", token=token)["data"][
+        "slides"
+    ]
+    print(f"final slides: {len(final)}")
+    for slide in final:
+        print(
+            f"  {slide.get('sortOrder'):02d}  {slide.get('sourceId'):<28}  "
+            f"{slide.get('kind'):<7}  {slide.get('title')}"
+        )
+
+
+if __name__ == "__main__":
+    main()
