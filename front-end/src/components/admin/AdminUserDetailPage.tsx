@@ -1,23 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-<<<<<<< HEAD
-import { Eye, EyeOff, Save } from "lucide-react";
+import { ClipboardCheck, Eye, EyeOff, Save } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminStudentCoursesPanel } from "@/components/admin/AdminStudentCoursesPanel";
 import { AdminTeacherCoursesPanel } from "@/components/admin/AdminTeacherCoursesPanel";
-=======
-import { BookOpen, ClipboardCheck, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
-
-import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ExamGradeField } from "@/components/admin/exam/ExamGradeField";
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
->>>>>>> origin/main
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,16 +23,11 @@ import { StudentLevelSelect } from "@/components/admin/StudentLevelSelect";
 import { announceSaved } from "@/lib/save-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
-<<<<<<< HEAD
-import { adminQueryKeys, useAdminUserQuery } from "@/lib/api/admin-queries";
-=======
 import {
   adminQueryKeys,
-  useAdminCoursesQuery,
   useAdminExamsQuery,
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
->>>>>>> origin/main
 import { audienceError } from "@/lib/api/errors";
 import { parseStudentLevel } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
@@ -312,26 +300,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const userQuery = useAdminUserQuery(userId);
-<<<<<<< HEAD
-=======
-  const coursesQuery = useAdminCoursesQuery({ limit: 100, isActive: true });
   const examsQuery = useAdminExamsQuery(USER_EXAMS_PARAMS);
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const enrolledSlugs = useMemo(
-    () => new Set(userQuery.data?.enrollments.map((e) => e.course.id) ?? []),
-    [userQuery.data?.enrollments],
-  );
-
-  const availableCourses = useMemo(
-    () =>
-      (coursesQuery.data?.courses ?? []).filter(
-        (course) => !enrolledSlugs.has(course.slug),
-      ),
-    [coursesQuery.data?.courses, enrolledSlugs],
-  );
->>>>>>> origin/main
 
   const gradeRows = useMemo(() => {
     const exams = examsQuery.data?.exams ?? [];
@@ -468,12 +437,6 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       />
 
       {isStudent ? (
-<<<<<<< HEAD
-        <AdminStudentCoursesPanel
-          userId={user.id}
-          enrollments={user.enrollments}
-        />
-=======
         <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <h3 className="text-sm font-bold text-slate-900">نمره میان‌ترم</h3>
@@ -481,7 +444,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
               نمره از ۱۰۰ را همین‌جا وارد کنید؛ لازم نیست هنرجو PDF فرستاده باشد.
             </p>
           </div>
-          {(examsQuery.isPending && gradeRows.length === 0) ? (
+          {examsQuery.isPending && gradeRows.length === 0 ? (
             <div className="space-y-3 px-5 py-4">
               <Skeleton className="h-12 rounded-xl" />
               <Skeleton className="h-12 rounded-xl" />
@@ -522,107 +485,10 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       ) : null}
 
       {isStudent ? (
-        <Card className="rounded-2xl border-slate-200 shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-sm font-bold text-slate-900">
-              دسترسی به دوره‌ها
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              هنرجو فقط به دوره‌هایی که اینجا اضافه کنید دسترسی دارد.
-            </p>
-          </div>
-
-          <div className="space-y-4 p-5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">
-                  افزودن دوره
-                </label>
-                <Select
-                  value={selectedCourse}
-                  onValueChange={setSelectedCourse}
-                  disabled={enroll.isPending || coursesQuery.isPending}
-                >
-                  <SelectTrigger className="rounded-xl bg-white">
-                    <SelectValue placeholder="انتخاب دوره…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCourses.length === 0 ? (
-                      <SelectItem value="_none" disabled>
-                        دوره‌ای برای افزودن نیست
-                      </SelectItem>
-                    ) : (
-                      availableCourses.map((course) => (
-                        <SelectItem key={course.id} value={course.slug}>
-                          {course.title}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="button"
-                className="rounded-xl"
-                disabled={!selectedCourse || enroll.isPending}
-                onClick={() => enroll.mutate(selectedCourse)}
-              >
-                <Plus className="size-4" />
-                افزودن دسترسی
-              </Button>
-            </div>
-
-            {user.enrollments.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                <BookOpen className="mx-auto mb-2 size-8 text-slate-300" />
-                این هنرجو هنوز به هیچ دوره‌ای دسترسی ندارد.
-              </div>
-            ) : (
-              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-                {user.enrollments.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900">
-                        {item.course.title}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {item.course.teacher} · {item.course.instrument}
-                      </p>
-                      <div className="mt-3 max-w-xs space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px] text-slate-500">
-                          <span>پیشرفت دوره</span>
-                          <span className="font-sans font-semibold tabular-nums text-brand">
-                            {toFa(item.progress ?? 0)}٪
-                          </span>
-                        </div>
-                        <Progress value={item.progress ?? 0} />
-                        <p className="text-[11px] text-slate-400">
-                          {toFa(item.sessionsDone ?? 0)} از{" "}
-                          {toFa(item.sessionsTotal ?? 0)} جلسه
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="rounded-xl text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      disabled={unenroll.isPending}
-                      onClick={() => unenroll.mutate(item.course.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                      حذف دسترسی
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Card>
->>>>>>> origin/main
+        <AdminStudentCoursesPanel
+          userId={user.id}
+          enrollments={user.enrollments}
+        />
       ) : null}
 
       {isTeacher ? (

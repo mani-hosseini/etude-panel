@@ -14,12 +14,8 @@ import {
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
-<<<<<<< HEAD
-import { routes } from "@/lib/routes";
-import { decodeCourseParam } from "@/lib/slug";
-=======
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
->>>>>>> origin/main
+import { decodeCourseParam } from "@/lib/slug";
 import { toDeckSlides } from "@/lib/slides";
 
 function parsePlayView(value: string | null): SessionPlayViewKind {
@@ -37,15 +33,9 @@ export function SessionPlayView({
   courseId,
 }: SessionPlayViewProps) {
   const searchParams = useSearchParams();
-<<<<<<< HEAD
-  const view =
-    searchParams.get("view") === "attachments" ? "attachments" : "slides";
+  const view = parsePlayView(searchParams.get("view"));
   const paramCourseId = decodeCourseParam(courseId) ?? courseId;
   const sessionQuery = useSessionQuery(sessionId, paramCourseId);
-=======
-  const view = parsePlayView(searchParams.get("view"));
-  const sessionQuery = useSessionQuery(sessionId, courseId);
->>>>>>> origin/main
   const contentEnabled =
     sessionQuery.isSuccess && sessionQuery.data.status === "available";
   const slidesQuery = useSessionSlidesQuery(
@@ -60,7 +50,7 @@ export function SessionPlayView({
   );
   const exercisesQuery = useSessionExercisesQuery(
     sessionId,
-    courseId,
+    paramCourseId,
     contentEnabled && view === "exercises",
   );
 

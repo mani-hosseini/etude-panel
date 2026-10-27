@@ -315,6 +315,41 @@ export class CatalogService {
     };
   }
 
+  async getSessionExercises(
+    userId: string,
+    idOrNumber: string,
+    courseId?: string,
+  ) {
+    const course = courseId
+      ? await this.findEnrolledCourse(userId, courseId)
+      : await this.findCourseForSession(userId, idOrNumber);
+    const session = await this.findSession(course.id, idOrNumber);
+
+    await this.assertSessionVisible(userId, session);
+
+    const exercises = await this.prisma.sessionExercise.findMany({
+      where: { sessionId: session.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return {
+      courseId: course.slug,
+      courseTitle: course.title,
+      sessionId: session.id,
+      sessionNumber: session.number,
+      total: exercises.length,
+      exercises: exercises.map((exercise) => ({
+        id: exercise.id,
+        path: exercise.path,
+        caption: exercise.caption ?? undefined,
+        filename: exercise.filename,
+        mimeType: exercise.mimeType,
+        size: exercise.size,
+        sortOrder: exercise.sortOrder,
+      })),
+    };
+  }
+
   async getSchedule(userId: string, courseId?: string) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)

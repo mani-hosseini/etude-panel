@@ -9,6 +9,7 @@ import type {
   CourseCard,
   ApiSlide,
   SessionAttachment,
+  SessionExercise,
   StudentExam,
   ExamSubmissionSummary,
   StudentAssignment,
@@ -143,6 +144,17 @@ export const api = {
       slug
         ? `/sessions/${id}/attachments?courseId=${encodeURIComponent(slug)}`
         : `/sessions/${id}/attachments`,
+    ),
+  sessionExercises: (id: string, courseId?: string) =>
+    requestWithCourseFallback<{
+      sessionId: string;
+      total: number;
+      exercises: SessionExercise[];
+      courseTitle?: string;
+    }>(courseId, (slug) =>
+      slug
+        ? `/sessions/${id}/exercises?courseId=${encodeURIComponent(slug)}`
+        : `/sessions/${id}/exercises`,
     ),
   schedule: (courseId?: string) =>
     requestWithCourseFallback<SchedulePayload>(courseId, (slug) =>

@@ -1,5 +1,6 @@
 import type { PaginationMeta } from "@/lib/api/http";
 import { adminHttp } from "@/lib/api/admin-tokens";
+import { fileUploadFormData } from "@/lib/api/upload-form";
 
 export type AdminUserEnrollment = {
   id: string;
@@ -21,6 +22,14 @@ export type AdminUserEnrollment = {
   };
 };
 
+export type AdminUserExamGrade = {
+  examId: string;
+  title: string;
+  status: "DRAFT" | "PUBLISHED" | "CLOSED";
+  score: number | null;
+  gradedAt: string | null;
+};
+
 export type AdminUserDetail = AdminUser & {
   enrollments: AdminUserEnrollment[];
   taughtCourses?: AdminTaughtCourse[];
@@ -30,6 +39,7 @@ export type AdminUserDetail = AdminUser & {
     desc: string;
     earnedAt: string;
   }[];
+  examGrades?: AdminUserExamGrade[];
 };
 
 export type CreateStudentBody = {
@@ -176,6 +186,7 @@ export type AdminSession = {
   timeLabel?: string;
   slideCount: number;
   attachmentCount?: number;
+  exerciseCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -192,6 +203,8 @@ export type AdminAttachment = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type AdminExercise = AdminAttachment;
 
 export type AdminSlideTerm = { en: string; fa: string };
 
@@ -275,8 +288,17 @@ export type AdminExamSubmission = {
   };
 };
 
+export type AdminExamRosterRow = {
+  student: AdminExamSubmission["student"];
+  submitted: boolean;
+  submission: AdminExamSubmission | null;
+  score: number | null;
+  gradedAt: string | null;
+};
+
 export type AdminExamDetail = AdminExam & {
   submissions: AdminExamSubmission[];
+  roster: AdminExamRosterRow[];
 };
 
 export type UpsertExamBody = {
@@ -698,6 +720,34 @@ export const adminApi = {
       { method: "POST", body: { attachmentIds } },
     ),
 
+  exercises: (sessionId: string) =>
+    adminHttp.requestData<{ exercises: AdminExercise[] }>(
+      `/admin/sessions/${sessionId}/exercises`,
+    ),
+
+  uploadExercise: (sessionId: string, file: File, caption?: string) =>
+    adminHttp.upload<AdminExercise>(
+      `/admin/sessions/${sessionId}/exercises`,
+      fileUploadFormData(file, { caption }),
+    ),
+
+  updateExercise: (id: string, body: { caption?: string }) =>
+    adminHttp.requestData<AdminExercise>(`/admin/exercises/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  deleteExercise: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/admin/exercises/${id}`, {
+      method: "DELETE",
+    }),
+
+  reorderExercises: (sessionId: string, exerciseIds: string[]) =>
+    adminHttp.requestData<{ exercises: AdminExercise[] }>(
+      `/admin/sessions/${sessionId}/exercises/reorder`,
+      { method: "POST", body: { exerciseIds } },
+    ),
+
   schedule: (courseId: string) =>
     adminHttp.requestData<{ lessons: AdminScheduleLesson[] }>(
       `/admin/courses/${courseId}/schedule`,
@@ -846,4 +896,15 @@ export const adminApi = {
     adminHttp.download(
       `/admin/exams/${examId}/submissions/${submissionId}/file`,
     ),
+
+  updateExamGrade: (
+    examId: string,
+    body: { userId: string; score: number | null },
+  ) =>
+    adminHttp.requestData<{
+      examId: string;
+      userId: string;
+      score: number | null;
+      gradedAt: string | null;
+    }>(`/admin/exams/${examId}/grades`, { method: "PATCH", body }),
 };

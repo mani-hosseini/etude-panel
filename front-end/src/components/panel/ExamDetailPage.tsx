@@ -23,17 +23,13 @@ import { api } from "@/lib/api/client";
 import { audienceError } from "@/lib/api/errors";
 import { queryKeys, useExamQuery } from "@/lib/api/queries";
 import { saveBlob } from "@/lib/download";
-<<<<<<< HEAD
-import { formatBytes, formatDateTimeFa } from "@/lib/format";
-import { announceSaved } from "@/lib/save-feedback";
-=======
 import {
   displayPdfName,
   formatBytes,
   formatDateTimeFa,
   formatExamScore,
 } from "@/lib/format";
->>>>>>> origin/main
+import { announceSaved } from "@/lib/save-feedback";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 

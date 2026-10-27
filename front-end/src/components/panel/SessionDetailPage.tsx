@@ -24,14 +24,9 @@ import {
   useSessionsQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
-<<<<<<< HEAD
 import { executionScoreLabel, toFa } from "@/lib/format";
-import { routes } from "@/lib/routes";
-import { decodeCourseParam } from "@/lib/slug";
-=======
-import { toFa } from "@/lib/format";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
->>>>>>> origin/main
+import { decodeCourseParam } from "@/lib/slug";
 import { toDeckSlides } from "@/lib/slides";
 
 function parseWorkspaceView(value: string | null): SessionWorkspaceView {
@@ -40,8 +35,8 @@ function parseWorkspaceView(value: string | null): SessionWorkspaceView {
 }
 
 function playViewOf(view: SessionWorkspaceView): SessionPlayViewKind | undefined {
-  if (view === "attachments") return "attachments";
-  return undefined;
+  if (view === "slides") return undefined;
+  return view;
 }
 
 export function SessionDetailPage({
@@ -54,14 +49,8 @@ export function SessionDetailPage({
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
-<<<<<<< HEAD
   const queryCourseId = decodeCourseParam(searchParams.get("courseId"));
-  const viewParam =
-    searchParams.get("view") === "attachments" ? "attachments" : "slides";
-=======
-  const queryCourseId = searchParams.get("courseId");
   const viewParam = parseWorkspaceView(searchParams.get("view"));
->>>>>>> origin/main
   const [workspaceView, setWorkspaceView] =
     useState<SessionWorkspaceView>(viewParam);
 
@@ -167,7 +156,6 @@ export function SessionDetailPage({
     course?.title ??
     "دوره";
   const sessionLabel = `جلسه ${toFa(session.number)}`;
-<<<<<<< HEAD
   const sessionWork =
     session.homework && session.homework.length > 0
       ? session.homework
@@ -193,10 +181,9 @@ export function SessionDetailPage({
       courseId={pathCourseId}
       sessions={sessions}
       currentNumber={session.number}
-      view={workspaceView === "attachments" ? "attachments" : undefined}
+      view={workspaceView === "slides" ? undefined : workspaceView}
     />
   );
-=======
   const selectView = (view: SessionWorkspaceView) => {
     setWorkspaceView(view);
     if (!pathCourseId) return;
@@ -209,7 +196,6 @@ export function SessionDetailPage({
       { scroll: false },
     );
   };
->>>>>>> origin/main
 
   if (session.status !== "available") {
     const absent = session.attendanceStatus === "absent";
@@ -293,11 +279,7 @@ export function SessionDetailPage({
             </div>
           ) : null}
         </div>
-<<<<<<< HEAD
-        {pathCourseId && slides.length > 0 ? (
-=======
         {pathCourseId && workspaceView !== "exercises" ? (
->>>>>>> origin/main
           <Link
             href={routes.courseSessionPlay(
               pathCourseId,

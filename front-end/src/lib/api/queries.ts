@@ -21,13 +21,10 @@ export const queryKeys = {
     ["session-slides", courseId ?? "primary", sessionId] as const,
   sessionAttachments: (sessionId: string, courseId?: string) =>
     ["session-attachments", courseId ?? "primary", sessionId] as const,
-<<<<<<< HEAD
-=======
   sessionExercises: (sessionId: string, courseId?: string) =>
     ["session-exercises", courseId ?? "primary", sessionId] as const,
   schedule: (courseId?: string) =>
     ["schedule", courseId ?? "primary"] as const,
->>>>>>> origin/main
   profile: ["profile"] as const,
   exams: ["exams"] as const,
   exam: (id: string) => ["exam", id] as const,
@@ -105,28 +102,27 @@ export function useSessionAttachmentsQuery(
   });
 }
 
-<<<<<<< HEAD
-=======
 export function useSessionExercisesQuery(
   sessionId: string,
   courseId?: string,
   enabled = true,
 ) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessionExercises(sessionId, courseId),
-    queryFn: () => api.sessionExercises(sessionId, courseId),
+    queryKey: queryKeys.sessionExercises(sessionId, id),
+    queryFn: () => api.sessionExercises(sessionId, id),
     enabled,
   });
 }
 
 export function useScheduleQuery(courseId?: string) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.schedule(courseId),
-    queryFn: () => api.schedule(courseId),
+    queryKey: queryKeys.schedule(id),
+    queryFn: () => api.schedule(id),
   });
 }
 
->>>>>>> origin/main
 export function useProfileQuery() {
   return useQuery({
     queryKey: queryKeys.profile,

@@ -128,7 +128,6 @@ export function formatDateTimeFa(value: string | null | undefined): string {
   }).format(date);
 }
 
-<<<<<<< HEAD
 export function hasExecutionScore(score?: number | null): boolean {
   return (score ?? 0) > 0;
 }
@@ -138,7 +137,8 @@ export function executionScoreLabel(score?: number | null): string {
     return "نمره بعد از اجرا در کلاس ثبت می‌شود";
   }
   return `امتیاز اجرا ${toFa(score ?? 0)} از ۱۰۰`;
-=======
+}
+
 /** Exam grade is out of 100. */
 export const EXAM_SCORE_MAX = 100;
 
@@ -166,5 +166,4 @@ export function displayPdfName(
     return fallback;
   }
   return trimmed;
->>>>>>> origin/main
 }

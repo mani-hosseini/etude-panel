@@ -199,6 +199,16 @@ export type SessionAttachment = {
   sortOrder: number;
 };
 
+export type SessionExercise = {
+  id: string;
+  path: string;
+  caption?: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  sortOrder: number;
+};
+
 export type ExamStatus = "DRAFT" | "PUBLISHED" | "CLOSED";
 
 export type ExamSubmissionSummary = {
@@ -286,5 +296,7 @@ export type StudentExam = {
   hasAnswerFile: boolean;
   answerFileName: string | null;
   answerFileSize: number | null;
+  score: number | null;
+  gradedAt: string | null;
   submission: ExamSubmissionSummary | null;
 };

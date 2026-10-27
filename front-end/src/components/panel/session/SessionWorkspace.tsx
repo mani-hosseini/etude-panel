@@ -5,11 +5,11 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AttachmentGallery } from "@/components/panel/session/AttachmentGallery";
 import { ExerciseGallery } from "@/components/panel/session/ExerciseGallery";
 import { SlideDeck } from "@/components/slides/SlideDeck";
-<<<<<<< HEAD
-import type { SessionAttachment, SessionHomeworkItem } from "@/lib/api/types";
-=======
-import type { SessionAttachment, SessionExercise } from "@/lib/api/types";
->>>>>>> origin/main
+import type {
+  SessionAttachment,
+  SessionExercise,
+  SessionHomeworkItem,
+} from "@/lib/api/types";
 import type { Slide } from "@/lib/session-1-slides";
 
 export type SessionWorkspaceView = "slides" | "attachments" | "exercises";
