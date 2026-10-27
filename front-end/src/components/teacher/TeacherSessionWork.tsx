@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,10 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { audienceError } from "@/lib/api/errors";
 import {
   studioApi,
@@ -34,6 +34,59 @@ const CLASS_MARKS = [
 
 const AXES = ["تکنیک", "تئوری موسیقی", "قطعه", "سلفژ"] as const;
 type Axis = (typeof AXES)[number];
+
+const ADD_TITLE_VALUE = "__add_title__";
+const EMPTY_TITLE_VALUE = "__empty_title__";
+const TITLES_STORAGE_KEY = "etude-exercise-titles-v1";
+
+const DEFAULT_TITLES: Record<Axis, string[]> = {
+  تکنیک: ["بیر", "چرنی ۵۹۹", "چرنی ۲۹۹", "کلاسیک فاوریز", "گام و آرپژ"],
+  "تئوری موسیقی": [
+    "تئوری موسیقی پرویز منصوری",
+    "کتاب هارمونی دوبوفسکی",
+  ],
+  قطعه: [],
+  سلفژ: ["پوزولی", "فونتن"],
+};
+
+function emptyCustomTitles(): Record<Axis, string[]> {
+  return { تکنیک: [], "تئوری موسیقی": [], قطعه: [], سلفژ: [] };
+}
+
+function readCustomTitles(): Record<Axis, string[]> {
+  const fallback = emptyCustomTitles();
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(TITLES_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<Record<Axis, unknown>>;
+    for (const axis of AXES) {
+      const list = parsed[axis];
+      if (!Array.isArray(list)) continue;
+      fallback[axis] = list
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  } catch {
+    return emptyCustomTitles();
+  }
+  return fallback;
+}
+
+function uniqueTitles(...groups: string[][]) {
+  const seen = new Set<string>();
+  const list: string[] = [];
+  for (const group of groups) {
+    for (const item of group) {
+      const value = item.trim();
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      list.push(value);
+    }
+  }
+  return list;
+}
 
 type AttendanceStatus = (typeof CLASS_MARKS)[number]["id"];
 
@@ -71,9 +124,18 @@ export function TeacherSessionWork({
   const [category, setCategory] = useState<Axis>("تکنیک");
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("");
-  const [note, setNote] = useState("");
+  const [customTitles, setCustomTitles] = useState<Record<Axis, string[]>>(
+    emptyCustomTitles,
+  );
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false);
+  const [addingTitle, setAddingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCustomTitles(readCustomTitles());
+  }, []);
 
   const currentAttendance = useMemo(
     () => (session?.attendance as AttendanceStatus | null) ?? null,
@@ -83,6 +145,60 @@ export function TeacherSessionWork({
   const nextAssignments = assignments.filter(
     (item) => item.sessionId === homeworkSession?.id,
   );
+
+  const titleOptions = useMemo(
+    () =>
+      uniqueTitles(
+        DEFAULT_TITLES[category],
+        customTitles[category],
+        assignments
+          .filter((item) => item.category === category)
+          .map((item) => item.title),
+      ),
+    [assignments, category, customTitles],
+  );
+
+  const persistCustomTitle = (axis: Axis, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setCustomTitles((current) => {
+      const next = {
+        ...current,
+        [axis]: uniqueTitles(current[axis] ?? [], [trimmed]),
+      };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(TITLES_STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
+    setTitle(trimmed);
+    setAddingTitle(false);
+    setNewTitle("");
+    setTitleMenuOpen(false);
+  };
+
+  const selectAxis = (axis: Axis) => {
+    setCategory(axis);
+    setSource("");
+    setNewTitle("");
+    setAddingTitle(false);
+    setError(null);
+    setTitle("");
+    setTitleMenuOpen(axis !== "قطعه" && DEFAULT_TITLES[axis].length > 0);
+  };
+
+  const chooseTitle = (value: string) => {
+    if (value === EMPTY_TITLE_VALUE) return;
+    if (value === ADD_TITLE_VALUE) {
+      setAddingTitle(true);
+      setTitle("");
+      setTitleMenuOpen(false);
+      return;
+    }
+    setTitle(value);
+    setAddingTitle(false);
+    setNewTitle("");
+  };
 
   const refresh = () =>
     Promise.all([
@@ -145,8 +261,7 @@ export function TeacherSessionWork({
         studentIds: [studentId],
         category,
         title: title.trim(),
-        source: source.trim() || undefined,
-        note: note.trim() || undefined,
+        source: category === "قطعه" ? undefined : source.trim() || undefined,
         dueLabel: homeworkSession
           ? `جلسه ${homeworkSession.number}`
           : "کلاس بعد",
@@ -156,7 +271,8 @@ export function TeacherSessionWork({
     onSuccess: async () => {
       setTitle("");
       setSource("");
-      setNote("");
+      setAddingTitle(false);
+      setNewTitle("");
       setError(null);
       const targetNumber = homeworkSession?.number ?? session?.number;
       const text = nextSession
@@ -320,7 +436,11 @@ export function TeacherSessionWork({
                 ? `تمرین جلسه بعد · جلسه ${toFa(nextSession.number)}`
                 : "تمرین جدید"
             }
-            hint="فقط چهار محور اتود: تکنیک، تئوری، قطعه و سلفژ. نمره اجرا جلسه بعد ثبت می‌شود."
+            hint={
+              category === "قطعه"
+                ? "نام قطعه را در کادر بنویسید. نمره اجرا جلسه بعد ثبت می‌شود."
+                : "عنوان را از فهرست انتخاب کنید. استاد فقط منبع را وارد می‌کند، مثلاً درس ۴. نمره اجرا جلسه بعد ثبت می‌شود."
+            }
           >
           <div>
             <Label className="mb-1.5 block">محور</Label>
@@ -329,7 +449,7 @@ export function TeacherSessionWork({
                 <button
                   key={item}
                   type="button"
-                  onClick={() => setCategory(item)}
+                  onClick={() => selectAxis(item)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition",
                     category === item
@@ -343,34 +463,94 @@ export function TeacherSessionWork({
             </div>
           </div>
           <div>
-            <Label className="mb-1.5 block">عنوان تمرین</Label>
-            <Input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="مثلاً درس ۲ هانون"
-            />
+            <Label className="mb-1.5 block">
+              {category === "قطعه" ? "نام قطعه" : "عنوان تمرین"}
+            </Label>
+            {category === "قطعه" ? (
+              <Input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="نام قطعه را بنویسید"
+                autoFocus
+              />
+            ) : (
+              <>
+                <Select
+                  value={title || EMPTY_TITLE_VALUE}
+                  open={titleMenuOpen}
+                  onOpenChange={setTitleMenuOpen}
+                  onValueChange={chooseTitle}
+                >
+                  <SelectTrigger
+                    className={cn(!title && "text-muted-foreground")}
+                  >
+                    <SelectValue placeholder="انتخاب عنوان" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_TITLE_VALUE} className="hidden">
+                      انتخاب عنوان
+                    </SelectItem>
+                    {titleOptions.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                    {titleOptions.length > 0 ? <SelectSeparator /> : null}
+                    <SelectItem value={ADD_TITLE_VALUE}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Plus className="size-3.5" />
+                        افزودن عنوان جدید
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {addingTitle ? (
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      value={newTitle}
+                      onChange={(event) => setNewTitle(event.target.value)}
+                      placeholder="عنوان جدید را بنویسید"
+                      autoFocus
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          persistCustomTitle(category, newTitle);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={!newTitle.trim()}
+                      onClick={() => persistCustomTitle(category, newTitle)}
+                    >
+                      افزودن
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
-          <div>
-            <Label className="mb-1.5 block">منبع</Label>
-            <Input
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              placeholder="Hanon · صفحه ۱۲"
-            />
-          </div>
-          <div>
-            <Label className="mb-1.5 block">نکاتی که باید رعایت شود</Label>
-            <Textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="دست جدا، تمپو ۶۰، مچ آرام…"
-              className="min-h-24"
-            />
-          </div>
+          {category === "قطعه" ? null : (
+            <div>
+              <Label className="mb-1.5 block">منبع</Label>
+              <Input
+                value={source}
+                onChange={(event) => setSource(event.target.value)}
+                placeholder="مثلاً درس ۴"
+              />
+            </div>
+          )}
           <Button
             type="button"
             variant="outline"
-            disabled={create.isPending || !title.trim()}
+            disabled={
+              create.isPending ||
+              !title.trim() ||
+              (category !== "قطعه" && !source.trim())
+            }
             onClick={() => create.mutate()}
           >
             {nextSession

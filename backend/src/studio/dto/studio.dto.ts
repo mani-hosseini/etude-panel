@@ -16,8 +16,13 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import {
+  ASSIGNMENT_CATEGORIES,
+  PIECE_CATEGORY,
+} from '../assignment-categories';
 
 export class CreateAssignmentDto {
   @ApiPropertyOptional({ description: 'slug یا uuid دوره' })
@@ -36,20 +41,27 @@ export class CreateAssignmentDto {
   @IsUUID()
   sessionId?: string;
 
-  @ApiProperty({ example: 'تکنیک' })
+  @ApiProperty({ example: 'تکنیک', enum: ASSIGNMENT_CATEGORIES })
   @IsString()
-  @MaxLength(32)
+  @IsIn([...ASSIGNMENT_CATEGORIES], { message: 'محور تمرین نامعتبر است.' })
   category!: string;
 
-  @ApiProperty({ example: 'هانون درس ۴' })
+  @ApiProperty({
+    example: 'چرنی ۵۹۹',
+    description: 'برای قطعه همان نام قطعه است که استاد در کادر می‌نویسد',
+  })
   @IsString()
-  @MinLength(2)
+  @MinLength(2, { message: 'عنوان تمرین را وارد کنید.' })
   @MaxLength(200)
   title!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiPropertyOptional({
+    example: 'درس ۴',
+    description: 'برای تکنیک، تئوری و سلفژ اجباری است؛ برای قطعه لازم نیست',
+  })
+  @ValidateIf((dto: CreateAssignmentDto) => dto.category !== PIECE_CATEGORY)
   @IsString()
+  @MinLength(1, { message: 'منبع تمرین را وارد کنید، مثلاً درس ۴.' })
   @MaxLength(200)
   source?: string;
 

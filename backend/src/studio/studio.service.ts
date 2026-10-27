@@ -14,6 +14,7 @@ import {
   joinDays,
   normalizeDays,
 } from '../common/utils/weekdays';
+import { isPieceCategory } from './assignment-categories';
 import {
   CreateAssignmentDto,
   CreatePracticeLogDto,
@@ -534,7 +535,9 @@ export class StudioService {
         sessionId: homeworkSession?.id ?? null,
         category: dto.category.trim(),
         title: dto.title.trim(),
-        source: dto.source?.trim() ?? '',
+        source: isPieceCategory(dto.category)
+          ? ''
+          : dto.source?.trim() ?? '',
         note: dto.note?.trim() ?? '',
         dueLabel:
           dto.dueLabel?.trim() ||
