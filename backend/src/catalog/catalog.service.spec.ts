@@ -10,6 +10,11 @@ import {
   normalizeClock,
   parseTimeRange,
 } from '../common/utils/session-time';
+import {
+  classWasHeld,
+  courseUnlocksByClassHeld,
+  studentFacingSessionStatus,
+} from '../common/utils/session-unlock';
 
 describe('Catalog mappers', () => {
   it('maps session statuses for frontend', () => {
@@ -53,6 +58,24 @@ describe('slideProgressPercent', () => {
     expect(slideProgressPercent(4, 10)).toBe(50);
     expect(slideProgressPercent(9, 10)).toBe(100);
     expect(slideProgressPercent(0, 10, new Date())).toBe(100);
+  });
+});
+
+describe('session unlock', () => {
+  it('unlocks piano sessions only after class was held', () => {
+    expect(courseUnlocksByClassHeld({ slug: 'piano', instrument: 'پیانو' })).toBe(
+      true,
+    );
+    expect(
+      courseUnlocksByClassHeld({
+        slug: 'theory-basics',
+        title: 'مستر کلاس تئوری موسیقی',
+      }),
+    ).toBe(false);
+    expect(classWasHeld('PRESENT')).toBe(true);
+    expect(classWasHeld('absent')).toBe(false);
+    expect(studentFacingSessionStatus('present')).toBe('available');
+    expect(studentFacingSessionStatus(null)).toBe('locked');
   });
 });
 

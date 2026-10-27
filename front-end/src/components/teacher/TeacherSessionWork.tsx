@@ -24,6 +24,7 @@ import {
 } from "@/lib/api/studio";
 import { studioKeys } from "@/lib/api/studio-queries";
 import { toFa } from "@/lib/format";
+import { teacherSessionStatus } from "@/lib/session-access";
 import { announceSaved } from "@/lib/save-feedback";
 import { cn } from "@/lib/utils";
 
@@ -335,17 +336,21 @@ export function TeacherSessionWork({
               <SelectValue placeholder="انتخاب جلسه" />
             </SelectTrigger>
             <SelectContent>
-              {sessions.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {`جلسه ${toFa(item.number)}${item.title ? ` — ${item.title}` : ""}${item.current ? " · جاری" : ""}${item.confirmed ? " · تأییدشده" : ""} · ${statusLabel[item.status] ?? item.status}`}
-                </SelectItem>
-              ))}
+              {sessions.map((item) => {
+                const access = teacherSessionStatus(item.attendance);
+                return (
+                  <SelectItem key={item.id} value={item.id}>
+                    {`جلسه ${toFa(item.number)}${item.title ? ` — ${item.title}` : ""}${item.current ? " · جاری" : ""}${item.confirmed ? " · تأییدشده" : ""} · ${statusLabel[access]}`}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
         {session ? (
           <p className="text-xs text-muted-foreground">
-            {session.courseTitle} · {toFa(session.dateLabel)}
+            {session.courseTitle} ·{" "}
+            {statusLabel[teacherSessionStatus(session.attendance)]}
           </p>
         ) : null}
       </div>

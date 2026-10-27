@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AttendanceStatus, Role, SessionStatus } from '@prisma/client';
+import { AttendanceStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeStudentLevel } from '../common/utils/mappers';
 import { courseIdentityWhere } from '../common/utils/slug';
@@ -15,6 +15,10 @@ import {
   normalizeDays,
 } from '../common/utils/weekdays';
 import { isPieceCategory } from './assignment-categories';
+import {
+  classWasHeld,
+  studentFacingSessionStatus,
+} from '../common/utils/session-unlock';
 import {
   CreateAssignmentDto,
   CreatePracticeLogDto,
@@ -690,6 +694,15 @@ export class StudioService {
           dto.studentId,
         );
         await this.syncEnrollmentCursor(dto.studentId, session.courseId);
+      } else if (classWasHeld(dto.attendance)) {
+        await this.prisma.enrollment.updateMany({
+          where: {
+            courseId: session.courseId,
+            userId: dto.studentId,
+            currentSessionNumber: { lt: session.number },
+          },
+          data: { currentSessionNumber: session.number },
+        });
       }
     }
 
@@ -764,15 +777,16 @@ export class StudioService {
         })
       : null;
 
+    const studentStatus = studentFacingSessionStatus(attendance?.status);
     return {
       sessionId: updated.id,
       courseId: session.course.slug,
       number: updated.number,
-      status: updated.status.toLowerCase(),
+      status: studentStatus,
       homeworkTitle: updated.homeworkTitle,
       homeworkSource: updated.homeworkSource,
       homeworkNote: updated.homeworkNote,
-      unlocked: updated.status === SessionStatus.AVAILABLE,
+      unlocked: studentStatus === 'available',
       attendance: attendance?.status.toLowerCase() ?? null,
     };
   }
@@ -802,15 +816,6 @@ export class StudioService {
     const maxNumber = lastNumber._max.number ?? session.number;
     const nextNumber = Math.min(session.number + 1, maxNumber);
     const isLast = nextNumber === session.number;
-
-    await this.prisma.courseSession.update({
-      where: { id: session.id },
-      data: {
-        status: SessionStatus.AVAILABLE,
-        dateLabel:
-          session.dateLabel === 'قفل' ? 'امروز' : session.dateLabel,
-      },
-    });
 
     const homeworkCursor = await this.lastHomeworkNumber(
       studentId,
@@ -1462,18 +1467,25 @@ export class StudioService {
     }
     return sessions.map((session) => {
       const cursor = cursorByCourse.get(session.courseId) ?? 0;
+      const attendance = markBySession.get(session.id) ?? null;
+      const status = studentFacingSessionStatus(attendance);
       return {
         id: session.id,
         courseId: session.course.slug,
         courseTitle: session.course.title,
         number: session.number,
         title: session.title,
-        status: session.status.toLowerCase(),
-        dateLabel: session.dateLabel,
+        status,
+        dateLabel:
+          status === 'available' && session.dateLabel === 'قفل'
+            ? 'امروز'
+            : status === 'locked'
+              ? 'قفل'
+              : session.dateLabel,
         homeworkTitle: session.homeworkTitle,
         homeworkSource: session.homeworkSource,
         homeworkNote: session.homeworkNote,
-        attendance: markBySession.get(session.id)?.toLowerCase() ?? null,
+        attendance: attendance?.toLowerCase() ?? null,
         current: session.number === cursor,
         confirmed: session.number < cursor,
       };
@@ -1606,13 +1618,6 @@ export class StudioService {
     studentIds: string[],
     advanceCursor = false,
   ) {
-    await this.prisma.courseSession.update({
-      where: { id: session.id },
-      data: {
-        status: SessionStatus.AVAILABLE,
-        dateLabel: session.dateLabel === 'قفل' ? 'امروز' : session.dateLabel,
-      },
-    });
     if (!advanceCursor || studentIds.length === 0) return;
     await this.prisma.enrollment.updateMany({
       where: {
