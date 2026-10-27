@@ -6,6 +6,9 @@ import {
   api,
   ApiError,
 } from "@/lib/api/client";
+import { routes, teacherRoutes } from "@/lib/routes";
+
+export type SessionAudience = "student" | "teacher";
 
 export type EtudeSession = {
   firstName: string;
@@ -13,7 +16,16 @@ export type EtudeSession = {
   displayName: string;
   loggedInAt: string;
   studentCode?: string | null;
+  audience: SessionAudience;
 };
+
+export function sessionHome(session: EtudeSession) {
+  return session.audience === "teacher" ? teacherRoutes.root : routes.dashboard;
+}
+
+export function isTeacherSession(session: EtudeSession | null | undefined) {
+  return session?.audience === "teacher";
+}
 
 const STORAGE_KEY = "etude-panel-session-v2";
 
@@ -35,6 +47,7 @@ export function createSession(firstName: string, lastName: string): EtudeSession
     lastName: last,
     displayName: `${first} ${last}`,
     loggedInAt: new Date().toISOString(),
+    audience: "student",
   };
 }
 
@@ -43,12 +56,15 @@ function parseSession(raw: string | null): EtudeSession | null {
   try {
     const parsed = JSON.parse(raw) as Partial<EtudeSession>;
     if (parsed.firstName && parsed.lastName && parsed.displayName) {
+      const audience: SessionAudience =
+        parsed.audience === "teacher" ? "teacher" : "student";
       return {
         firstName: parsed.firstName,
         lastName: parsed.lastName,
         displayName: parsed.displayName,
         loggedInAt: parsed.loggedInAt ?? new Date().toISOString(),
         studentCode: parsed.studentCode ?? null,
+        audience,
       };
     }
     return null;
@@ -99,13 +115,54 @@ export function clearSession() {
   emitChange();
 }
 
-export async function loginWithApi(
-  firstName: string,
-  lastName: string,
-  password: string,
-) {
+const DIGIT_MAP: Record<string, string> = {
+  "۰": "0",
+  "۱": "1",
+  "۲": "2",
+  "۳": "3",
+  "۴": "4",
+  "۵": "5",
+  "۶": "6",
+  "۷": "7",
+  "۸": "8",
+  "۹": "9",
+  "٠": "0",
+  "١": "1",
+  "٢": "2",
+  "٣": "3",
+  "٤": "4",
+  "٥": "5",
+  "٦": "6",
+  "٧": "7",
+  "٨": "8",
+  "٩": "9",
+};
+
+export function normalizeNationalId(value: string) {
+  return value
+    .trim()
+    .replace(/[۰-۹٠-٩]/g, (ch) => DIGIT_MAP[ch] ?? ch)
+    .replace(/\D/g, "");
+}
+
+export type LoginPayload =
+  | { username: string; password: string }
+  | { firstName: string; lastName: string; password: string };
+
+export async function loginWithApi(payload: LoginPayload) {
   try {
-    const result = await api.login({ firstName, lastName, password });
+    const result = await api.login(
+      "username" in payload
+        ? {
+            username: normalizeNationalId(payload.username) || payload.username.trim(),
+            password: normalizeNationalId(payload.password) || payload.password,
+          }
+        : {
+            firstName: payload.firstName.trim(),
+            lastName: payload.lastName.trim(),
+            password: payload.password,
+          },
+    );
     setTokens(result.accessToken, result.refreshToken);
     saveSession({
       firstName: result.session.firstName,
@@ -113,13 +170,14 @@ export async function loginWithApi(
       displayName: result.session.displayName,
       loggedInAt: result.session.loggedInAt,
       studentCode: result.session.studentCode,
+      audience: result.session.role === "TEACHER" ? "teacher" : "student",
     });
     return { ok: true as const };
   } catch (error) {
     if (error instanceof ApiError) {
       return {
         ok: false as const,
-        message: error.message || "نام یا رمز عبور نادرست است.",
+        message: error.message || "نام کاربری یا رمز عبور نادرست است.",
       };
     }
     return {
@@ -149,6 +207,7 @@ export async function registerWithApi(
       displayName: result.session.displayName,
       loggedInAt: result.session.loggedInAt,
       studentCode: result.session.studentCode,
+      audience: "student",
     });
     return { ok: true as const };
   } catch (error) {

@@ -1,6 +1,5 @@
 import { ApiError } from "@/lib/api/http";
 import { studentHttp } from "@/lib/api/student-tokens";
-import { fileUploadFormData } from "@/lib/api/upload-form";
 import type {
   DashboardPayload,
   ProfilePayload,
@@ -10,12 +9,34 @@ import type {
   CourseCard,
   ApiSlide,
   SessionAttachment,
-  SessionExercise,
   StudentExam,
   ExamSubmissionSummary,
+  StudentAssignment,
+  PracticeSeries,
+  PathProgress,
 } from "@/lib/api/types";
+import { decodeCourseParam } from "@/lib/slug";
 
 export { ApiError };
+
+function courseSlug(courseId?: string | null): string | undefined {
+  return decodeCourseParam(courseId) ?? (courseId?.trim() || undefined);
+}
+
+async function requestWithCourseFallback<T>(
+  courseId: string | undefined,
+  makePath: (id: string | undefined) => string,
+): Promise<T> {
+  const id = courseSlug(courseId);
+  try {
+    return await studentHttp.requestData<T>(makePath(id));
+  } catch (error) {
+    if (id && error instanceof ApiError && error.status === 404) {
+      return studentHttp.requestData<T>(makePath(undefined));
+    }
+    throw error;
+  }
+}
 export {
   getStoredAccessToken,
   getStoredRefreshToken,
@@ -25,11 +46,11 @@ export {
 
 /** Student-facing API (uses student token store). */
 export const api = {
-  login: (body: {
-    firstName: string;
-    lastName: string;
-    password: string;
-  }) =>
+  login: (
+    body:
+      | { username: string; password: string }
+      | { firstName: string; lastName: string; password: string },
+  ) =>
     studentHttp.requestData<{
       accessToken: string;
       refreshToken: string;
@@ -39,6 +60,7 @@ export const api = {
         displayName: string;
         loggedInAt: string;
         studentCode: string | null;
+        role?: "STUDENT" | "TEACHER" | "ADMIN";
       };
     }>("/auth/login", { method: "POST", body, auth: false }),
 
@@ -82,57 +104,49 @@ export const api = {
   dashboard: () => studentHttp.requestData<DashboardPayload>("/dashboard"),
   courses: () =>
     studentHttp.requestData<{ courses: CourseCard[] }>("/courses"),
-  course: (id: string) => studentHttp.requestData<CourseCard>(`/courses/${id}`),
+  course: (id: string) => {
+    const slug = courseSlug(id) ?? id;
+    return studentHttp.requestData<CourseCard>(
+      `/courses/${encodeURIComponent(slug)}`,
+    );
+  },
   sessions: (courseId?: string) =>
-    studentHttp.requestData<SessionsPayload>(
-      courseId
-        ? `/sessions?courseId=${encodeURIComponent(courseId)}`
-        : "/sessions",
-    ),
+    requestWithCourseFallback<SessionsPayload>(courseId, (id) => {
+      const params = new URLSearchParams({ limit: "100" });
+      if (id) params.set("courseId", id);
+      return `/sessions?${params}`;
+    }),
   session: (id: string, courseId?: string) =>
-    studentHttp.requestData<CourseSession>(
-      courseId
-        ? `/sessions/${id}?courseId=${encodeURIComponent(courseId)}`
+    requestWithCourseFallback<CourseSession>(courseId, (slug) =>
+      slug
+        ? `/sessions/${id}?courseId=${encodeURIComponent(slug)}`
         : `/sessions/${id}`,
     ),
   sessionSlides: (id: string, courseId?: string) =>
-    studentHttp.requestData<{
+    requestWithCourseFallback<{
       sessionId: string;
       total: number;
       slides: ApiSlide[];
       courseTitle?: string;
-    }>(
-      courseId
-        ? `/sessions/${id}/slides?courseId=${encodeURIComponent(courseId)}`
+    }>(courseId, (slug) =>
+      slug
+        ? `/sessions/${id}/slides?courseId=${encodeURIComponent(slug)}`
         : `/sessions/${id}/slides`,
     ),
   sessionAttachments: (id: string, courseId?: string) =>
-    studentHttp.requestData<{
+    requestWithCourseFallback<{
       sessionId: string;
       total: number;
       attachments: SessionAttachment[];
       courseTitle?: string;
-    }>(
-      courseId
-        ? `/sessions/${id}/attachments?courseId=${encodeURIComponent(courseId)}`
+    }>(courseId, (slug) =>
+      slug
+        ? `/sessions/${id}/attachments?courseId=${encodeURIComponent(slug)}`
         : `/sessions/${id}/attachments`,
     ),
-  sessionExercises: (id: string, courseId?: string) =>
-    studentHttp.requestData<{
-      sessionId: string;
-      total: number;
-      exercises: SessionExercise[];
-      courseTitle?: string;
-    }>(
-      courseId
-        ? `/sessions/${id}/exercises?courseId=${encodeURIComponent(courseId)}`
-        : `/sessions/${id}/exercises`,
-    ),
   schedule: (courseId?: string) =>
-    studentHttp.requestData<SchedulePayload>(
-      courseId
-        ? `/schedule?courseId=${encodeURIComponent(courseId)}`
-        : "/schedule",
+    requestWithCourseFallback<SchedulePayload>(courseId, (slug) =>
+      slug ? `/schedule?courseId=${encodeURIComponent(slug)}` : "/schedule",
     ),
   profile: () => studentHttp.requestData<ProfilePayload>("/profile"),
 
@@ -150,15 +164,15 @@ export const api = {
     }),
 
   sessionProgress: (id: string, courseId?: string) =>
-    studentHttp.requestData<{
+    requestWithCourseFallback<{
       sessionId: string;
       lastSlideIndex: number;
       slideCount: number;
       progressPercent: number;
       completedAt: string | null;
-    }>(
-      courseId
-        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(courseId)}`
+    }>(courseId, (slug) =>
+      slug
+        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(slug)}`
         : `/sessions/${id}/progress`,
     ),
 
@@ -166,19 +180,21 @@ export const api = {
     id: string,
     lastSlideIndex: number,
     courseId?: string,
-  ) =>
-    studentHttp.requestData<{
+  ) => {
+    const slug = courseSlug(courseId);
+    return studentHttp.requestData<{
       sessionId: string;
       lastSlideIndex: number;
       slideCount: number;
       progressPercent: number;
       completedAt: string | null;
     }>(
-      courseId
-        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(courseId)}`
+      slug
+        ? `/sessions/${id}/progress?courseId=${encodeURIComponent(slug)}`
         : `/sessions/${id}/progress`,
       { method: "PATCH", body: { lastSlideIndex } },
-    ),
+    );
+  },
 
   uploadAvatar: (file: File) => {
     const formData = new FormData();
@@ -198,22 +214,52 @@ export const api = {
       { method: "DELETE" },
     ),
 
-  exams: () =>
-    studentHttp.requestData<{ exams: StudentExam[] }>("/exams"),
+  exams: () => studentHttp.requestData<{ exams: StudentExam[] }>("/exams"),
 
   exam: (id: string) => studentHttp.requestData<StudentExam>(`/exams/${id}`),
 
-  submitExamPdf: (id: string, file: File) =>
-    studentHttp.upload<{
+  submitExamPdf: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return studentHttp.upload<{
       submitted: boolean;
       submission: ExamSubmissionSummary;
-    }>(`/exams/${id}/submission`, fileUploadFormData(file)),
+    }>(`/exams/${id}/submission`, formData);
+  },
 
   downloadOwnExamPdf: (id: string) =>
     studentHttp.download(`/exams/${id}/submission/file`),
 
-  downloadExamPaper: (id: string) => studentHttp.download(`/exams/${id}/file`),
+  downloadExamPaper: (id: string) =>
+    studentHttp.download(`/exams/${id}/file`),
 
   downloadExamAnswerKey: (id: string) =>
     studentHttp.download(`/exams/${id}/answer-file`),
+
+  assignments: () =>
+    studentHttp.requestData<StudentAssignment[]>("/assignments"),
+
+  updateAssignmentProgress: (id: string, progress: number) =>
+    studentHttp.requestData<{ id: string; progress: number }>(
+      `/assignments/${id}/progress`,
+      { method: "PATCH", body: { progress } },
+    ),
+
+  practiceSeries: (range: "7d" | "30d" | "90d" = "7d") =>
+    studentHttp.requestData<PracticeSeries>(
+      `/practice/series?range=${range}`,
+    ),
+
+  logPractice: (minutes: number) =>
+    studentHttp.requestData<{ date: string; minutes: number }>(
+      "/practice/log",
+      { method: "POST", body: { minutes } },
+    ),
+
+  pathProgress: () => studentHttp.requestData<PathProgress>("/path"),
+
+  downloadCertificate: (courseId: string) =>
+    studentHttp.download(
+      `/courses/${encodeURIComponent(courseSlug(courseId) ?? courseId)}/certificate/download`,
+    ),
 };

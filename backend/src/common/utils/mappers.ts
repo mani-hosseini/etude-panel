@@ -8,6 +8,20 @@ export function normalizeName(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
 }
 
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+
+/** Keep only ASCII digits so کد ملی can be typed with Persian/Arabic numerals. */
+export function normalizeNationalId(value: string): string {
+  const mapped = value.trim().replace(/[۰-۹٠-٩]/g, (ch) => {
+    const persian = PERSIAN_DIGITS.indexOf(ch);
+    if (persian >= 0) return String(persian);
+    const arabic = ARABIC_DIGITS.indexOf(ch);
+    return arabic >= 0 ? String(arabic) : ch;
+  });
+  return mapped.replace(/\D/g, '');
+}
+
 /** Student rank 1–10. Unknown legacy values (e.g. «پایه») become 1. */
 export function normalizeStudentLevel(value?: string | null): string {
   const n = Number.parseInt(String(value ?? '').trim(), 10);

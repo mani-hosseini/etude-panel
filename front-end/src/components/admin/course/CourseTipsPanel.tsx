@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminQueryKeys, useAdminTipsQuery } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
+import { announceSaved } from "@/lib/save-feedback";
 
 export function CourseTipsPanel({ courseId }: { courseId: string }) {
   const queryClient = useQueryClient();
@@ -21,6 +22,7 @@ export function CourseTipsPanel({ courseId }: { courseId: string }) {
     mutationFn: () => adminApi.createTip(courseId, { text }),
     onSuccess: async () => {
       setText("");
+      announceSaved("نکته ذخیره شد.");
       await queryClient.invalidateQueries({
         queryKey: adminQueryKeys.tips(courseId),
       });

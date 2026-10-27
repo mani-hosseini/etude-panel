@@ -70,6 +70,9 @@ export function toAudienceMessage(
 
   if (status === 404 || code === "NOT_FOUND") {
     if (trimmed.includes("کاربر")) return "هنرجو یافت نشد.";
+    if (trimmed.includes("دوره‌ای برای این هنرجو")) {
+      return "دوره‌ای برای این هنرجو یافت نشد.";
+    }
     if (trimmed.includes("دوره")) return "دوره یافت نشد.";
     if (trimmed.includes("جلسه")) return "جلسه یافت نشد.";
     if (trimmed.includes("اسلاید")) return "اسلاید یافت نشد.";

@@ -6,6 +6,10 @@ import {
   SlideKind,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
+import {
+  upsertAcademyStudents,
+  upsertAcademyTeacher,
+} from './academy-students';
 import { slides as session1Slides } from './data/session-1-slides';
 
 const prisma = new PrismaClient();
@@ -24,13 +28,29 @@ function mapKind(kind?: string): SlideKind {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to seed production: this script deletes all users and courses.',
+    );
+  }
+
   const adminEmail =
     process.env.SEED_ADMIN_EMAIL?.toLowerCase() ?? 'admin@etude.academy';
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'AdminEtude!2026';
 
   await prisma.refreshToken.deleteMany();
+  await prisma.practiceLog.deleteMany();
+  await prisma.studentStarRating.deleteMany();
+  await prisma.teacherNote.deleteMany();
+  await prisma.attendanceRecord.deleteMany();
+  await prisma.practiceAssignmentTarget.deleteMany();
+  await prisma.practiceAssignment.deleteMany();
+  await prisma.examSubmission.deleteMany();
+  await prisma.examGrade.deleteMany();
+  await prisma.sessionExercise.deleteMany();
   await prisma.sessionProgress.deleteMany();
   await prisma.userAchievement.deleteMany();
+  await prisma.sessionAttachment.deleteMany();
   await prisma.slide.deleteMany();
   await prisma.scheduleLesson.deleteMany();
   await prisma.practiceTip.deleteMany();
@@ -62,7 +82,8 @@ async function main() {
       instrument: 'تئوری',
       teacher: 'استاد بهرام دهقانیار',
       teacherShort: 'بهرام دهقانیار',
-      day: 'پنج‌شنبه',
+      day: 'پنجشنبه',
+      days: ['پنجشنبه'],
       time: '۱۱ تا ۱۳',
       timeShort: '۱۱ تا ۱۳',
       duration: '۱۲۰ دقیقه',
@@ -85,9 +106,10 @@ async function main() {
       title: 'پیانو مبتدی',
       subtitle: 'تکنیک پایه، دست‌گذاری و قطعات ساده',
       instrument: 'پیانو',
-      teacher: 'استاد مریم نوری',
-      teacherShort: 'مریم نوری',
+      teacher: 'استاد پیانو',
+      teacherShort: 'استاد',
       day: 'سه‌شنبه',
+      days: ['سه‌شنبه'],
       time: '۱۶:۰۰ — ۱۷:۳۰',
       timeShort: '۱۶ تا ۱۷:۳۰',
       duration: '۹۰ دقیقه',
@@ -112,6 +134,7 @@ async function main() {
       teacher: 'استاد کیان رضایی',
       teacherShort: 'کیان رضایی',
       day: 'یکشنبه',
+      days: ['یکشنبه'],
       time: '۱۰:۰۰ — ۱۱:۰۰',
       timeShort: '۱۰ تا ۱۱',
       duration: '۶۰ دقیقه',
@@ -127,7 +150,7 @@ async function main() {
     },
   });
 
-  // فعلاً هنرجوی تست ساخته نمی‌شود — ثبت‌نام از فرانت
+  // هنرجوهای آکادمی بعد از ساخت دوره‌ها و نشان‌ها اضافه می‌شوند.
 
   const theorySessions = [];
   for (let number = 1; number <= 10; number++) {
@@ -329,10 +352,22 @@ async function main() {
     ],
   });
 
+  const teacher = await upsertAcademyTeacher(prisma, {
+    courseSlugs: ['piano-beginner'],
+  });
+  const students = await upsertAcademyStudents(prisma, {
+    courseSlugs: ['piano-beginner'],
+  });
+
   console.log('Seed completed:');
   console.log(`  Admin: ${adminEmail}`);
+  console.log(
+    `  Teacher: مانی حسینی (${teacher.created ? 'created' : 'updated'})`,
+  );
+  console.log(
+    `  Students: created ${students.created}, updated ${students.updated} (login = national ID)`,
+  );
   console.log(`  Master class course (admin grants access): ${theory.slug} (${theory.teacher})`);
-  console.log(`  No demo student — register from frontend`);
   console.log(`  Theory slides: ${session1Slides.length}`);
 }
 

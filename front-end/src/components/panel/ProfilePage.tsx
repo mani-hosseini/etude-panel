@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
 import { Award, BadgeCheck, Music2, Save } from "lucide-react";
@@ -11,10 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StarRating } from "@/components/ui/star-rating";
 import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { api } from "@/lib/api/client";
+import { announceSaved } from "@/lib/save-feedback";
 import { audienceError } from "@/lib/api/errors";
 import type { ProfilePayload } from "@/lib/api/types";
 import {
@@ -25,6 +28,7 @@ import {
 import { saveSession } from "@/lib/auth";
 import { parseStudentLevel } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
+import { routes } from "@/lib/routes";
 
 function ProfileEditForm({
   student,
@@ -56,6 +60,7 @@ function ProfileEditForm({
     onSuccess: async (data) => {
       setFormError(null);
       setFormSuccess("اطلاعات با موفقیت ذخیره شد.");
+      announceSaved("اطلاعات با موفقیت ذخیره شد.");
       setPassword("");
       saveSession({
         firstName: data.student.firstName,
@@ -63,6 +68,7 @@ function ProfileEditForm({
         displayName: data.student.displayName,
         loggedInAt,
         studentCode: data.student.studentCode,
+        audience: "student",
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
@@ -115,11 +121,14 @@ function ProfileEditForm({
           </div>
           <div className="space-y-1.5">
             <Label>سطح</Label>
-            <div className="flex h-10 items-center gap-2 rounded-xl border border-input bg-muted/40 px-3">
+            <div className="flex h-10 items-center justify-between gap-2 rounded-xl border border-input bg-muted/40 px-3">
               <StudentLevelBadge level={student.level} />
-              <span className="text-[11px] text-muted-foreground">
-                فقط ادمین می‌تواند تغییر دهد
-              </span>
+              <Link
+                href={routes.path}
+                className="text-[11px] font-semibold text-brand hover:text-brand-600"
+              >
+                مسیر آموزشی
+              </Link>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -255,6 +264,13 @@ export function ProfilePage() {
                 {student.programTitle} · سطح{" "}
                 {toFa(parseStudentLevel(student.level))}
               </p>
+              <div className="mt-2 flex justify-center sm:justify-start">
+                <StarRating
+                  value={student.stars ?? 0}
+                  readOnly
+                  tone="onDark"
+                />
+              </div>
               <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-xs text-white/85">
                 <Music2 className="size-3.5" strokeWidth={1.75} />
                 {primaryCourse?.teacher ?? `${courses.length} دوره`}

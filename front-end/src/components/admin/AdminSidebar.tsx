@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { adminLogoutWithApi } from "@/lib/auth/admin-auth";
-import { adminRoutes, isNavActive } from "@/lib/routes";
+import { adminRoutes, isNavActive, teacherRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -42,7 +42,7 @@ const navItems = [
   {
     href: adminRoutes.users,
     label: "کاربران",
-    description: "هنرجو و دسترسی",
+    description: "هنرجو، استاد و دسترسی",
     icon: Users,
   },
 ] as const;
@@ -189,7 +189,17 @@ export function AdminSidebar({
         >
           <Link href="/dashboard" onClick={onNavigate}>
             <ExternalLink className="size-4" />
-            پنل هنرجویی
+            پنل هنرجو
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="h-10 w-full justify-start rounded-xl border-slate-200 bg-white text-slate-700"
+        >
+          <Link href={teacherRoutes.root} onClick={onNavigate}>
+            <ExternalLink className="size-4" />
+            پنل استاد
           </Link>
         </Button>
 

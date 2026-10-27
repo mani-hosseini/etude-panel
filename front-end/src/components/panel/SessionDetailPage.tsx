@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Images, Maximize2, NotebookPen, Presentation, UserRound } from "lucide-react";
 
 import { PageHeader } from "@/components/panel/PageHeader";
+import { SessionPager } from "@/components/panel/session/SessionPager";
 import { SessionStatCards } from "@/components/panel/session/SessionStatCards";
 import {
   SessionWorkspace,
@@ -15,14 +16,22 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   queryErrorMessage,
+  useAssignmentsQuery,
   useCourseQuery,
   useSessionAttachmentsQuery,
   useSessionExercisesQuery,
   useSessionQuery,
+  useSessionsQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
+<<<<<<< HEAD
+import { executionScoreLabel, toFa } from "@/lib/format";
+import { routes } from "@/lib/routes";
+import { decodeCourseParam } from "@/lib/slug";
+=======
 import { toFa } from "@/lib/format";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
+>>>>>>> origin/main
 import { toDeckSlides } from "@/lib/slides";
 
 function parseWorkspaceView(value: string | null): SessionWorkspaceView {
@@ -45,8 +54,14 @@ export function SessionDetailPage({
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
+<<<<<<< HEAD
+  const queryCourseId = decodeCourseParam(searchParams.get("courseId"));
+  const viewParam =
+    searchParams.get("view") === "attachments" ? "attachments" : "slides";
+=======
   const queryCourseId = searchParams.get("courseId");
   const viewParam = parseWorkspaceView(searchParams.get("view"));
+>>>>>>> origin/main
   const [workspaceView, setWorkspaceView] =
     useState<SessionWorkspaceView>(viewParam);
 
@@ -66,7 +81,8 @@ export function SessionDetailPage({
     }
   }, [courseId, queryCourseId, sessionId, router, viewParam]);
 
-  const resolvedCourseId = courseId ?? queryCourseId ?? undefined;
+  const resolvedCourseId =
+    decodeCourseParam(courseId) ?? queryCourseId ?? undefined;
 
   const sessionQuery = useSessionQuery(sessionId, resolvedCourseId);
   const slidesEnabled =
@@ -87,6 +103,8 @@ export function SessionDetailPage({
     slidesEnabled,
   );
   const courseQuery = useCourseQuery(resolvedCourseId, Boolean(resolvedCourseId));
+  const sessionsQuery = useSessionsQuery(resolvedCourseId);
+  const assignmentsQuery = useAssignmentsQuery();
 
   useEffect(() => {
     if (courseId || queryCourseId) return;
@@ -149,6 +167,36 @@ export function SessionDetailPage({
     course?.title ??
     "دوره";
   const sessionLabel = `جلسه ${toFa(session.number)}`;
+<<<<<<< HEAD
+  const sessionWork =
+    session.homework && session.homework.length > 0
+      ? session.homework
+      : (assignmentsQuery.data ?? [])
+          .filter(
+            (item) =>
+              item.sessionId === session.uuid ||
+              item.sessionId === session.id ||
+              item.sessionNumber === session.number,
+          )
+          .map((item) => ({
+            id: item.id,
+            category: item.category,
+            title: item.title,
+            source: item.source,
+            note: item.note,
+            score: item.score ?? 0,
+          }));
+  const assigned = sessionWork[0];
+  const sessions = sessionsQuery.data?.sessions ?? [];
+  const pager = (
+    <SessionPager
+      courseId={pathCourseId}
+      sessions={sessions}
+      currentNumber={session.number}
+      view={workspaceView === "attachments" ? "attachments" : undefined}
+    />
+  );
+=======
   const selectView = (view: SessionWorkspaceView) => {
     setWorkspaceView(view);
     if (!pathCourseId) return;
@@ -161,30 +209,47 @@ export function SessionDetailPage({
       { scroll: false },
     );
   };
+>>>>>>> origin/main
 
   if (session.status !== "available") {
+    const absent = session.attendanceStatus === "absent";
     return (
       <div className="space-y-6">
-        <PageHeader
-          eyebrow={`جلسه ${toFa(session.number)}`}
-          title={session.title || `جلسه ${toFa(session.number)}`}
-          description="محتوای این جلسه هنوز فعال نشده است."
-        />
-        <div className="surface-panel px-6 py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            این جلسه پس از برگزاری کلاس در پنل قرار می‌گیرد.
-          </p>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
           <Link
             href={
               pathCourseId
-                ? routes.courseSessions(pathCourseId)
+                ? routes.courseSessions(pathCourseId, { list: true })
                 : routes.sessions
             }
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand"
           >
-            <ArrowRight className="size-4" />
-            بازگشت به جلسات
+            <ArrowRight className="size-3.5" />
+            همه جلسات
           </Link>
+          {pager}
+        </div>
+        <PageHeader
+          eyebrow={`جلسه ${toFa(session.number)}`}
+          title={session.title || `جلسه ${toFa(session.number)}`}
+          description={
+            absent
+              ? "شما در این جلسه غایب بودید."
+              : "محتوای این جلسه هنوز فعال نشده است."
+          }
+        />
+        <div
+          className={
+            absent
+              ? "surface-panel border-destructive/20 bg-destructive/5 px-6 py-16 text-center"
+              : "surface-panel px-6 py-16 text-center"
+          }
+        >
+          <p className={absent ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+            {absent
+              ? "شما در این جلسه غایب بودید و تکلیفی برایتان ثبت نشده است."
+              : "این جلسه پس از برگزاری کلاس در پنل قرار می‌گیرد."}
+          </p>
         </div>
       </div>
     );
@@ -193,25 +258,46 @@ export function SessionDetailPage({
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <Link
-            href={
-              pathCourseId
-                ? routes.courseSessions(pathCourseId)
-                : routes.sessions
-            }
-            className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand"
-          >
-            <ArrowRight className="size-3.5" />
-            همه جلسات
-          </Link>
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <Link
+              href={
+                pathCourseId
+                  ? routes.courseSessions(pathCourseId, { list: true })
+                  : routes.sessions
+              }
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand"
+            >
+              <ArrowRight className="size-3.5" />
+              همه جلسات
+            </Link>
+            {pager}
+          </div>
           <PageHeader
             eyebrow={`${courseTitle} · جلسه ${toFa(session.number)}`}
             title={session.title}
-            description={session.summary}
+            description={
+              session.attendanceStatus === "absent"
+                ? "شما در این جلسه غایب بودید."
+                : session.summary ===
+                    "محتوای این جلسه پس از برگزاری کلاس فعال می‌شود."
+                  ? session.homeworkTitle
+                    ? `تکلیف این جلسه: ${session.homeworkTitle}`
+                    : "این جلسه برگزار شده است."
+                  : session.summary
+            }
           />
+          {session.attendanceStatus === "absent" ? (
+            <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm leading-7 text-destructive">
+              شما در این جلسه غایب بودید و تکلیفی برایتان ثبت نشده است.
+            </div>
+          ) : null}
         </div>
+<<<<<<< HEAD
+        {pathCourseId && slides.length > 0 ? (
+=======
         {pathCourseId && workspaceView !== "exercises" ? (
+>>>>>>> origin/main
           <Link
             href={routes.courseSessionPlay(
               pathCourseId,
@@ -280,6 +366,11 @@ export function SessionDetailPage({
         sessionLabel={sessionLabel}
         sessionId={session.id}
         courseId={pathCourseId}
+        homeworkTitle={assigned?.title || session.homeworkTitle}
+        homeworkSource={assigned?.source || session.homeworkSource}
+        homeworkNote={assigned?.note || session.homeworkNote}
+        homework={sessionWork}
+        absent={session.attendanceStatus === "absent"}
         playHref={
           pathCourseId
             ? routes.courseSessionPlay(
@@ -299,6 +390,34 @@ export function SessionDetailPage({
             : routes.sessions
         }
       />
+
+      {session.attendanceStatus === "absent" ||
+      slides.length === 0 ||
+      sessionWork.length === 0 ? null : (
+        <section className="grid gap-3 sm:grid-cols-2">
+          {sessionWork.map((item) => (
+            <article
+              key={item.id}
+              className="rounded-2xl border border-border bg-card p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium text-navy">{item.title}</p>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {item.category}
+                </span>
+              </div>
+              {item.source || item.note ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {item.source || item.note}
+                </p>
+              ) : null}
+              <p className="mt-3 font-sans text-sm tabular-nums text-navy">
+                {executionScoreLabel(item.score)}
+              </p>
+            </article>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

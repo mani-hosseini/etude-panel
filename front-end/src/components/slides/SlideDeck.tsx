@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Maximize2, X } from "lucide-react";
+import { ArrowRight, Maximize2, Music2, NotebookPen, X } from "lucide-react";
 
 import { SlideView } from "@/components/slides/SlideView";
 import { DeckNavArrow } from "@/components/slides/DeckNavArrow";
 import { useDeck } from "@/components/slides/useDeck";
 import { useSlideProgressSync } from "@/hooks/useSlideProgressSync";
-import { toFa } from "@/lib/format";
+import { executionScoreLabel, toFa } from "@/lib/format";
+import type { SessionHomeworkItem } from "@/lib/api/types";
 import { slides as defaultSlides, type Slide } from "@/lib/session-1-slides";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,11 @@ type SlideDeckProps = {
   playHref?: string;
   sessionId?: string;
   courseId?: string;
+  homeworkTitle?: string;
+  homeworkSource?: string;
+  homeworkNote?: string;
+  homework?: SessionHomeworkItem[];
+  absent?: boolean;
 };
 
 export function SlideDeck({
@@ -51,6 +57,11 @@ export function SlideDeck({
   playHref = "/dashboard/sessions/1/play",
   sessionId,
   courseId,
+  homeworkTitle,
+  homeworkSource,
+  homeworkNote,
+  homework = [],
+  absent = false,
 }: SlideDeckProps) {
   const total = slides.length;
   const { index, direction, next, prev, goTo } = useDeck(total, true, {
@@ -64,6 +75,106 @@ export function SlideDeck({
     index,
     onRestore: (i) => goTo(i, i > 0 ? 1 : -1),
   });
+
+  if (total === 0) {
+    return (
+      <div
+        className={cn(
+          "relative flex items-center justify-center overflow-hidden bg-[#01040a] px-6 text-center",
+          mode === "fullscreen"
+            ? "fixed inset-0 z-80 h-dvh"
+            : "min-h-[min(42vh,340px)] rounded-3xl",
+          className,
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute top-[-20%] left-1/2 h-[70vmax] w-[70vmax] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,86,210,0.28)_0%,rgba(0,86,210,0.08)_35%,transparent_68%)]" />
+        </div>
+        {absent ? (
+          <div className="relative max-w-md rounded-3xl border border-white/10 bg-white/5 px-8 py-8 backdrop-blur-sm">
+            <p className="text-base font-semibold text-white">
+              شما در این جلسه غایب بودید
+            </p>
+            <p className="mt-2 text-sm leading-7 text-white/60">
+              برای این جلسه تکلیفی برایتان ثبت نشده است.
+            </p>
+          </div>
+        ) : homework.length > 0 ? (
+          <div className="relative w-full max-w-3xl py-8 text-right">
+            <div className="mb-4 flex items-center justify-between gap-3 px-1">
+              <p className="text-[11px] font-medium tracking-wide text-brand-300">
+                تکلیف این جلسه · {toFa(homework.length)} مورد
+              </p>
+              <span className="flex size-10 items-center justify-center rounded-2xl bg-brand/25 ring-1 ring-brand/40">
+                <NotebookPen className="size-4 text-white" />
+              </span>
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {homework.map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded-3xl border border-white/10 bg-white/6 px-5 py-5 text-right shadow-[0_20px_60px_-28px_rgba(0,71,255,0.55)] backdrop-blur-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-lg font-bold leading-8 text-white">
+                      {item.title}
+                    </p>
+                    <span className="shrink-0 rounded-full bg-white/8 px-2.5 py-1 text-[11px] text-white/70 ring-1 ring-white/10">
+                      {item.category}
+                    </span>
+                  </div>
+                  {item.source ? (
+                    <p className="mt-2 text-xs text-white/60">{item.source}</p>
+                  ) : null}
+                  {item.note ? (
+                    <p className="mt-3 rounded-2xl bg-black/25 px-4 py-3 text-sm leading-8 text-white/80">
+                      {item.note}
+                    </p>
+                  ) : null}
+                  <p className="mt-3 font-sans text-sm tabular-nums text-white/80">
+                    {executionScoreLabel(item.score)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : homeworkTitle || homeworkNote ? (
+          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-white/6 px-7 py-8 text-right shadow-[0_20px_60px_-28px_rgba(0,71,255,0.55)] backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-[11px] font-medium tracking-wide text-brand-300">
+                تکلیف این جلسه
+              </p>
+              <span className="flex size-10 items-center justify-center rounded-2xl bg-brand/25 ring-1 ring-brand/40">
+                <NotebookPen className="size-4 text-white" />
+              </span>
+            </div>
+            {homeworkTitle ? (
+              <p className="text-xl font-bold leading-8 text-white">
+                {homeworkTitle}
+              </p>
+            ) : null}
+            {homeworkSource ? (
+              <p className="mt-2 inline-flex rounded-full bg-white/8 px-3 py-1 text-xs text-white/70 ring-1 ring-white/10">
+                {homeworkSource}
+              </p>
+            ) : null}
+            {homeworkNote ? (
+              <p className="mt-4 rounded-2xl bg-black/25 px-4 py-3 text-sm leading-8 text-white/80">
+                {homeworkNote}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="relative max-w-md rounded-3xl border border-white/10 bg-white/5 px-8 py-8">
+            <Music2 className="mx-auto mb-3 size-6 text-white/35" />
+            <p className="text-sm text-white/70">
+              هنوز تکلیفی برای این جلسه ثبت نشده است.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const slide = slides[index]!;
   const progress =

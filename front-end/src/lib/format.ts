@@ -45,6 +45,55 @@ export function parseTimeRange(
   };
 }
 
+export const WEEKDAYS = [
+  "شنبه",
+  "یکشنبه",
+  "دوشنبه",
+  "سه‌شنبه",
+  "چهارشنبه",
+  "پنجشنبه",
+  "جمعه",
+] as const;
+
+export type Weekday = (typeof WEEKDAYS)[number];
+
+export function normalizeWeekday(value: string): Weekday | string {
+  const compact = value.replace(/‌/g, "").trim();
+  return WEEKDAYS.find((day) => day.replace(/‌/g, "") === compact) ?? value;
+}
+
+export function parseDays(
+  days?: string[] | null,
+  fallback?: string | null,
+): string[] {
+  const source =
+    days && days.length > 0 ? days : fallback ? [fallback] : [];
+  const tokens = source.flatMap((item) =>
+    String(item)
+      .split(/[،,]/)
+      .map((part) => part.trim())
+      .filter(Boolean),
+  );
+  const normalized = tokens.map((item) => normalizeWeekday(item));
+  return WEEKDAYS.filter((day) => normalized.includes(day));
+}
+
+export function formatDays(
+  days?: string[] | null,
+  fallback?: string | null,
+): string {
+  return parseDays(days, fallback).join("، ");
+}
+
+export function formatClassDays(
+  days?: string[] | null,
+  fallback?: string | null,
+): string {
+  const parsed = parseDays(days, fallback);
+  if (parsed.length === 1) return weekdayPlural(parsed[0]!);
+  return parsed.join("، ");
+}
+
 /** Plural weekday for display, e.g. پنج‌شنبه → پنج‌شنبه‌ها */
 export function weekdayPlural(day: string): string {
   const base = day.replace(/‌?ها$/, "").trim();
@@ -79,6 +128,17 @@ export function formatDateTimeFa(value: string | null | undefined): string {
   }).format(date);
 }
 
+<<<<<<< HEAD
+export function hasExecutionScore(score?: number | null): boolean {
+  return (score ?? 0) > 0;
+}
+
+export function executionScoreLabel(score?: number | null): string {
+  if (!hasExecutionScore(score)) {
+    return "نمره بعد از اجرا در کلاس ثبت می‌شود";
+  }
+  return `امتیاز اجرا ${toFa(score ?? 0)} از ۱۰۰`;
+=======
 /** Exam grade is out of 100. */
 export const EXAM_SCORE_MAX = 100;
 
@@ -106,4 +166,5 @@ export function displayPdfName(
     return fallback;
   }
   return trimmed;
+>>>>>>> origin/main
 }

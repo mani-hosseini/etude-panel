@@ -29,7 +29,7 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.05 }}
     >
-      <Card className={cn("shadow-soft", className)}>
+      <Card className={cn("shadow-none", className)}>
         <CardContent className="p-4">
           <p className="font-sans text-xs text-muted-foreground">{label}</p>
           <p className="mt-2 font-sans text-2xl font-bold tabular-nums text-navy">

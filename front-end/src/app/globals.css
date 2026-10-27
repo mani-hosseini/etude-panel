@@ -29,6 +29,11 @@
   --color-brand-700: #002db0;
   --color-brand-800: #00248c;
   --color-brand-900: #001a66;
+  --color-chart-1: #0047ff;
+  --color-chart-2: #15803d;
+  --color-chart-3: #ca8a04;
+  --color-chart-4: #7c3aed;
+  --color-chart-5: #b91c1c;
   --color-navy: #0b1a3d;
   --color-navy-soft: #132552;
   --color-ink: #0a0a0a;
@@ -106,6 +111,27 @@
 
   .navy-gradient {
     background: linear-gradient(180deg, #132552 0%, #0b1a3d 100%);
+  }
+
+  .liquid-glass {
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.18) 100%);
+    box-shadow:
+      0 18px 40px -16px rgba(11, 26, 61, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -10px 18px rgba(0, 71, 255, 0.06);
+    backdrop-filter: blur(22px) saturate(1.65);
+    -webkit-backdrop-filter: blur(22px) saturate(1.65);
+  }
+
+  .liquid-blob {
+    border-radius: 999px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55) 55%, rgba(237, 242, 255, 0.7));
+    box-shadow:
+      0 8px 18px -10px rgba(0, 71, 255, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
 
   .logo-edge-glow {

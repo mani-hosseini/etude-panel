@@ -21,6 +21,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
+    "prisma:import-students": "tsx prisma/import-academy-students.ts",
+    "prisma:import-rashidian": "tsx prisma/import-rashidian-monday.ts",
     "prisma:studio": "prisma studio",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",

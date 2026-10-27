@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/admin-client";
 import { adminQueryKeys } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
+import { announceSaved } from "@/lib/save-feedback";
 import { toFa, formatTimeRange, parseTimeRange } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -263,6 +264,7 @@ export function CourseSessionsPanel({
     onSuccess: async () => {
       setCreateForm(initialForm);
       setError(null);
+      announceSaved("جلسه ساخته شد.");
       await invalidate();
     },
     onError: (err) => setError(audienceError(err, "ذخیره جلسه انجام نشد.")),
@@ -275,6 +277,7 @@ export function CourseSessionsPanel({
       setEditingId(null);
       setEditForm(null);
       setError(null);
+      announceSaved("جلسه ذخیره شد.");
       await invalidate();
     },
     onError: (err) => setError(audienceError(err, "ذخیره جلسه انجام نشد.")),

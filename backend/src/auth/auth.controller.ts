@@ -26,8 +26,8 @@ import {
   AdminLoginDto,
   LoginDto,
   RefreshTokenDto,
-  RegisterDto,
   RegisterStudentDto,
+  RegisterTeacherDto,
 } from './dto/auth.dto';
 
 @ApiTags('Auth')
@@ -38,7 +38,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'ورود هنرجو' })
+  @ApiOperation({ summary: 'ورود هنرجو یا استاد' })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.loginStudent(dto, {
       ip: req.ip,
@@ -48,13 +48,10 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'ثبت‌نام عمومی هنرجو' })
-  register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.registerPublic(dto, {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+  @HttpCode(HttpStatus.FORBIDDEN)
+  @ApiOperation({ summary: 'ثبت‌نام عمومی غیرفعال است' })
+  register() {
+    return this.authService.registerPublicDisabled();
   }
 
   @Public()
@@ -74,6 +71,14 @@ export class AuthController {
   @ApiOperation({ summary: 'ثبت هنرجو توسط ادمین' })
   registerStudent(@Body() dto: RegisterStudentDto) {
     return this.authService.registerStudent(dto);
+  }
+
+  @Roles(Role.ADMIN)
+  @Post('register/teacher')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'ثبت استاد توسط ادمین' })
+  registerTeacher(@Body() dto: RegisterTeacherDto) {
+    return this.authService.registerTeacher(dto);
   }
 
   @Public()

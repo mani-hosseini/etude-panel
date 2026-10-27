@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { announceSaved } from "@/lib/save-feedback";
 import {
   adminApi,
   type AdminExamDetail,
@@ -105,6 +106,7 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
       return updated.id;
     },
     onSuccess: async (id) => {
+      announceSaved("آزمون ذخیره شد.");
       await queryClient.invalidateQueries({ queryKey: ["admin", "exams"] });
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.exam(id) });
       if (isNew) router.replace(adminRoutes.exam(id));
@@ -121,6 +123,7 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
   const uploadExamFile = useMutation({
     mutationFn: (file: File) => adminApi.uploadExamFile(examId!, file),
     onSuccess: async (exam) => {
+      announceSaved("فایل آزمون ذخیره شد.");
       await queryClient.invalidateQueries({
         queryKey: adminQueryKeys.exam(exam.id),
       });
@@ -131,6 +134,7 @@ export function AdminExamEditorPage({ examId }: AdminExamEditorPageProps) {
   const uploadAnswerFile = useMutation({
     mutationFn: (file: File) => adminApi.uploadExamAnswerFile(examId!, file),
     onSuccess: async (exam) => {
+      announceSaved("فایل پاسخ ذخیره شد.");
       await queryClient.invalidateQueries({
         queryKey: adminQueryKeys.exam(exam.id),
       });

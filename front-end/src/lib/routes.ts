@@ -11,10 +11,13 @@ function withSessionView(path: string, view?: SessionPlayViewKind) {
 
 export const routes = {
   dashboard: "/dashboard",
+  path: "/dashboard/path",
   courses: "/dashboard/courses",
   course: (courseId: string) => `/dashboard/courses/${courseId}`,
-  courseSessions: (courseId: string) =>
-    `/dashboard/courses/${courseId}/sessions`,
+  courseSessions: (courseId: string, opts?: { list?: boolean }) =>
+    opts?.list
+      ? `/dashboard/courses/${courseId}/sessions?list=1`
+      : `/dashboard/courses/${courseId}/sessions`,
   courseSession: (
     courseId: string,
     sessionId: string,
@@ -33,17 +36,26 @@ export const routes = {
       `/dashboard/courses/${courseId}/sessions/${sessionId}/play`,
       view,
     ),
-  courseSchedule: (courseId: string) =>
-    `/dashboard/courses/${courseId}/schedule`,
   /** Nav default: primary enrolled course */
   sessions: "/dashboard/sessions",
-  schedule: "/dashboard/schedule",
   certificates: "/dashboard/certificates",
   exams: "/dashboard/exams",
   exam: (id: string) => `/dashboard/exams/${id}`,
   profile: "/dashboard/profile",
   login: "/login",
-  register: "/",
+  register: "/login",
+} as const;
+
+export const teacherRoutes = {
+  root: "/teacher",
+  class: "/teacher/class",
+  students: "/teacher/students",
+  student: (id: string, sessionId?: string) =>
+    sessionId
+      ? `/teacher/students/${id}?session=${encodeURIComponent(sessionId)}`
+      : `/teacher/students/${id}`,
+  schedule: "/teacher/schedule",
+  profile: "/teacher/profile",
 } as const;
 
 export const adminRoutes = {
@@ -66,11 +78,11 @@ export const adminRoutes = {
 
 export function isNavActive(pathname: string, href: string): boolean {
   if (href === routes.dashboard) return pathname === routes.dashboard;
+  if (href === routes.path) {
+    return pathname === routes.path || pathname.startsWith(`${routes.path}/`);
+  }
   if (href === routes.sessions) {
     return pathname === routes.sessions || pathname.includes("/sessions");
-  }
-  if (href === routes.schedule) {
-    return pathname === routes.schedule || pathname.includes("/schedule");
   }
   if (href === routes.certificates) {
     return pathname === routes.certificates || pathname.includes("/certificate");
@@ -83,6 +95,13 @@ export function isNavActive(pathname: string, href: string): boolean {
   }
   if (href === adminRoutes.root) {
     return pathname === adminRoutes.root;
+  }
+  if (href === teacherRoutes.root) return pathname === teacherRoutes.root;
+  if (href === teacherRoutes.students) {
+    return (
+      pathname === teacherRoutes.students ||
+      pathname.startsWith(`${teacherRoutes.students}/`)
+    );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Music2, UserRound } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { z } from "zod";
 
 import { StaffBackdrop } from "@/components/auth/StaffBackdrop";
@@ -20,11 +19,31 @@ import {
   getSession,
   isPersianName,
   loginWithApi,
+  normalizeNationalId,
+  sessionHome,
   subscribeSession,
 } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-const schema = z.object({
+const nationalSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(8, "نام کاربری همان کد ملی است")
+    .refine(
+      (value) => /^\d{8,16}$/.test(normalizeNationalId(value)),
+      "نام کاربری را با کد ملی وارد کنید",
+    ),
+  password: z
+    .string()
+    .min(8, "رمز عبور همان کد ملی است")
+    .refine(
+      (value) => /^\d{8,16}$/.test(normalizeNationalId(value)),
+      "رمز عبور را با کد ملی وارد کنید",
+    ),
+});
+
+const nameSchema = z.object({
   firstName: z
     .string()
     .trim()
@@ -38,7 +57,9 @@ const schema = z.object({
   password: z.string().min(1, "رمز عبور را وارد کنید"),
 });
 
-type FormValues = z.infer<typeof schema>;
+type NationalValues = z.infer<typeof nationalSchema>;
+type NameValues = z.infer<typeof nameSchema>;
+type LoginMode = "national" | "name";
 
 export function LoginForm() {
   const router = useRouter();
@@ -48,43 +69,68 @@ export function LoginForm() {
     getSession,
     getServerSession,
   );
+  const [mode, setMode] = useState<LoginMode>("national");
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const nationalForm = useForm<NationalValues>({
+    resolver: zodResolver(nationalSchema),
     mode: "onChange",
     reValidateMode: "onChange",
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      password: "",
-    },
+    defaultValues: { username: "", password: "" },
+  });
+  const nameForm = useForm<NameValues>({
+    resolver: zodResolver(nameSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
+    defaultValues: { firstName: "", lastName: "", password: "" },
   });
 
   useEffect(() => {
     if (existingSession) {
-      router.replace("/dashboard");
+      router.replace(sessionHome(existingSession));
     }
   }, [existingSession, router]);
 
-  const onSubmit = async (values: FormValues) => {
+  const switchMode = (next: LoginMode) => {
+    setMode(next);
     setAuthError(null);
-    const result = await loginWithApi(
-      values.firstName,
-      values.lastName,
-      values.password,
-    );
+    setShowPassword(false);
+  };
+
+  const onNationalSubmit = async (values: NationalValues) => {
+    setAuthError(null);
+    const result = await loginWithApi({
+      username: values.username,
+      password: values.password,
+    });
     if (!result.ok) {
       setAuthError(result.message || copy.login.error);
       return;
     }
-    router.push("/dashboard");
+    const session = getSession();
+    router.push(session ? sessionHome(session) : "/dashboard");
   };
+
+  const onNameSubmit = async (values: NameValues) => {
+    setAuthError(null);
+    const result = await loginWithApi({
+      firstName: values.firstName,
+      lastName: values.lastName,
+      password: values.password,
+    });
+    if (!result.ok) {
+      setAuthError(result.message || copy.login.error);
+      return;
+    }
+    const session = getSession();
+    router.push(session ? sessionHome(session) : "/dashboard");
+  };
+
+  const isSubmitting =
+    mode === "national"
+      ? nationalForm.formState.isSubmitting
+      : nameForm.formState.isSubmitting;
 
   if (existingSession) {
     return (
@@ -140,143 +186,243 @@ export function LoginForm() {
           transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 p-7 shadow-[0_30px_80px_-40px_rgba(0,54,196,0.45)] backdrop-blur-md sm:p-9">
-            <div className="mb-7">
+            <div className="mb-5">
               <h1 className="text-2xl font-bold text-foreground">
                 {copy.login.title}
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                {copy.login.subtitle}
+                {mode === "national"
+                  ? copy.login.subtitleNational
+                  : copy.login.subtitleName}
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">{copy.login.firstName}</Label>
-                  <div className="relative">
-                    <UserRound
-                      className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                      strokeWidth={1.75}
-                    />
-                    <Input
-                      id="firstName"
-                      autoComplete="given-name"
-                      placeholder="مثلاً آوا"
-                      className={cn(
-                        "pr-10",
-                        errors.firstName &&
-                          "border-destructive focus-visible:ring-destructive/30",
-                      )}
-                      aria-invalid={Boolean(errors.firstName)}
-                      {...register("firstName")}
-                    />
-                  </div>
-                  {errors.firstName ? (
-                    <p className="text-xs text-destructive">
-                      {errors.firstName.message}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">{copy.login.lastName}</Label>
-                  <div className="relative">
-                    <UserRound
-                      className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                      strokeWidth={1.75}
-                    />
-                    <Input
-                      id="lastName"
-                      autoComplete="family-name"
-                      placeholder="مثلاً محمدی"
-                      className={cn(
-                        "pr-10",
-                        errors.lastName &&
-                          "border-destructive focus-visible:ring-destructive/30",
-                      )}
-                      aria-invalid={Boolean(errors.lastName)}
-                      {...register("lastName")}
-                    />
-                  </div>
-                  {errors.lastName ? (
-                    <p className="text-xs text-destructive">
-                      {errors.lastName.message}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">{copy.login.password}</Label>
-                <div className="relative">
-                  <Lock
-                    className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    strokeWidth={1.75}
-                  />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    className={cn(
-                      "pr-10 pl-11",
-                      errors.password &&
-                        "border-destructive focus-visible:ring-destructive/30",
-                    )}
-                    aria-invalid={Boolean(errors.password)}
-                    {...register("password")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "مخفی کردن رمز" : "نمایش رمز"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4" strokeWidth={1.75} />
-                    ) : (
-                      <Eye className="size-4" strokeWidth={1.75} />
-                    )}
-                  </button>
-                </div>
-                {errors.password ? (
-                  <p className="text-xs text-destructive">
-                    {errors.password.message}
-                  </p>
-                ) : null}
-              </div>
-
-              {authError ? (
-                <p
-                  className={cn(
-                    "rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-destructive",
-                  )}
-                >
-                  {authError}
-                </p>
-              ) : null}
-
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full"
-                disabled={isSubmitting}
+            <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-brand-50 p-1">
+              <button
+                type="button"
+                onClick={() => switchMode("national")}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:text-sm",
+                  mode === "national"
+                    ? "bg-white text-brand shadow-sm"
+                    : "text-brand-700 hover:bg-white/60",
+                )}
               >
-                {isSubmitting ? copy.login.submitting : copy.login.submit}
-              </Button>
-            </form>
+                {copy.login.modeNational}
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode("name")}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:text-sm",
+                  mode === "name"
+                    ? "bg-white text-brand shadow-sm"
+                    : "text-brand-700 hover:bg-white/60",
+                )}
+              >
+                {copy.login.modeName}
+              </button>
+            </div>
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              {copy.login.demoHint}
-            </p>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              {copy.login.noAccount}{" "}
-              <Link href="/" className="font-semibold text-brand">
-                {copy.login.goRegister}
-              </Link>
-            </p>
+            {mode === "national" ? (
+              <form
+                onSubmit={nationalForm.handleSubmit(onNationalSubmit)}
+                className="space-y-4"
+                noValidate
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="username">{copy.login.username}</Label>
+                  <div className="relative">
+                    <UserRound
+                      className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                      strokeWidth={1.75}
+                    />
+                    <Input
+                      id="username"
+                      autoComplete="username"
+                      inputMode="numeric"
+                      dir="ltr"
+                      placeholder="کد ملی"
+                      className={cn(
+                        "pr-10 text-left",
+                        nationalForm.formState.errors.username &&
+                          "border-destructive focus-visible:ring-destructive/30",
+                      )}
+                      aria-invalid={Boolean(nationalForm.formState.errors.username)}
+                      {...nationalForm.register("username")}
+                    />
+                  </div>
+                  {nationalForm.formState.errors.username ? (
+                    <p className="text-xs text-destructive">
+                      {nationalForm.formState.errors.username.message}
+                    </p>
+                  ) : null}
+                </div>
+
+                <PasswordField
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword((v) => !v)}
+                  error={nationalForm.formState.errors.password?.message}
+                  numeric
+                  register={nationalForm.register("password")}
+                />
+
+                {authError ? <AuthError message={authError} /> : null}
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? copy.login.submitting : copy.login.submit}
+                </Button>
+              </form>
+            ) : (
+              <form
+                onSubmit={nameForm.handleSubmit(onNameSubmit)}
+                className="space-y-4"
+                noValidate
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">{copy.login.firstName}</Label>
+                    <div className="relative">
+                      <UserRound
+                        className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        strokeWidth={1.75}
+                      />
+                      <Input
+                        id="firstName"
+                        autoComplete="given-name"
+                        placeholder="مثلاً آوا"
+                        className={cn(
+                          "pr-10",
+                          nameForm.formState.errors.firstName &&
+                            "border-destructive focus-visible:ring-destructive/30",
+                        )}
+                        aria-invalid={Boolean(nameForm.formState.errors.firstName)}
+                        {...nameForm.register("firstName")}
+                      />
+                    </div>
+                    {nameForm.formState.errors.firstName ? (
+                      <p className="text-xs text-destructive">
+                        {nameForm.formState.errors.firstName.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">{copy.login.lastName}</Label>
+                    <div className="relative">
+                      <UserRound
+                        className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        strokeWidth={1.75}
+                      />
+                      <Input
+                        id="lastName"
+                        autoComplete="family-name"
+                        placeholder="مثلاً محمدی"
+                        className={cn(
+                          "pr-10",
+                          nameForm.formState.errors.lastName &&
+                            "border-destructive focus-visible:ring-destructive/30",
+                        )}
+                        aria-invalid={Boolean(nameForm.formState.errors.lastName)}
+                        {...nameForm.register("lastName")}
+                      />
+                    </div>
+                    {nameForm.formState.errors.lastName ? (
+                      <p className="text-xs text-destructive">
+                        {nameForm.formState.errors.lastName.message}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <PasswordField
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword((v) => !v)}
+                  error={nameForm.formState.errors.password?.message}
+                  register={nameForm.register("password")}
+                />
+
+                {authError ? <AuthError message={authError} /> : null}
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? copy.login.submitting : copy.login.submit}
+                </Button>
+              </form>
+            )}
           </div>
         </motion.div>
       </div>
+    </div>
+  );
+}
+
+function AuthError({ message }: { message: string }) {
+  return (
+    <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-destructive">
+      {message}
+    </p>
+  );
+}
+
+function PasswordField({
+  showPassword,
+  onToggle,
+  error,
+  numeric,
+  register,
+}: {
+  showPassword: boolean;
+  onToggle: () => void;
+  error?: string;
+  numeric?: boolean;
+  register: UseFormRegisterReturn;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="password">{copy.login.password}</Label>
+      <div className="relative">
+        <Lock
+          className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          strokeWidth={1.75}
+        />
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          inputMode={numeric ? "numeric" : undefined}
+          dir={numeric ? "ltr" : undefined}
+          className={cn(
+            "pr-10 pl-11",
+            numeric && "text-left",
+            error && "border-destructive focus-visible:ring-destructive/30",
+          )}
+          aria-invalid={Boolean(error)}
+          {...register}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
+          aria-label={showPassword ? "مخفی کردن رمز" : "نمایش رمز"}
+        >
+          {showPassword ? (
+            <EyeOff className="size-4" strokeWidth={1.75} />
+          ) : (
+            <Eye className="size-4" strokeWidth={1.75} />
+          )}
+        </button>
+      </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

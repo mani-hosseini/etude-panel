@@ -17,8 +17,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import {
   CurrentUser,
+  Roles,
   type AuthUser,
 } from '../common/decorators/auth.decorators';
 import { pdfMulterOptions } from '../uploads/pdf-upload';
@@ -27,6 +29,7 @@ import { ExamsService } from './exams.service';
 
 @ApiTags('Exams')
 @ApiBearerAuth()
+@Roles(Role.STUDENT)
 @Controller('exams')
 export class ExamsController {
   constructor(private readonly exams: ExamsService) {}

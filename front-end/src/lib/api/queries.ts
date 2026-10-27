@@ -4,6 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 
 import { audienceError } from "@/lib/api/errors";
 import { api } from "@/lib/api/client";
+import { decodeCourseParam } from "@/lib/slug";
+
+function courseKey(courseId?: string) {
+  return decodeCourseParam(courseId) ?? courseId;
+}
 
 export const queryKeys = {
   dashboard: ["dashboard"] as const,
@@ -16,13 +21,19 @@ export const queryKeys = {
     ["session-slides", courseId ?? "primary", sessionId] as const,
   sessionAttachments: (sessionId: string, courseId?: string) =>
     ["session-attachments", courseId ?? "primary", sessionId] as const,
+<<<<<<< HEAD
+=======
   sessionExercises: (sessionId: string, courseId?: string) =>
     ["session-exercises", courseId ?? "primary", sessionId] as const,
   schedule: (courseId?: string) =>
     ["schedule", courseId ?? "primary"] as const,
+>>>>>>> origin/main
   profile: ["profile"] as const,
   exams: ["exams"] as const,
   exam: (id: string) => ["exam", id] as const,
+  assignments: ["assignments"] as const,
+  practiceSeries: (range: string) => ["practice-series", range] as const,
+  path: ["path"] as const,
 };
 
 function queryErrorMessage(error: unknown) {
@@ -44,24 +55,27 @@ export function useCoursesQuery() {
 }
 
 export function useCourseQuery(courseId: string | undefined, enabled = true) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.course(courseId ?? ""),
-    queryFn: () => api.course(courseId!),
-    enabled: Boolean(courseId) && enabled,
+    queryKey: queryKeys.course(id ?? ""),
+    queryFn: () => api.course(id!),
+    enabled: Boolean(id) && enabled,
   });
 }
 
 export function useSessionsQuery(courseId?: string) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessions(courseId),
-    queryFn: () => api.sessions(courseId),
+    queryKey: queryKeys.sessions(id),
+    queryFn: () => api.sessions(id),
   });
 }
 
 export function useSessionQuery(sessionId: string, courseId?: string) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.session(sessionId, courseId),
-    queryFn: () => api.session(sessionId, courseId),
+    queryKey: queryKeys.session(sessionId, id),
+    queryFn: () => api.session(sessionId, id),
   });
 }
 
@@ -70,9 +84,10 @@ export function useSessionSlidesQuery(
   courseId?: string,
   enabled = true,
 ) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessionSlides(sessionId, courseId),
-    queryFn: () => api.sessionSlides(sessionId, courseId),
+    queryKey: queryKeys.sessionSlides(sessionId, id),
+    queryFn: () => api.sessionSlides(sessionId, id),
     enabled,
   });
 }
@@ -82,13 +97,16 @@ export function useSessionAttachmentsQuery(
   courseId?: string,
   enabled = true,
 ) {
+  const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessionAttachments(sessionId, courseId),
-    queryFn: () => api.sessionAttachments(sessionId, courseId),
+    queryKey: queryKeys.sessionAttachments(sessionId, id),
+    queryFn: () => api.sessionAttachments(sessionId, id),
     enabled,
   });
 }
 
+<<<<<<< HEAD
+=======
 export function useSessionExercisesQuery(
   sessionId: string,
   courseId?: string,
@@ -108,6 +126,7 @@ export function useScheduleQuery(courseId?: string) {
   });
 }
 
+>>>>>>> origin/main
 export function useProfileQuery() {
   return useQuery({
     queryKey: queryKeys.profile,
@@ -127,6 +146,27 @@ export function useExamQuery(id: string) {
     queryKey: queryKeys.exam(id),
     queryFn: () => api.exam(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useAssignmentsQuery() {
+  return useQuery({
+    queryKey: queryKeys.assignments,
+    queryFn: () => api.assignments(),
+  });
+}
+
+export function usePracticeSeriesQuery(range: "7d" | "30d" | "90d") {
+  return useQuery({
+    queryKey: queryKeys.practiceSeries(range),
+    queryFn: () => api.practiceSeries(range),
+  });
+}
+
+export function usePathProgressQuery() {
+  return useQuery({
+    queryKey: queryKeys.path,
+    queryFn: () => api.pathProgress(),
   });
 }
 

@@ -1,5 +1,7 @@
-import { SchedulePage } from "@/components/panel/SchedulePage";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <SchedulePage />;
+import { routes } from "@/lib/routes";
+
+export default function ScheduleRedirect() {
+  redirect(routes.sessions);
 }

@@ -2,12 +2,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -36,6 +39,13 @@ export class ListUsersQueryDto extends PaginationQueryDto {
     message: 'سطح باید بین ۱ تا ۱۰ باشد.',
   })
   level?: string;
+
+  @ApiPropertyOptional({
+    description: 'هنرجوهایی که در دورهٔ این استاد ثبت‌نام شده‌اند',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'شناسهٔ استاد نامعتبر است.' })
+  teacherId?: string;
 }
 
 export class UpdateUserDto {
@@ -103,6 +113,30 @@ export class UpdateUserDto {
   @MinLength(8)
   @MaxLength(128)
   password?: string;
+
+  @ApiPropertyOptional({ example: 'استاد پیانو' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  title?: string;
+
+  @ApiPropertyOptional({ example: 'پیانو' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  instrument?: string;
+
+  @ApiPropertyOptional({ example: 'استودیو ۳' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  room?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  bio?: string;
 }
 
 export class ResetPasswordDto {
@@ -118,4 +152,21 @@ export class EnrollCourseDto {
   @IsString()
   @IsNotEmpty()
   courseId!: string;
+
+  @ApiPropertyOptional({
+    example: ['یکشنبه'],
+    description: 'روزهایی که این هنرجو در این دوره کلاس دارد',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  classDays?: string[];
+}
+
+export class UpdateEnrollmentDaysDto {
+  @ApiProperty({ example: ['یکشنبه'] })
+  @IsArray()
+  @ArrayMinSize(1, { message: 'حداقل یک روز کلاس برای این هنرجو انتخاب کنید.' })
+  @IsString({ each: true })
+  classDays!: string[];
 }

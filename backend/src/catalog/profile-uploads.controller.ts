@@ -14,8 +14,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import {
   CurrentUser,
+  Roles,
   type AuthUser,
 } from '../common/decorators/auth.decorators';
 import { CatalogService } from './catalog.service';
@@ -26,6 +28,7 @@ const MAX_AVATAR_BYTES = 1 * 1024 * 1024;
 
 @ApiTags('Profile')
 @ApiBearerAuth()
+@Roles(Role.STUDENT)
 @Controller('profile')
 export class ProfileUploadsController {
   constructor(

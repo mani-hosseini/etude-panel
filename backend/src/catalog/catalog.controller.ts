@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -8,6 +9,7 @@ import {
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import {
   CurrentUser,
+  Roles,
   type AuthUser,
 } from '../common/decorators/auth.decorators';
 import { CatalogService } from './catalog.service';
@@ -20,6 +22,7 @@ import { UpdateSessionProgressDto } from './dto/update-session-progress.dto';
 
 @ApiTags('Catalog')
 @ApiBearerAuth()
+@Roles(Role.STUDENT)
 @Controller()
 export class CatalogController {
   constructor(private readonly catalog: CatalogService) {}
@@ -52,6 +55,15 @@ export class CatalogController {
     @Param('id') id: string,
   ) {
     return this.catalog.getCertificate(user.id, id);
+  }
+
+  @Get('courses/:id/certificate/download')
+  @ApiOperation({ summary: 'دانلود گواهی پایان دوره' })
+  downloadCourseCertificate(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.catalog.downloadCertificate(user.id, id);
   }
 
   @Get('sessions')

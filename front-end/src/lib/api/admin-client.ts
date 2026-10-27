@@ -1,6 +1,5 @@
 import type { PaginationMeta } from "@/lib/api/http";
 import { adminHttp } from "@/lib/api/admin-tokens";
-import { fileUploadFormData } from "@/lib/api/upload-form";
 
 export type AdminUserEnrollment = {
   id: string;
@@ -8,6 +7,8 @@ export type AdminUserEnrollment = {
   progress?: number;
   sessionsDone?: number;
   sessionsTotal?: number;
+  currentSessionNumber?: number;
+  classDays?: string[];
   course: {
     id: string;
     uuid: string;
@@ -15,36 +16,43 @@ export type AdminUserEnrollment = {
     teacher: string;
     status: string;
     instrument: string;
+    day?: string;
+    days?: string[];
   };
-};
-
-export type AdminUserExamGrade = {
-  examId: string;
-  title: string;
-  status: "DRAFT" | "PUBLISHED" | "CLOSED";
-  score: number | null;
-  gradedAt: string | null;
 };
 
 export type AdminUserDetail = AdminUser & {
   enrollments: AdminUserEnrollment[];
+  taughtCourses?: AdminTaughtCourse[];
   achievements: {
     id: string;
     title: string;
     desc: string;
     earnedAt: string;
   }[];
-  examGrades?: AdminUserExamGrade[];
 };
 
 export type CreateStudentBody = {
   firstName: string;
   lastName: string;
-  password: string;
+  nationalId: string;
+  password?: string;
   level?: string;
 };
 
-export type AdminRole = "STUDENT" | "ADMIN";
+export type CreateTeacherBody = {
+  firstName: string;
+  lastName: string;
+  nationalId: string;
+  password?: string;
+  title?: string;
+  instrument?: string;
+  room?: string;
+  bio?: string;
+  phone?: string;
+};
+
+export type AdminRole = "STUDENT" | "TEACHER" | "ADMIN";
 
 export type AdminUser = {
   id: string;
@@ -60,17 +68,35 @@ export type AdminUser = {
   nationalId?: string | null;
   address?: string | null;
   password?: string | null;
+  title?: string | null;
+  instrument?: string | null;
+  room?: string | null;
+  bio?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   enrollmentsCount: number;
+  taughtCoursesCount?: number;
   achievementsCount: number;
   avgProgress?: number;
+};
+
+export type AdminTaughtCourse = {
+  id: string;
+  uuid: string;
+  title: string;
+  teacher: string;
+  status: string;
+  instrument: string;
+  day?: string;
+  days?: string[];
+  timeShort?: string;
 };
 
 export type AdminUsersStats = {
   total: number;
   students: number;
+  teachers?: number;
   admins: number;
   active: number;
   inactive: number;
@@ -95,6 +121,7 @@ export type ListUsersParams = {
   search?: string;
   sort?: string;
   level?: string;
+  teacherId?: string;
 };
 
 export type CourseStatus = "ACTIVE" | "UPCOMING" | "COMPLETED";
@@ -112,6 +139,7 @@ export type AdminCourse = {
   teacher: string;
   teacherShort: string;
   day: string;
+  days?: string[];
   time: string;
   timeShort: string;
   duration: string;
@@ -130,6 +158,7 @@ export type AdminCourse = {
   sessionsCount: number;
   enrollmentsCount: number;
   scheduleCount: number;
+  teacherId?: string | null;
 };
 
 export type AdminSession = {
@@ -147,7 +176,6 @@ export type AdminSession = {
   timeLabel?: string;
   slideCount: number;
   attachmentCount?: number;
-  exerciseCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -164,8 +192,6 @@ export type AdminAttachment = {
   createdAt: string;
   updatedAt: string;
 };
-
-export type AdminExercise = AdminAttachment;
 
 export type AdminSlideTerm = { en: string; fa: string };
 
@@ -249,17 +275,8 @@ export type AdminExamSubmission = {
   };
 };
 
-export type AdminExamRosterRow = {
-  student: AdminExamSubmission["student"];
-  submitted: boolean;
-  submission: AdminExamSubmission | null;
-  score: number | null;
-  gradedAt: string | null;
-};
-
 export type AdminExamDetail = AdminExam & {
   submissions: AdminExamSubmission[];
-  roster: AdminExamRosterRow[];
 };
 
 export type UpsertExamBody = {
@@ -276,8 +293,28 @@ export type ListExamsParams = {
   status?: ExamStatus;
 };
 
+export type AdminCourseEnrollment = {
+  id: string;
+  joinedAt: string;
+  currentSessionNumber?: number;
+  classDays?: string[];
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    studentCode: string | null;
+    nationalId?: string | null;
+    phone?: string | null;
+    level: string | null;
+    isActive: boolean;
+    avatarUrl?: string | null;
+  };
+};
+
 export type AdminCourseDetail = AdminCourse & {
   sessions: AdminSession[];
+  enrollments?: AdminCourseEnrollment[];
 };
 
 export type UpsertCourseBody = {
@@ -288,6 +325,7 @@ export type UpsertCourseBody = {
   teacher: string;
   teacherShort: string;
   day: string;
+  days?: string[];
   time: string;
   timeShort: string;
   duration: string;
@@ -301,6 +339,7 @@ export type UpsertCourseBody = {
   accessNote?: string;
   isActive?: boolean;
   sortOrder?: number;
+  teacherId?: string;
 };
 
 export type ListCoursesParams = {
@@ -361,6 +400,7 @@ export const adminApi = {
       search: params.search,
       sort: params.sort,
       level: params.level,
+      teacherId: params.teacherId,
     });
     const { data, meta } = await adminHttp.request<{ users: AdminUser[] }>(
       `/users${query}`,
@@ -397,6 +437,10 @@ export const adminApi = {
       address?: string;
       isActive?: boolean;
       password?: string;
+      title?: string;
+      instrument?: string;
+      room?: string;
+      bio?: string;
     },
   ) =>
     adminHttp.requestData<AdminUser>(`/users/${id}`, {
@@ -416,25 +460,62 @@ export const adminApi = {
       body,
     }),
 
+  createTeacher: (body: CreateTeacherBody) =>
+    adminHttp.requestData<AdminPublicUser>("/auth/register/teacher", {
+      method: "POST",
+      body,
+    }),
+
   deleteUser: (id: string) =>
     adminHttp.requestData<{ deleted: boolean }>(`/users/${id}`, {
       method: "DELETE",
     }),
 
-  enrollUser: (userId: string, courseId: string) =>
+  enrollUser: (userId: string, courseId: string, classDays?: string[]) =>
     adminHttp.requestData<{
       id: string;
       joinedAt: string;
       courseId: string;
       courseTitle: string;
+      classDays?: string[];
     }>(`/users/${userId}/enrollments`, {
       method: "POST",
-      body: { courseId },
+      body: { courseId, classDays },
+    }),
+
+  updateEnrollmentDays: (
+    userId: string,
+    courseId: string,
+    classDays: string[],
+  ) =>
+    adminHttp.requestData<{
+      id: string;
+      courseId: string;
+      classDays: string[];
+    }>(`/users/${userId}/enrollments/${encodeURIComponent(courseId)}`, {
+      method: "PATCH",
+      body: { classDays },
     }),
 
   unenrollUser: (userId: string, courseId: string) =>
     adminHttp.requestData<{ removed: boolean }>(
       `/users/${userId}/enrollments/${encodeURIComponent(courseId)}`,
+      { method: "DELETE" },
+    ),
+
+  assignTaughtCourse: (userId: string, courseId: string) =>
+    adminHttp.requestData<{
+      courseId: string;
+      courseTitle: string;
+      teacherId: string;
+    }>(`/users/${userId}/taught-courses`, {
+      method: "POST",
+      body: { courseId },
+    }),
+
+  unassignTaughtCourse: (userId: string, courseId: string) =>
+    adminHttp.requestData<{ removed: boolean }>(
+      `/users/${userId}/taught-courses/${encodeURIComponent(courseId)}`,
       { method: "DELETE" },
     ),
 
@@ -590,11 +671,15 @@ export const adminApi = {
       `/admin/sessions/${sessionId}/attachments`,
     ),
 
-  uploadAttachment: (sessionId: string, file: File, caption?: string) =>
-    adminHttp.upload<AdminAttachment>(
+  uploadAttachment: (sessionId: string, file: File, caption?: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (caption?.trim()) formData.append("caption", caption.trim());
+    return adminHttp.upload<AdminAttachment>(
       `/admin/sessions/${sessionId}/attachments`,
-      fileUploadFormData(file, { caption }),
-    ),
+      formData,
+    );
+  },
 
   updateAttachment: (id: string, body: { caption?: string }) =>
     adminHttp.requestData<AdminAttachment>(`/admin/attachments/${id}`, {
@@ -611,34 +696,6 @@ export const adminApi = {
     adminHttp.requestData<{ attachments: AdminAttachment[] }>(
       `/admin/sessions/${sessionId}/attachments/reorder`,
       { method: "POST", body: { attachmentIds } },
-    ),
-
-  exercises: (sessionId: string) =>
-    adminHttp.requestData<{ exercises: AdminExercise[] }>(
-      `/admin/sessions/${sessionId}/exercises`,
-    ),
-
-  uploadExercise: (sessionId: string, file: File, caption?: string) =>
-    adminHttp.upload<AdminExercise>(
-      `/admin/sessions/${sessionId}/exercises`,
-      fileUploadFormData(file, { caption }),
-    ),
-
-  updateExercise: (id: string, body: { caption?: string }) =>
-    adminHttp.requestData<AdminExercise>(`/admin/exercises/${id}`, {
-      method: "PATCH",
-      body,
-    }),
-
-  deleteExercise: (id: string) =>
-    adminHttp.requestData<{ deleted: boolean }>(`/admin/exercises/${id}`, {
-      method: "DELETE",
-    }),
-
-  reorderExercises: (sessionId: string, exerciseIds: string[]) =>
-    adminHttp.requestData<{ exercises: AdminExercise[] }>(
-      `/admin/sessions/${sessionId}/exercises/reorder`,
-      { method: "POST", body: { exerciseIds } },
     ),
 
   schedule: (courseId: string) =>
@@ -764,17 +821,20 @@ export const adminApi = {
       method: "DELETE",
     }),
 
-  uploadExamFile: (id: string, file: File) =>
-    adminHttp.upload<AdminExam>(
-      `/admin/exams/${id}/exam-file`,
-      fileUploadFormData(file),
-    ),
+  uploadExamFile: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return adminHttp.upload<AdminExam>(`/admin/exams/${id}/exam-file`, formData);
+  },
 
-  uploadExamAnswerFile: (id: string, file: File) =>
-    adminHttp.upload<AdminExam>(
+  uploadExamAnswerFile: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return adminHttp.upload<AdminExam>(
       `/admin/exams/${id}/answer-file`,
-      fileUploadFormData(file),
-    ),
+      formData,
+    );
+  },
 
   downloadExamFile: (id: string) =>
     adminHttp.download(`/admin/exams/${id}/exam-file`),
@@ -786,15 +846,4 @@ export const adminApi = {
     adminHttp.download(
       `/admin/exams/${examId}/submissions/${submissionId}/file`,
     ),
-
-  updateExamGrade: (
-    examId: string,
-    body: { userId: string; score: number | null },
-  ) =>
-    adminHttp.requestData<{
-      examId: string;
-      userId: string;
-      score: number | null;
-      gradedAt: string | null;
-    }>(`/admin/exams/${examId}/grades`, { method: "PATCH", body }),
 };

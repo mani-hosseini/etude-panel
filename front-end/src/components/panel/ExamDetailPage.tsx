@@ -23,12 +23,17 @@ import { api } from "@/lib/api/client";
 import { audienceError } from "@/lib/api/errors";
 import { queryKeys, useExamQuery } from "@/lib/api/queries";
 import { saveBlob } from "@/lib/download";
+<<<<<<< HEAD
+import { formatBytes, formatDateTimeFa } from "@/lib/format";
+import { announceSaved } from "@/lib/save-feedback";
+=======
 import {
   displayPdfName,
   formatBytes,
   formatDateTimeFa,
   formatExamScore,
 } from "@/lib/format";
+>>>>>>> origin/main
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +52,7 @@ export function ExamDetailPage({ examId }: ExamDetailPageProps) {
   const submit = useMutation({
     mutationFn: (file: File) => api.submitExamPdf(examId, file),
     onSuccess: async () => {
+      announceSaved("پاسخ شما با موفقیت ثبت شد.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.exam(examId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.exams }),

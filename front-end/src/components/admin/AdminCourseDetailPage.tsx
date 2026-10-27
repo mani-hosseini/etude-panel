@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { AdminCourseStudentsPanel } from "@/components/admin/AdminCourseStudentsPanel";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { CourseSessionsPanel } from "@/components/admin/course/CourseSessionsPanel";
 import { CourseTipsPanel } from "@/components/admin/course/CourseTipsPanel";
@@ -60,11 +61,17 @@ export function AdminCourseDetailPage({ courseSlug }: { courseSlug: string }) {
         <Badge variant="secondary" className="rounded-lg">
           {course.teacher}
         </Badge>
+        {course.day ? (
+          <Badge variant="outline" className="rounded-lg">
+            {course.day} · {course.timeShort}
+          </Badge>
+        ) : null}
       </div>
 
       <Tabs defaultValue="sessions" dir="rtl">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="sessions">جلسات</TabsTrigger>
+          <TabsTrigger value="students">هنرجویان</TabsTrigger>
           <TabsTrigger value="tips">نکات تمرین</TabsTrigger>
           <TabsTrigger value="settings">تنظیمات</TabsTrigger>
         </TabsList>
@@ -75,6 +82,14 @@ export function AdminCourseDetailPage({ courseSlug }: { courseSlug: string }) {
             courseSlug={course.slug}
             courseTimeShort={course.timeShort}
             sessions={course.sessions}
+          />
+        </TabsContent>
+        <TabsContent value="students">
+          <AdminCourseStudentsPanel
+            courseSlug={course.slug}
+            courseDays={course.days ?? []}
+            courseDay={course.day}
+            enrollments={course.enrollments ?? []}
           />
         </TabsContent>
         <TabsContent value="tips">

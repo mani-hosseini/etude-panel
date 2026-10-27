@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   CalendarClock,
+  Check,
   Lock,
   Presentation,
 } from "lucide-react";
@@ -20,8 +21,9 @@ import {
   queryErrorMessage,
   useSessionsQuery,
 } from "@/lib/api/queries";
-import { toFa, weekdayPlural, cleanCourseTitle } from "@/lib/format";
+import { toFa, formatClassDays, cleanCourseTitle } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { decodeCourseParam } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 
 const statusMeta: Record<
@@ -37,7 +39,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const queryCourseId = searchParams.get("courseId");
+  const queryCourseId = decodeCourseParam(searchParams.get("courseId"));
 
   useEffect(() => {
     if (!courseId && queryCourseId) {
@@ -45,7 +47,8 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
     }
   }, [courseId, queryCourseId, router]);
 
-  const resolvedCourseId = courseId ?? queryCourseId ?? undefined;
+  const resolvedCourseId =
+    decodeCourseParam(courseId) ?? queryCourseId ?? undefined;
   const query = useSessionsQuery(resolvedCourseId);
 
   useEffect(() => {
@@ -53,6 +56,14 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
     if (!query.isSuccess) return;
     router.replace(routes.courseSessions(query.data.course.id));
   }, [courseId, queryCourseId, query.isSuccess, query.data, router]);
+
+  const listMode = searchParams.get("list") === "1";
+  useEffect(() => {
+    if (listMode || !courseId || !query.isSuccess) return;
+    const current = query.data.sessions.find((item) => item.current);
+    if (!current) return;
+    router.replace(routes.courseSession(query.data.course.id, current.id));
+  }, [listMode, courseId, query.isSuccess, query.data, router]);
 
   if (!courseId && (queryCourseId || query.isSuccess)) {
     return <Skeleton className="h-64 rounded-3xl" />;
@@ -68,14 +79,23 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
   }
 
   if (query.isError) {
+    const message = queryErrorMessage(query.error);
+    const noCourse =
+      message.includes("دوره‌ای برای این هنرجو") ||
+      (!resolvedCourseId && message.includes("یافت نشد"));
     return (
-      <div className="surface-panel p-8 text-center text-sm text-destructive">
-        {queryErrorMessage(query.error)}
+      <div className="surface-panel p-8 text-center text-sm text-muted-foreground">
+        {noCourse
+          ? "هنوز در دوره‌ای ثبت نشده‌اید. بعد از ثبت‌نام آموزشگاه، جلسات اینجا می‌آید."
+          : message}
       </div>
     );
   }
 
   const { course, sessions } = query.data;
+  if (!listMode && courseId && sessions.some((item) => item.current)) {
+    return <Skeleton className="h-64 rounded-3xl" />;
+  }
   const available = sessions.filter((s) => s.status === "available").length;
 
   return (
@@ -83,7 +103,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
       <PageHeader
         eyebrow={course.teacher}
         title={`جلسات · ${course.title}`}
-        description="محتوای هر جلسه به‌صورت اسلاید در دسترس است."
+        description="تکلیف و نکته‌هایی که استاد برای هر جلسه می‌گذارد اینجا دیده می‌شود."
       />
 
       <motion.section
@@ -98,7 +118,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
               {cleanCourseTitle(course.title)}
             </h3>
             <p className="mt-2 text-sm text-white/80">
-              {weekdayPlural(course.day)} · {course.time} · {course.room}
+              {formatClassDays(course.classDays ?? course.days, course.day)} · {course.time} · {course.room}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -126,10 +146,17 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
           const completed =
             session.status === "available" &&
             (session.progressPercent ?? 0) >= 100;
-          const meta = completed
-            ? { label: "مشاهده شد", variant: "success" as const }
-            : statusMeta[session.status];
-          const clickable = session.status === "available";
+          const meta =
+            session.attendanceStatus === "absent"
+              ? { label: "غایب بودید", variant: "secondary" as const }
+              : session.current
+                ? { label: "جلسه جاری", variant: "success" as const }
+                : completed
+                  ? { label: "مشاهده شد", variant: "success" as const }
+                  : statusMeta[session.status];
+          const clickable =
+            session.status === "available" ||
+            session.attendanceStatus === "absent";
           const href = routes.courseSession(course.id, session.id);
 
           const card = (
@@ -154,8 +181,24 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   <h3 className="mt-2 text-lg font-bold text-foreground group-hover:text-brand">
                     {session.title || `جلسه ${toFa(session.number)}`}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-7 text-muted-foreground">
-                    {session.summary}
+                  <p
+                    className={cn(
+                      "mt-1.5 text-sm leading-7",
+                      session.attendanceStatus === "absent"
+                        ? "text-destructive"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {session.attendanceStatus === "absent"
+                      ? "شما در این جلسه غایب بودید و تکلیفی برایتان ثبت نشده است."
+                      : clickable &&
+                          (session.summary ===
+                            "محتوای این جلسه پس از برگزاری کلاس فعال می‌شود." ||
+                            !session.summary)
+                        ? session.homeworkTitle
+                          ? `تکلیف این جلسه: ${session.homeworkTitle}`
+                          : "این جلسه برگزار شده است."
+                        : session.summary}
                   </p>
                   {session.topics.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-1.5">
@@ -195,6 +238,11 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                       <span className="inline-flex items-center gap-1.5">
                         <Presentation className="size-3.5" strokeWidth={1.75} />
                         {toFa(session.slideCount)} اسلاید
+                      </span>
+                    ) : clickable ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Check className="size-3.5" strokeWidth={1.75} />
+                        {session.homeworkTitle ? "تکلیف ثبت شده" : "برگزار شده"}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5">

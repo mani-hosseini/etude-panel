@@ -2,34 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Award,
-  BookOpen,
-  CalendarDays,
-  ClipboardCheck,
-  LayoutDashboard,
-  LogOut,
-  UserRound,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
+import { panelNavItems } from "@/constants/panel-nav";
 import { useDashboardQuery } from "@/lib/api/queries";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import { parseStudentLevel, STUDENT_LEVEL_STYLE, studentLevelEdgeGlow } from "@/lib/student-level";
 import { logoutWithApi } from "@/lib/auth";
 import { isNavActive, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: routes.dashboard, label: copy.nav.dashboard, icon: LayoutDashboard },
-  { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
-  { href: routes.exams, label: copy.nav.exams, icon: ClipboardCheck },
-  { href: routes.schedule, label: copy.nav.schedule, icon: CalendarDays },
-  { href: routes.certificates, label: copy.nav.certificates, icon: Award },
-  { href: routes.profile, label: copy.nav.profile, icon: UserRound },
-] as const;
 
 type PanelSidebarProps = {
   studentName: string;
@@ -52,7 +36,7 @@ export function PanelSidebar({
 
   const logout = () => {
     void logoutWithApi().then(() => {
-      router.replace(routes.register);
+      router.replace(routes.login);
     });
   };
 
@@ -72,7 +56,7 @@ export function PanelSidebar({
         <p className="px-3 pb-2 pt-1 text-[11px] font-medium tracking-wide text-white/45">
           منوی اصلی
         </p>
-        {navItems.map((item) => {
+        {panelNavItems.map((item) => {
           const Icon = item.icon;
           const active = isNavActive(pathname, item.href);
 

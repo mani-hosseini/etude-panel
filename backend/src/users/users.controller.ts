@@ -22,6 +22,7 @@ import {
   EnrollCourseDto,
   ListUsersQueryDto,
   ResetPasswordDto,
+  UpdateEnrollmentDaysDto,
   UpdateUserDto,
 } from './dto/users.dto';
 import { UsersService } from './users.service';
@@ -85,7 +86,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'حذف کاربر (فقط هنرجو)' })
+  @ApiOperation({ summary: 'حذف هنرجو یا استاد' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.delete(id);
   }
@@ -99,6 +100,16 @@ export class UsersController {
     return this.usersService.enroll(id, dto);
   }
 
+  @Patch(':id/enrollments/:courseId')
+  @ApiOperation({ summary: 'روزهای کلاس هنرجو در این دوره' })
+  updateEnrollmentDays(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('courseId') courseId: string,
+    @Body() dto: UpdateEnrollmentDaysDto,
+  ) {
+    return this.usersService.updateEnrollmentDays(id, courseId, dto);
+  }
+
   @Delete(':id/enrollments/:courseId')
   @ApiOperation({ summary: 'حذف ثبت‌نام کاربر از یک دوره' })
   unenroll(
@@ -106,5 +117,23 @@ export class UsersController {
     @Param('courseId') courseId: string,
   ) {
     return this.usersService.unenroll(id, courseId);
+  }
+
+  @Post(':id/taught-courses')
+  @ApiOperation({ summary: 'واگذاری دوره به استاد' })
+  assignTaughtCourse(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EnrollCourseDto,
+  ) {
+    return this.usersService.assignTaughtCourse(id, dto);
+  }
+
+  @Delete(':id/taught-courses/:courseId')
+  @ApiOperation({ summary: 'حذف دوره از تدریس استاد' })
+  unassignTaughtCourse(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('courseId') courseId: string,
+  ) {
+    return this.usersService.unassignTaughtCourse(id, courseId);
   }
 }

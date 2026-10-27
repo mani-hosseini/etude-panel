@@ -1,21 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, ClipboardCheck, Users, UserCheck, UserCog, UserX } from "lucide-react";
+import {
+  BookOpen,
+  ClipboardCheck,
+  GraduationCap,
+  UserCheck,
+  UserCog,
+  Users,
+  UserX,
+} from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { audienceError } from "@/lib/api/errors";
 import {
   useAdminCoursesQuery,
   useAdminExamsQuery,
+  useAdminUsersQuery,
   useAdminUsersStatsQuery,
 } from "@/lib/api/admin-queries";
 import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 
 const cards = [
-  { key: "total" as const, label: "کل کاربران", icon: Users },
   { key: "students" as const, label: "هنرجویان", icon: UserCheck },
+  { key: "teachers" as const, label: "اساتید", icon: GraduationCap },
   { key: "admins" as const, label: "مدیران", icon: UserCog },
   { key: "inactive" as const, label: "غیرفعال", icon: UserX },
 ];
@@ -24,6 +33,12 @@ export function AdminDashboardPage() {
   const statsQuery = useAdminUsersStatsQuery();
   const coursesQuery = useAdminCoursesQuery({ page: 1, limit: 5 });
   const examsQuery = useAdminExamsQuery({ page: 1, limit: 5 });
+  const teachersQuery = useAdminUsersQuery({ role: "TEACHER", limit: 10 });
+  const studentsQuery = useAdminUsersQuery({
+    role: "STUDENT",
+    limit: 8,
+    sort: "createdAt:desc",
+  });
 
   if (statsQuery.isPending) {
     return (
@@ -54,7 +69,7 @@ export function AdminDashboardPage() {
         <p className="text-xs font-medium text-brand">کنترل‌پنل اتود</p>
         <h2 className="mt-1 text-2xl font-bold text-slate-900">صفحه اصلی ادمین</h2>
         <p className="mt-1 text-sm text-slate-500">
-          مدیریت دوره‌ها، محتوا و کاربران از یک پنل حرفه‌ای.
+          داده‌های پنل هنرجو و استاد از همین‌جا مدیریت می‌شود. ورود هر دو با کد ملی است.
         </p>
       </div>
 
@@ -72,7 +87,7 @@ export function AdminDashboardPage() {
               <div>
                 <p className="text-xs text-slate-500">{card.label}</p>
                 <p className="mt-0.5 font-sans text-2xl font-bold tabular-nums text-slate-900">
-                  {toFa(stats[card.key])}
+                  {toFa(stats[card.key] ?? 0)}
                 </p>
               </div>
             </div>
@@ -165,14 +180,45 @@ export function AdminDashboardPage() {
             <div>
               <h3 className="text-base font-bold text-slate-900">کاربران</h3>
               <p className="mt-1 text-sm text-slate-500">
-                لیست هنرجویان و فعال/غیرفعال کردن حساب.
+                هنرجو و استاد با ورود از روی کد ملی.
               </p>
             </div>
             <Users className="size-5 text-brand" />
           </div>
-          <p className="mt-6 text-sm text-slate-600">
+          <p className="mt-4 text-sm text-slate-600">
             فعال: {toFa(stats.active)} · غیرفعال: {toFa(stats.inactive)}
           </p>
+          <div className="mt-3 space-y-2">
+            {(teachersQuery.data?.users ?? []).map((teacher) => (
+              <Link
+                key={teacher.id}
+                href={adminRoutes.user(teacher.id)}
+                className="block rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 transition hover:border-brand/30 hover:bg-brand/5"
+              >
+                <p className="text-sm font-semibold text-slate-900">
+                  {teacher.displayName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  استاد · {teacher.nationalId || "بدون کد ملی"} ·{" "}
+                  {toFa(teacher.taughtCoursesCount ?? 0)} دوره
+                </p>
+              </Link>
+            ))}
+            {(studentsQuery.data?.users ?? []).slice(0, 4).map((student) => (
+              <Link
+                key={student.id}
+                href={adminRoutes.user(student.id)}
+                className="block rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 transition hover:border-brand/30 hover:bg-brand/5"
+              >
+                <p className="text-sm font-semibold text-slate-900">
+                  {student.displayName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  هنرجو · {student.nationalId || "بدون کد ملی"}
+                </p>
+              </Link>
+            ))}
+          </div>
           <Link
             href={adminRoutes.users}
             className="mt-4 inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"

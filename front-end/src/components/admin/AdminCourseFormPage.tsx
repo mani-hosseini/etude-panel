@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { announceSaved } from "@/lib/save-feedback";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,16 @@ import {
   type CourseStatus,
   type UpsertCourseBody,
 } from "@/lib/api/admin-client";
-import { adminQueryKeys, useAdminCourseQuery } from "@/lib/api/admin-queries";
+import {
+  adminQueryKeys,
+  useAdminCourseQuery,
+  useAdminUsersQuery,
+} from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
+import { parseDays } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
+import { slugify } from "@/lib/slug";
+import { WeekdayPicker } from "@/components/ui/weekday-picker";
 
 const emptyForm: UpsertCourseBody = {
   title: "",
@@ -35,6 +43,7 @@ const emptyForm: UpsertCourseBody = {
   teacher: "",
   teacherShort: "",
   day: "شنبه",
+  days: ["شنبه"],
   time: "۱۰:۰۰ تا ۱۱:۳۰",
   timeShort: "۱۰:۰۰",
   duration: "۹۰ دقیقه",
@@ -48,6 +57,7 @@ const emptyForm: UpsertCourseBody = {
   accessNote: "",
   isActive: true,
   sortOrder: 0,
+  teacherId: "",
 };
 
 type Props = {
@@ -59,6 +69,8 @@ export function AdminCourseFormPage({ courseId }: Props) {
   const queryClient = useQueryClient();
   const isEdit = Boolean(courseId);
   const courseQuery = useAdminCourseQuery(courseId ?? "");
+  const teachersQuery = useAdminUsersQuery({ role: "TEACHER", limit: 100 });
+  const teachers = teachersQuery.data?.users ?? [];
   const [form, setForm] = useState<UpsertCourseBody>(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +84,8 @@ export function AdminCourseFormPage({ courseId }: Props) {
       instrument: c.instrument,
       teacher: c.teacher,
       teacherShort: c.teacherShort,
-      day: c.day,
+      day: parseDays(c.days, c.day)[0] ?? "شنبه",
+      days: parseDays(c.days, c.day),
       time: c.time,
       timeShort: c.timeShort,
       duration: c.duration,
@@ -86,15 +99,20 @@ export function AdminCourseFormPage({ courseId }: Props) {
       accessNote: c.accessNote ?? "",
       isActive: c.isActive,
       sortOrder: c.sortOrder,
+      teacherId: c.teacherId ?? "",
     });
   }, [courseQuery.data]);
 
   const save = useMutation({
     mutationFn: async () => {
+      const days = parseDays(form.days, form.day);
+      const { slug: _slug, ...fields } = form;
       const body: UpsertCourseBody = {
-        ...form,
+        ...fields,
+        days,
+        day: days[0] ?? "شنبه",
         accessNote: form.accessNote || undefined,
-        slug: form.slug || undefined,
+        teacherId: form.teacherId || undefined,
       };
       if (isEdit) {
         const id = courseQuery.data?.id;
@@ -104,6 +122,7 @@ export function AdminCourseFormPage({ courseId }: Props) {
       return adminApi.createCourse(body);
     },
     onSuccess: async (course: AdminCourseDetail) => {
+      announceSaved(isEdit ? "دوره ذخیره شد." : "دوره ساخته شد.");
       await queryClient.invalidateQueries({ queryKey: ["admin", "courses"] });
       await queryClient.invalidateQueries({
         queryKey: adminQueryKeys.course(course.id),
@@ -162,22 +181,21 @@ export function AdminCourseFormPage({ courseId }: Props) {
         }}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="عنوان دوره">
+          <Field label="عنوان دوره" className="sm:col-span-2">
             <Input
               required
               value={form.title}
               onChange={(e) => set("title")(e.target.value)}
               className="rounded-xl"
             />
-          </Field>
-          <Field label="اسلاگ (اختیاری)">
-            <Input
-              dir="ltr"
-              className="rounded-xl text-left"
-              value={form.slug ?? ""}
-              onChange={(e) => set("slug")(e.target.value)}
-              placeholder="theory-basics"
-            />
+            <p className="text-[11px] text-slate-500" dir="ltr">
+              {isEdit && form.slug
+                ? form.slug
+                : slugify(form.title, "course")}
+            </p>
+            <p className="text-[11px] text-slate-400">
+              آدرس دوره همیشه انگلیسی و خودکار از عنوان ساخته می‌شود.
+            </p>
           </Field>
           <Field label="زیرعنوان" className="sm:col-span-2">
             <Input
@@ -203,7 +221,42 @@ export function AdminCourseFormPage({ courseId }: Props) {
               className="rounded-xl"
             />
           </Field>
-          <Field label="استاد">
+          <Field label="استاد" className="sm:col-span-2">
+            {teachers.length > 0 ? (
+              <Select
+                value={form.teacherId || "__manual"}
+                onValueChange={(value) => {
+                  if (value === "__manual") {
+                    setForm((prev) => ({ ...prev, teacherId: "" }));
+                    return;
+                  }
+                  const picked = teachers.find((item) => item.id === value);
+                  setForm((prev) => ({
+                    ...prev,
+                    teacherId: value,
+                    teacher: picked?.displayName
+                      ? `استاد ${picked.displayName}`
+                      : prev.teacher,
+                    teacherShort: picked?.displayName || prev.teacherShort,
+                  }));
+                }}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="انتخاب از لیست اساتید…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__manual">ورود دستی نام استاد</SelectItem>
+                  {teachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.displayName}
+                      {teacher.title ? ` · ${teacher.title}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </Field>
+          <Field label="نام استاد">
             <Input
               required
               value={form.teacher}
@@ -219,13 +272,21 @@ export function AdminCourseFormPage({ courseId }: Props) {
               className="rounded-xl"
             />
           </Field>
-          <Field label="روز">
-            <Input
-              required
-              value={form.day}
-              onChange={(e) => set("day")(e.target.value)}
-              className="rounded-xl"
+          <Field label="روزهای برگزاری کلاس" className="sm:col-span-2">
+            <WeekdayPicker
+              value={form.days ?? []}
+              onChange={(days) =>
+                setForm((current) => ({
+                  ...current,
+                  days,
+                  day: days[0] ?? current.day,
+                }))
+              }
             />
+            <p className="text-[11px] text-slate-500">
+              می‌توانید چند روز انتخاب کنید؛ بعد برای هر هنرجو مشخص می‌کنید در کدام
+              روزهای همین دوره کلاس دارد.
+            </p>
           </Field>
           <Field label="ساعت کوتاه">
             <Input

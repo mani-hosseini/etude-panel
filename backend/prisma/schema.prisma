@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   STUDENT
+  TEACHER
   ADMIN
 }
 
@@ -49,6 +50,13 @@ enum ExamStatus {
   CLOSED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   firstName    String   @db.VarChar(40)
@@ -63,18 +71,32 @@ model User {
   level        String?  @db.VarChar(64)
   avatarUrl    String?  @db.VarChar(512)
   phone        String?  @db.VarChar(32)
-  nationalId   String?  @db.VarChar(16)
+  nationalId   String?  @unique @db.VarChar(16)
   address      String?  @db.VarChar(500)
+  title        String?  @db.VarChar(120)
+  instrument   String?  @db.VarChar(64)
+  room         String?  @db.VarChar(120)
+  bio          String?  @db.VarChar(1000)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens    RefreshToken[]
-  enrollments      Enrollment[]
-  achievements     UserAchievement[]
-  sessionProgress  SessionProgress[]
-  examSubmissions  ExamSubmission[]
-  examGrades       ExamGrade[]
+  refreshTokens      RefreshToken[]
+  enrollments        Enrollment[]
+  achievements       UserAchievement[]
+  sessionProgress    SessionProgress[]
+  examSubmissions    ExamSubmission[]
+  examGrades         ExamGrade[]
+  taughtCourses      Course[]                    @relation("CourseInstructor")
+  givenAssignments   PracticeAssignment[]        @relation("AssignmentTeacher")
+  assignmentTargets  PracticeAssignmentTarget[]
+  attendanceMarks    AttendanceRecord[]          @relation("AttendanceStudent")
+  markedAttendance   AttendanceRecord[]          @relation("AttendanceMarker")
+  teacherNotes       TeacherNote[]               @relation("TeacherNoteAuthor")
+  studentNotes       TeacherNote[]               @relation("TeacherNoteStudent")
+  givenStars         StudentStarRating[]         @relation("StudentStarTeacher")
+  receivedStars      StudentStarRating[]         @relation("StudentStarStudent")
+  practiceLogs       PracticeLog[]
 
   @@unique([firstName, lastName])
   @@index([role])
@@ -105,7 +127,8 @@ model Course {
   instrument       String       @db.VarChar(64)
   teacher          String       @db.VarChar(120)
   teacherShort     String       @db.VarChar(80)
-  day              String       @db.VarChar(32)
+  day              String       @db.VarChar(64)
+  days             String[]     @default([])
   time             String       @db.VarChar(64)
   timeShort        String       @db.VarChar(32)
   duration         String       @db.VarChar(32)
@@ -119,23 +142,30 @@ model Course {
   accessNote       String?      @db.VarChar(500)
   isActive         Boolean      @default(true)
   sortOrder        Int          @default(0)
+  teacherId        String?      @db.Uuid
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
+  instructor   User?            @relation("CourseInstructor", fields: [teacherId], references: [id], onDelete: SetNull)
   sessions     CourseSession[]
   lessons      ScheduleLesson[]
   enrollments  Enrollment[]
   practiceTips PracticeTip[]
+  assignments  PracticeAssignment[]
+  attendance   AttendanceRecord[]
 
   @@index([status, isActive])
   @@index([sortOrder])
+  @@index([teacherId])
 }
 
 model Enrollment {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  courseId  String   @db.Uuid
-  joinedAt  DateTime @default(now())
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @db.Uuid
+  courseId             String   @db.Uuid
+  currentSessionNumber Int      @default(1)
+  classDays            String[] @default([])
+  joinedAt             DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -156,6 +186,9 @@ model CourseSession {
   dateLabel     String        @db.VarChar(64)
   timeStart     String?       @db.VarChar(8)
   timeEnd       String?       @db.VarChar(8)
+  homeworkTitle  String        @default("") @db.VarChar(200)
+  homeworkSource String        @default("") @db.VarChar(200)
+  homeworkNote   String        @default("") @db.VarChar(1000)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -165,6 +198,7 @@ model CourseSession {
   exercises   SessionExercise[]
   progress    SessionProgress[]
   lessons     ScheduleLesson[]
+  assignments PracticeAssignment[]
 
   @@unique([courseId, number])
   @@index([status])
@@ -355,6 +389,106 @@ model ExamGrade {
 
   @@unique([examId, userId])
   @@index([userId])
+}
+
+model PracticeAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  teacherId String   @db.Uuid
+  courseId  String?  @db.Uuid
+  sessionId String?  @db.Uuid
+  category  String   @db.VarChar(32)
+  title     String   @db.VarChar(200)
+  source    String   @default("") @db.VarChar(200)
+  note      String   @default("") @db.VarChar(1000)
+  dueLabel  String   @default("کلاس بعد") @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher User                       @relation("AssignmentTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  course  Course?                    @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  session CourseSession?             @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  targets PracticeAssignmentTarget[]
+
+  @@index([teacherId, createdAt])
+  @@index([courseId])
+  @@index([sessionId])
+}
+
+model PracticeAssignmentTarget {
+  id           String @id @default(uuid()) @db.Uuid
+  assignmentId String @db.Uuid
+  studentId    String @db.Uuid
+  progress     Int    @default(0)
+  score        Int    @default(0)
+  teacherNote  String @default("") @db.VarChar(1000)
+
+  assignment PracticeAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User               @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+}
+
+model AttendanceRecord {
+  id         String           @id @default(uuid()) @db.Uuid
+  courseId   String           @db.Uuid
+  studentId  String           @db.Uuid
+  meetingKey String           @db.VarChar(80)
+  status     AttendanceStatus
+  markedById String           @db.Uuid
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student  User   @relation("AttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy User   @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId, meetingKey])
+  @@index([courseId, meetingKey])
+  @@index([studentId])
+}
+
+model TeacherNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  teacherId String   @db.Uuid
+  studentId String   @db.Uuid
+  body      String   @default("") @db.VarChar(2000)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  teacher User @relation("TeacherNoteAuthor", fields: [teacherId], references: [id], onDelete: Cascade)
+  student User @relation("TeacherNoteStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, studentId])
+}
+
+model StudentStarRating {
+  id        String   @id @default(uuid()) @db.Uuid
+  teacherId String   @db.Uuid
+  studentId String   @db.Uuid
+  stars     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher User @relation("StudentStarTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  student User @relation("StudentStarStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, studentId])
+  @@index([studentId])
+}
+
+model PracticeLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  date      DateTime @db.Date
+  minutes   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
 
 /// Durable copy of uploaded media. Disk under `uploads/` is only a cache and

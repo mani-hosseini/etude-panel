@@ -43,3 +43,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# slide render scratch files
+/public/slides/_tmp-*
+/public/slides/_chk*
+/public/slides/_ref-*
+/public/slides/Untitled

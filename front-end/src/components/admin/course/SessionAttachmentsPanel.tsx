@@ -17,6 +17,7 @@ import {
   useAdminAttachmentsQuery,
 } from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
+import { announceSaved } from "@/lib/save-feedback";
 import { resolveMediaUrl } from "@/lib/api/http";
 import { toFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ export function SessionAttachmentsPanel({
       setCaption("");
       setError(null);
       if (inputRef.current) inputRef.current.value = "";
+      announceSaved("پیوست ذخیره شد.");
       await invalidate();
     },
     onError: (err) => {

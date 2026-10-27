@@ -4,6 +4,7 @@ import { use } from "react";
 import { Suspense } from "react";
 
 import { SessionPlayView } from "@/components/panel/SessionPlayView";
+import { decodeCourseParam } from "@/lib/slug";
 
 export default function CourseSessionPlayPage({
   params,
@@ -11,6 +12,7 @@ export default function CourseSessionPlayPage({
   params: Promise<{ courseId: string; sessionId: string }>;
 }) {
   const { courseId, sessionId } = use(params);
+  const resolvedCourseId = decodeCourseParam(courseId) ?? courseId;
   return (
     <Suspense
       fallback={
@@ -19,7 +21,7 @@ export default function CourseSessionPlayPage({
         </div>
       }
     >
-      <SessionPlayView courseId={courseId} sessionId={sessionId} />
+      <SessionPlayView courseId={resolvedCourseId} sessionId={sessionId} />
     </Suspense>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -8,16 +9,22 @@ import {
   LessonStatus,
   LessonType,
   Prisma,
+  Role,
   SessionStatus,
   SlideKind,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
-import { sanitizeUploadOriginalName } from '../uploads/original-filename';
 import {
   formatTimeRange,
   normalizeClock,
 } from '../common/utils/session-time';
+import { joinDays, normalizeDays } from '../common/utils/weekdays';
+import {
+  courseIdentityWhere,
+  isEnglishSlug,
+  uniqueSlug,
+} from '../common/utils/slug';
 import {
   buildPaginationMeta,
 } from '../common/dto/pagination-query.dto';
@@ -26,26 +33,14 @@ import {
   CreateSessionDto,
   CreateSlideDto,
   ReorderAttachmentsDto,
-  ReorderExercisesDto,
   ReorderSlidesDto,
   UpdateAttachmentDto,
-  UpdateExerciseDto,
   UpsertCourseDto,
   UpsertPracticeTipDto,
   UpsertScheduleDto,
   UpsertSessionDto,
   UpsertSlideDto,
 } from './dto/admin-catalog.dto';
-
-function slugify(input: string) {
-  const base = input
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\u0600-\u06FF]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-  return base || `course-${Date.now()}`;
-}
 
 @Injectable()
 export class AdminCatalogService {
@@ -95,12 +90,8 @@ export class AdminCatalogService {
   }
 
   async getCourse(idOrSlug: string) {
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        idOrSlug,
-      );
-    const course = await this.prisma.course.findUnique({
-      where: isUuid ? { id: idOrSlug } : { slug: idOrSlug },
+    const course = await this.prisma.course.findFirst({
+      where: courseIdentityWhere(idOrSlug),
       include: {
         _count: {
           select: { sessions: true, enrollments: true, lessons: true },
@@ -108,8 +99,27 @@ export class AdminCatalogService {
         sessions: {
           orderBy: { number: 'asc' },
           include: {
-            _count: { select: { slides: true, attachments: true, exercises: true } },
+            _count: { select: { slides: true, attachments: true } },
           },
+        },
+        enrollments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                displayName: true,
+                studentCode: true,
+                nationalId: true,
+                phone: true,
+                level: true,
+                isActive: true,
+                avatarUrl: true,
+              },
+            },
+          },
+          orderBy: { joinedAt: 'asc' },
         },
       },
     });
@@ -117,25 +127,40 @@ export class AdminCatalogService {
     return {
       ...this.mapCourse(course),
       sessions: course.sessions.map((s) => this.mapSession(s)),
+      enrollments: course.enrollments.map((item) => ({
+        id: item.id,
+        joinedAt: item.joinedAt,
+        currentSessionNumber: item.currentSessionNumber,
+        classDays: item.classDays ?? [],
+        user: item.user,
+      })),
     };
   }
 
   async createCourse(dto: UpsertCourseDto) {
-    let slug = dto.slug?.trim() || slugify(dto.title);
-    const exists = await this.prisma.course.findUnique({ where: { slug } });
-    if (exists) {
-      slug = `${slug}-${Date.now().toString(36)}`;
-    }
+    const title = dto.title.trim();
+    const slug = await uniqueSlug(
+      dto.slug?.trim() || title,
+      async (value) =>
+        Boolean(await this.prisma.course.findUnique({ where: { slug: value } })),
+      `course-${Date.now().toString(36)}`,
+    );
+
+    const instructor = dto.teacherId
+      ? await this.requireTeacher(dto.teacherId)
+      : null;
+    const days = this.resolveCourseDays(dto);
 
     const course = await this.prisma.course.create({
       data: {
         slug,
-        title: dto.title,
+        title,
         subtitle: dto.subtitle,
         instrument: dto.instrument,
-        teacher: dto.teacher,
-        teacherShort: dto.teacherShort,
-        day: dto.day,
+        teacher: instructor?.displayName ?? dto.teacher,
+        teacherShort: instructor?.lastName ?? dto.teacherShort,
+        day: joinDays(days),
+        days,
         time: dto.time,
         timeShort: dto.timeShort,
         duration: dto.duration,
@@ -149,6 +174,7 @@ export class AdminCatalogService {
         accessNote: dto.accessNote,
         isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 0,
+        ...(instructor ? { teacherId: instructor.id } : {}),
       },
       include: {
         _count: {
@@ -178,26 +204,41 @@ export class AdminCatalogService {
   }
 
   async updateCourse(id: string, dto: UpsertCourseDto) {
-    await this.ensureCourse(id);
-    if (dto.slug) {
-      const clash = await this.prisma.course.findFirst({
-        where: { slug: dto.slug, NOT: { id } },
-      });
-      if (clash) {
-        throw new ConflictException('اسلاگ دوره تکراری است.');
-      }
-    }
+    const existing = await this.ensureCourse(id);
+    const instructor =
+      dto.teacherId !== undefined
+        ? dto.teacherId
+          ? await this.requireTeacher(dto.teacherId)
+          : null
+        : undefined;
+    const slugSource = dto.slug?.trim() || dto.title.trim() || existing.title;
+    const shouldRefreshSlug =
+      Boolean(dto.slug?.trim()) || !isEnglishSlug(existing.slug);
+    const nextSlug = shouldRefreshSlug
+      ? await uniqueSlug(
+          slugSource,
+          async (value) =>
+            Boolean(
+              await this.prisma.course.findFirst({
+                where: { slug: value, NOT: { id } },
+              }),
+            ),
+        )
+      : undefined;
+
+    const days = this.resolveCourseDays(dto);
 
     await this.prisma.course.update({
       where: { id },
       data: {
-        ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
-        title: dto.title,
+        ...(nextSlug ? { slug: nextSlug } : {}),
+        title: dto.title.trim(),
         subtitle: dto.subtitle,
         instrument: dto.instrument,
-        teacher: dto.teacher,
-        teacherShort: dto.teacherShort,
-        day: dto.day,
+        teacher: instructor?.displayName ?? dto.teacher,
+        teacherShort: instructor?.lastName ?? dto.teacherShort,
+        day: joinDays(days),
+        days,
         time: dto.time,
         timeShort: dto.timeShort,
         duration: dto.duration,
@@ -215,8 +256,13 @@ export class AdminCatalogService {
         ...(dto.accessNote !== undefined ? { accessNote: dto.accessNote } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+        ...(instructor !== undefined
+          ? { teacherId: instructor?.id ?? null }
+          : {}),
       },
     });
+
+    await this.syncEnrollmentDays(id, days);
 
     return this.getCourse(id);
   }
@@ -233,7 +279,7 @@ export class AdminCatalogService {
       where: { courseId },
       orderBy: { number: 'asc' },
       include: {
-            _count: { select: { slides: true, attachments: true, exercises: true } },
+            _count: { select: { slides: true, attachments: true } },
           },
     });
     return { sessions: sessions.map((s) => this.mapSession(s)) };
@@ -258,7 +304,7 @@ export class AdminCatalogService {
           timeEnd: normalizeClock(dto.timeEnd),
         },
         include: {
-            _count: { select: { slides: true, attachments: true, exercises: true } },
+            _count: { select: { slides: true, attachments: true } },
           },
       });
       await this.syncSessionsTotal(courseId);
@@ -302,7 +348,7 @@ export class AdminCatalogService {
             : {}),
         },
         include: {
-            _count: { select: { slides: true, attachments: true, exercises: true } },
+            _count: { select: { slides: true, attachments: true } },
           },
       });
 
@@ -450,7 +496,6 @@ export class AdminCatalogService {
     sessionId: string,
     file: Express.Multer.File,
     caption?: string,
-    originalName?: string,
   ) {
     await this.ensureSession(sessionId);
     const maxOrder = await this.prisma.sessionAttachment.aggregate({
@@ -463,10 +508,7 @@ export class AdminCatalogService {
         data: {
           sessionId,
           path: stored.path,
-          filename: sanitizeUploadOriginalName(
-            originalName || file.originalname,
-            stored.filename.endsWith('.pdf') ? 'پیوست.pdf' : 'پیوست.jpg',
-          ),
+          filename: file.originalname.slice(0, 255),
           mimeType: stored.mimeType,
           size: stored.size,
           caption: caption?.trim() || null,
@@ -511,82 +553,6 @@ export class AdminCatalogService {
       ),
     );
     return this.listAttachments(sessionId);
-  }
-
-  async listExercises(sessionId: string) {
-    await this.ensureSession(sessionId);
-    const exercises = await this.prisma.sessionExercise.findMany({
-      where: { sessionId },
-      orderBy: { sortOrder: 'asc' },
-    });
-    return { exercises: exercises.map((item) => this.mapExercise(item)) };
-  }
-
-  async createExercise(
-    sessionId: string,
-    file: Express.Multer.File,
-    caption?: string,
-    originalName?: string,
-  ) {
-    await this.ensureSession(sessionId);
-    const maxOrder = await this.prisma.sessionExercise.aggregate({
-      where: { sessionId },
-      _max: { sortOrder: true },
-    });
-    const stored = await this.uploads.savePublicMedia('exercises', file);
-    try {
-      const exercise = await this.prisma.sessionExercise.create({
-        data: {
-          sessionId,
-          path: stored.path,
-          filename: sanitizeUploadOriginalName(
-            originalName || file.originalname,
-            stored.filename.endsWith('.pdf') ? 'تمرین.pdf' : 'تمرین.jpg',
-          ),
-          mimeType: stored.mimeType,
-          size: stored.size,
-          caption: caption?.trim() || null,
-          sortOrder: (maxOrder._max.sortOrder ?? 0) + 1,
-        },
-      });
-      return this.mapExercise(exercise);
-    } catch (error) {
-      await this.uploads.remove(stored.path);
-      throw error;
-    }
-  }
-
-  async updateExercise(id: string, dto: UpdateExerciseDto) {
-    await this.ensureExercise(id);
-    const exercise = await this.prisma.sessionExercise.update({
-      where: { id },
-      data: {
-        ...(dto.caption !== undefined
-          ? { caption: dto.caption.trim() || null }
-          : {}),
-      },
-    });
-    return this.mapExercise(exercise);
-  }
-
-  async deleteExercise(id: string) {
-    const existing = await this.ensureExercise(id);
-    await this.prisma.sessionExercise.delete({ where: { id } });
-    await this.uploads.remove(existing.path);
-    return { deleted: true };
-  }
-
-  async reorderExercises(sessionId: string, dto: ReorderExercisesDto) {
-    await this.ensureSession(sessionId);
-    await this.prisma.$transaction(
-      dto.exerciseIds.map((exerciseId, index) =>
-        this.prisma.sessionExercise.updateMany({
-          where: { id: exerciseId, sessionId },
-          data: { sortOrder: index + 1 },
-        }),
-      ),
-    );
-    return this.listExercises(sessionId);
   }
 
   async listSchedule(courseId: string) {
@@ -793,6 +759,14 @@ export class AdminCatalogService {
     }
   }
 
+  private async requireTeacher(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user || user.role !== Role.TEACHER) {
+      throw new NotFoundException('استاد یافت نشد.');
+    }
+    return user;
+  }
+
   private async ensureCourse(id: string) {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException('دوره یافت نشد.');
@@ -821,12 +795,35 @@ export class AdminCatalogService {
     return attachment;
   }
 
-  private async ensureExercise(id: string) {
-    const exercise = await this.prisma.sessionExercise.findUnique({
-      where: { id },
+  private resolveCourseDays(dto: UpsertCourseDto): string[] {
+    const days = normalizeDays(dto.days, dto.day);
+    if (days.length === 0) {
+      throw new BadRequestException('حداقل یک روز برگزاری انتخاب کنید.');
+    }
+    return days;
+  }
+
+  private async syncEnrollmentDays(courseId: string, days: string[]) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { courseId },
+      select: { id: true, classDays: true },
     });
-    if (!exercise) throw new NotFoundException('تمرین یافت نشد.');
-    return exercise;
+    await Promise.all(
+      enrollments.map((item) => {
+        const kept = (item.classDays ?? []).filter((day) => days.includes(day));
+        const classDays = kept.length > 0 ? kept : days;
+        if (
+          classDays.length === item.classDays.length &&
+          classDays.every((day, index) => day === item.classDays[index])
+        ) {
+          return Promise.resolve();
+        }
+        return this.prisma.enrollment.update({
+          where: { id: item.id },
+          data: { classDays },
+        });
+      }),
+    );
   }
 
   private mapCourse(
@@ -847,6 +844,7 @@ export class AdminCatalogService {
       teacher: course.teacher,
       teacherShort: course.teacherShort,
       day: course.day,
+      days: course.days ?? [],
       time: course.time,
       timeShort: course.timeShort,
       duration: course.duration,
@@ -860,6 +858,7 @@ export class AdminCatalogService {
       accessNote: course.accessNote,
       isActive: course.isActive,
       sortOrder: course.sortOrder,
+      teacherId: course.teacherId ?? null,
       createdAt: course.createdAt,
       updatedAt: course.updatedAt,
       sessionsCount: course._count.sessions,
@@ -871,7 +870,7 @@ export class AdminCatalogService {
   private mapSession(
     session: Prisma.CourseSessionGetPayload<{
       include: {
-        _count: { select: { slides: true; attachments: true; exercises: true } };
+        _count: { select: { slides: true; attachments: true } };
       };
     }>,
   ) {
@@ -890,7 +889,6 @@ export class AdminCatalogService {
       timeLabel: formatTimeRange(session.timeStart, session.timeEnd),
       slideCount: session._count.slides,
       attachmentCount: session._count.attachments,
-      exerciseCount: session._count.exercises,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
     };
@@ -919,32 +917,6 @@ export class AdminCatalogService {
       sortOrder: attachment.sortOrder,
       createdAt: attachment.createdAt,
       updatedAt: attachment.updatedAt,
-    };
-  }
-
-  private mapExercise(exercise: {
-    id: string;
-    sessionId: string;
-    path: string;
-    filename: string;
-    mimeType: string;
-    size: number;
-    caption: string | null;
-    sortOrder: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
-    return {
-      id: exercise.id,
-      sessionId: exercise.sessionId,
-      path: exercise.path,
-      filename: exercise.filename,
-      mimeType: exercise.mimeType,
-      size: exercise.size,
-      caption: exercise.caption,
-      sortOrder: exercise.sortOrder,
-      createdAt: exercise.createdAt,
-      updatedAt: exercise.updatedAt,
     };
   }
 

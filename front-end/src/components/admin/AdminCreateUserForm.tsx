@@ -10,8 +10,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { adminApi } from "@/lib/api/admin-client";
-import { adminQueryKeys } from "@/lib/api/admin-queries";
+import {
+  adminQueryKeys,
+  useAdminCoursesQuery,
+} from "@/lib/api/admin-queries";
 import { audienceError } from "@/lib/api/errors";
+import { announceSaved } from "@/lib/save-feedback";
+import { cn } from "@/lib/utils";
 
 type AdminCreateUserFormProps = {
   onClose: () => void;
@@ -19,22 +24,40 @@ type AdminCreateUserFormProps = {
 
 export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
   const queryClient = useQueryClient();
+  const coursesQuery = useAdminCoursesQuery({ limit: 100 });
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [password, setPassword] = useState("");
+  const [nationalId, setNationalId] = useState("");
   const [level, setLevel] = useState("1");
+  const [courseSlugs, setCourseSlugs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const courses = coursesQuery.data?.courses ?? [];
+
+  const toggleCourse = (slug: string) => {
+    setCourseSlugs((current) =>
+      current.includes(slug)
+        ? current.filter((item) => item !== slug)
+        : [...current, slug],
+    );
+  };
 
   const create = useMutation({
-    mutationFn: () =>
-      adminApi.createStudent({
+    mutationFn: async () => {
+      const user = await adminApi.createStudent({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        password,
+        nationalId: nationalId.trim(),
         level,
-      }),
+      });
+      for (const slug of courseSlugs) {
+        await adminApi.enrollUser(user.id, slug);
+      }
+      return user;
+    },
     onSuccess: async () => {
+      announceSaved("هنرجو ثبت شد.");
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "courses"] });
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
       onClose();
     },
@@ -88,13 +111,15 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="create-password">رمز عبور</Label>
+          <Label htmlFor="create-nationalId">کد ملی</Label>
           <Input
-            id="create-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded-xl bg-white"
+            id="create-nationalId"
+            inputMode="numeric"
+            dir="ltr"
+            value={nationalId}
+            onChange={(e) => setNationalId(e.target.value)}
+            className="rounded-xl bg-white text-left"
+            placeholder="نام کاربری و رمز ورود"
             required
             minLength={8}
           />
@@ -107,6 +132,38 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
             onValueChange={setLevel}
           />
         </div>
+
+        {courses.length > 0 ? (
+          <div className="space-y-2 sm:col-span-2">
+            <Label>دوره‌های شروع</Label>
+            <p className="text-xs text-slate-500">
+              همین حالا هر دوره‌ای که این هنرجو باید ببیند را انتخاب کنید.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {courses.map((course) => {
+                const checked = courseSlugs.includes(course.slug);
+                return (
+                  <button
+                    key={course.id}
+                    type="button"
+                    onClick={() => toggleCourse(course.slug)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-right transition",
+                      checked
+                        ? "border-brand bg-brand/5 text-slate-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
+                    )}
+                  >
+                    <p className="text-sm font-semibold">{course.title}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {course.teacher} · {course.instrument}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-2 sm:col-span-2">
           <Button

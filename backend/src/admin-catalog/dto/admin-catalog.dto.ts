@@ -1,7 +1,9 @@
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -60,9 +62,19 @@ export class UpsertCourseDto {
   @MaxLength(80)
   teacherShort!: string;
 
+  @IsOptional()
   @IsString()
-  @MaxLength(32)
-  day!: string;
+  @MaxLength(64)
+  day?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1, { message: 'حداقل یک روز برگزاری انتخاب کنید.' })
+  @IsIn(['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'], {
+    each: true,
+    message: 'روز برگزاری کلاس را از روزهای هفته انتخاب کنید.',
+  })
+  days?: string[];
 
   @IsString()
   @MaxLength(64)
@@ -120,6 +132,10 @@ export class UpsertCourseDto {
   @Type(() => Number)
   @IsInt()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsUUID()
+  teacherId?: string;
 }
 
 export class UpsertSessionDto {
@@ -372,42 +388,12 @@ export class UploadAttachmentDto {
   @IsString()
   @MaxLength(200)
   caption?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  originalName?: string;
 }
 
 export class ReorderAttachmentsDto {
   @IsArray()
   @IsUUID('4', { each: true })
   attachmentIds!: string[];
-}
-
-export class UpdateExerciseDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  caption?: string;
-}
-
-export class UploadExerciseDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  caption?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  originalName?: string;
-}
-
-export class ReorderExercisesDto {
-  @IsArray()
-  @IsUUID('4', { each: true })
-  exerciseIds!: string[];
 }
 
 export class UpsertScheduleDto {

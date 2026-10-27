@@ -16,6 +16,7 @@ import { UsersModule } from './users/users.module';
 import { AdminCatalogModule } from './admin-catalog/admin-catalog.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { ExamsModule } from './exams/exams.module';
+import { StudioModule } from './studio/studio.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ExamsModule } from './exams/exams.module';
     CatalogModule,
     AdminCatalogModule,
     ExamsModule,
+    StudioModule,
     HealthModule,
   ],
   providers: [

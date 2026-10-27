@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -12,7 +13,7 @@ import {
 } from '../common/dto/pagination-query.dto';
 import {
   normalizeName,
-  isUuid,
+  normalizeNationalId,
   normalizeStudentLevel,
   slideProgressPercent,
 } from '../common/utils/mappers';
@@ -20,8 +21,11 @@ import {
   EnrollCourseDto,
   ListUsersQueryDto,
   ResetPasswordDto,
+  UpdateEnrollmentDaysDto,
   UpdateUserDto,
 } from './dto/users.dto';
+import { normalizeDays } from '../common/utils/weekdays';
+import { courseIdentityWhere } from '../common/utils/slug';
 
 const userPublicSelect = {
   id: true,
@@ -36,6 +40,10 @@ const userPublicSelect = {
   phone: true,
   nationalId: true,
   address: true,
+  title: true,
+  instrument: true,
+  room: true,
+  bio: true,
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -43,6 +51,7 @@ const userPublicSelect = {
     select: {
       enrollments: true,
       achievements: true,
+      taughtCourses: true,
     },
   },
 } satisfies Prisma.UserSelect;
@@ -63,6 +72,15 @@ export class UsersService {
         ? { isActive: query.isActive }
         : {}),
       ...(query.level ? { level: query.level } : {}),
+      ...(query.teacherId
+        ? {
+            enrollments: {
+              some: {
+                course: { teacherId: query.teacherId },
+              },
+            },
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
@@ -92,6 +110,17 @@ export class UsersService {
               },
               {
                 studentCode: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                nationalId: {
+                  contains: normalizeNationalId(query.search) || query.search,
+                },
+              },
+              {
+                phone: {
                   contains: query.search,
                   mode: 'insensitive',
                 },
@@ -147,6 +176,8 @@ export class UsersService {
                 status: true,
                 instrument: true,
                 sessionsTotal: true,
+                day: true,
+                days: true,
               },
             },
           },
@@ -156,11 +187,25 @@ export class UsersService {
           include: { achievement: true },
           orderBy: { earnedAt: 'asc' },
         },
+        taughtCourses: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            teacher: true,
+            status: true,
+            instrument: true,
+            day: true,
+            days: true,
+            timeShort: true,
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
       },
     });
 
     if (!user) {
-      throw new NotFoundException('هنرجو یافت نشد.');
+      throw new NotFoundException('کاربر یافت نشد.');
     }
 
     const avgProgress = await this.computeAvgProgress(id);
@@ -182,6 +227,8 @@ export class UsersService {
           progress: stats?.progress ?? 0,
           sessionsDone: stats?.sessionsDone ?? 0,
           sessionsTotal: item.course.sessionsTotal,
+          currentSessionNumber: item.currentSessionNumber,
+          classDays: item.classDays ?? [],
           course: {
             id: item.course.slug,
             uuid: item.course.id,
@@ -189,6 +236,8 @@ export class UsersService {
             teacher: item.course.teacher,
             status: item.course.status.toLowerCase(),
             instrument: item.course.instrument,
+            day: item.course.day,
+            days: item.course.days ?? [],
           },
         };
       }),
@@ -198,13 +247,24 @@ export class UsersService {
         desc: item.achievement.description,
         earnedAt: item.earnedAt,
       })),
+      taughtCourses: user.taughtCourses.map((course) => ({
+        id: course.slug,
+        uuid: course.id,
+        title: course.title,
+        teacher: course.teacher,
+        status: course.status.toLowerCase(),
+        instrument: course.instrument,
+        day: course.day,
+        days: course.days ?? [],
+        timeShort: course.timeShort,
+      })),
     };
   }
 
   async update(id: string, dto: UpdateUserDto) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
-      throw new NotFoundException('هنرجو یافت نشد.');
+      throw new NotFoundException('کاربر یافت نشد.');
     }
 
     const firstName = dto.firstName
@@ -249,6 +309,19 @@ export class UsersService {
       }
     }
 
+    const nationalId =
+      dto.nationalId !== undefined
+        ? normalizeNationalId(dto.nationalId) || null
+        : undefined;
+    if (nationalId) {
+      const duplicateNationalId = await this.prisma.user.findFirst({
+        where: { nationalId, NOT: { id } },
+      });
+      if (duplicateNationalId) {
+        throw new ConflictException('کد ملی تکراری است.');
+      }
+    }
+
     const updated = await this.prisma.user.update({
       where: { id },
       data: {
@@ -272,9 +345,7 @@ export class UsersService {
         ...(dto.phone !== undefined
           ? { phone: dto.phone.trim() || null }
           : {}),
-        ...(dto.nationalId !== undefined
-          ? { nationalId: dto.nationalId.trim() || null }
-          : {}),
+        ...(nationalId !== undefined ? { nationalId } : {}),
         ...(dto.address !== undefined
           ? { address: dto.address.trim() || null }
           : {}),
@@ -283,7 +354,20 @@ export class UsersService {
               passwordHash: await argon2.hash(dto.password),
               passwordPlain: dto.password,
             }
+          : nationalId &&
+              nationalId !== existing.nationalId &&
+              existing.role !== Role.ADMIN
+            ? {
+                passwordHash: await argon2.hash(nationalId),
+                passwordPlain: nationalId,
+              }
+            : {}),
+        ...(dto.title !== undefined ? { title: dto.title.trim() || null } : {}),
+        ...(dto.instrument !== undefined
+          ? { instrument: dto.instrument.trim() || null }
           : {}),
+        ...(dto.room !== undefined ? { room: dto.room.trim() || null } : {}),
+        ...(dto.bio !== undefined ? { bio: dto.bio.trim() || null } : {}),
       },
       select: userDetailSelect,
     });
@@ -301,7 +385,7 @@ export class UsersService {
   async resetPassword(id: string, dto: ResetPasswordDto) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
-      throw new NotFoundException('هنرجو یافت نشد.');
+      throw new NotFoundException('کاربر یافت نشد.');
     }
 
     const passwordHash = await argon2.hash(dto.password);
@@ -329,7 +413,7 @@ export class UsersService {
   async delete(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
-      throw new NotFoundException('هنرجو یافت نشد.');
+      throw new NotFoundException('کاربر یافت نشد.');
     }
     if (user.role === Role.ADMIN) {
       throw new ForbiddenException('حذف حساب ادمین مجاز نیست.');
@@ -342,24 +426,37 @@ export class UsersService {
   async enroll(userId: string, dto: EnrollCourseDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('هنرجو یافت نشد.');
+      throw new NotFoundException('کاربر یافت نشد.');
+    }
+    if (user.role !== Role.STUDENT) {
+      throw new ForbiddenException('فقط هنرجو را می‌توان در دوره ثبت کرد.');
     }
 
     const course = await this.prisma.course.findFirst({
-      where: {
-        OR: isUuid(dto.courseId)
-          ? [{ id: dto.courseId }, { slug: dto.courseId }]
-          : [{ slug: dto.courseId }],
-        isActive: true,
-      },
+      where: courseIdentityWhere(dto.courseId),
     });
     if (!course) {
       throw new NotFoundException('دوره یافت نشد.');
     }
 
+    const allowed = normalizeDays(course.days, course.day);
+    const requested = normalizeDays(dto.classDays);
+    const assigned =
+      requested.length > 0
+        ? requested.filter((day) => allowed.includes(day))
+        : allowed;
+    if (dto.classDays && dto.classDays.length > 0 && assigned.length === 0) {
+      throw new BadRequestException(
+        'روز کلاس هنرجو باید از روزهای برگزاری همین دوره باشد.',
+      );
+    }
+    if (assigned.length === 0) {
+      throw new BadRequestException('روز برگزاری این دوره مشخص نشده است.');
+    }
+
     try {
       const enrollment = await this.prisma.enrollment.create({
-        data: { userId, courseId: course.id },
+        data: { userId, courseId: course.id, classDays: assigned },
         include: {
           course: {
             select: { slug: true, title: true },
@@ -371,6 +468,7 @@ export class UsersService {
         joinedAt: enrollment.joinedAt,
         courseId: enrollment.course.slug,
         courseTitle: enrollment.course.title,
+        classDays: assigned,
       };
     } catch (error) {
       if (
@@ -383,13 +481,49 @@ export class UsersService {
     }
   }
 
+  async updateEnrollmentDays(
+    userId: string,
+    courseId: string,
+    dto: UpdateEnrollmentDaysDto,
+  ) {
+    const course = await this.prisma.course.findFirst({
+      where: courseIdentityWhere(courseId),
+    });
+    if (!course) {
+      throw new NotFoundException('دوره یافت نشد.');
+    }
+
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId: course.id } },
+    });
+    if (!enrollment) {
+      throw new NotFoundException('ثبت‌نام در این دوره یافت نشد.');
+    }
+
+    const allowed = normalizeDays(course.days, course.day);
+    const classDays = normalizeDays(dto.classDays).filter((day) =>
+      allowed.includes(day),
+    );
+    if (classDays.length === 0) {
+      throw new BadRequestException(
+        'حداقل یک روز برگزاری از روزهای همین دوره انتخاب کنید.',
+      );
+    }
+
+    const updated = await this.prisma.enrollment.update({
+      where: { id: enrollment.id },
+      data: { classDays },
+    });
+    return {
+      id: updated.id,
+      courseId: course.slug,
+      classDays: updated.classDays,
+    };
+  }
+
   async unenroll(userId: string, courseId: string) {
     const course = await this.prisma.course.findFirst({
-      where: {
-        OR: isUuid(courseId)
-          ? [{ id: courseId }, { slug: courseId }]
-          : [{ slug: courseId }],
-      },
+      where: courseIdentityWhere(courseId),
     });
     if (!course) {
       throw new NotFoundException('دوره یافت نشد.');
@@ -408,16 +542,69 @@ export class UsersService {
     return { removed: true };
   }
 
-  async stats() {
-    const [total, students, admins, active, inactive] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { role: Role.STUDENT } }),
-      this.prisma.user.count({ where: { role: Role.ADMIN } }),
-      this.prisma.user.count({ where: { isActive: true } }),
-      this.prisma.user.count({ where: { isActive: false } }),
-    ]);
+  async assignTaughtCourse(userId: string, dto: EnrollCourseDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('استاد یافت نشد.');
+    }
+    if (user.role !== Role.TEACHER) {
+      throw new ForbiddenException('فقط به استاد می‌توان دوره تدریس داد.');
+    }
 
-    return { total, students, admins, active, inactive };
+    const course = await this.prisma.course.findFirst({
+      where: courseIdentityWhere(dto.courseId),
+    });
+    if (!course) {
+      throw new NotFoundException('دوره یافت نشد.');
+    }
+
+    const updated = await this.prisma.course.update({
+      where: { id: course.id },
+      data: {
+        teacherId: user.id,
+        teacher: user.displayName,
+        teacherShort: user.lastName,
+      },
+      select: { slug: true, title: true },
+    });
+
+    return {
+      courseId: updated.slug,
+      courseTitle: updated.title,
+      teacherId: user.id,
+    };
+  }
+
+  async unassignTaughtCourse(userId: string, courseId: string) {
+    const course = await this.prisma.course.findFirst({
+      where: {
+        ...courseIdentityWhere(courseId),
+        teacherId: userId,
+      },
+    });
+    if (!course) {
+      throw new NotFoundException('این دوره برای این استاد ثبت نشده است.');
+    }
+
+    await this.prisma.course.update({
+      where: { id: course.id },
+      data: { teacherId: null },
+    });
+    return { removed: true };
+  }
+
+  async stats() {
+    const [total, students, teachers, admins, active, inactive] =
+      await Promise.all([
+        this.prisma.user.count(),
+        this.prisma.user.count({ where: { role: Role.STUDENT } }),
+        this.prisma.user.count({ where: { role: Role.TEACHER } }),
+        this.prisma.user.count({ where: { role: Role.ADMIN } }),
+        this.prisma.user.count({ where: { isActive: true } }),
+        this.prisma.user.count({ where: { isActive: false } }),
+      ]);
+
+    return { total, students, teachers, admins, active, inactive };
   }
 
   private async listExamGradesForStudent(userId: string) {
@@ -467,14 +654,6 @@ export class UsersService {
   private async computeProgressByCourse(userId: string): Promise<
     Map<string, { progress: number; sessionsDone: number; sessionsTotal: number }>
   > {
-    const rows = await this.loadSessionPercents([userId]);
-    const grouped = new Map<string, number[]>();
-    for (const row of rows) {
-      const list = grouped.get(row.courseId) ?? [];
-      list.push(row.percent);
-      grouped.set(row.courseId, list);
-    }
-
     const enrollments = await this.prisma.enrollment.findMany({
       where: { userId },
       select: {
@@ -482,26 +661,51 @@ export class UsersService {
         course: { select: { sessionsTotal: true } },
       },
     });
-    const availableByCourse = await this.prisma.courseSession.groupBy({
-      by: ['courseId'],
+    const homeworkRows = await this.prisma.practiceAssignmentTarget.findMany({
       where: {
-        courseId: { in: enrollments.map((item) => item.courseId) },
-        status: 'AVAILABLE',
+        studentId: userId,
+        assignment: {
+          OR: [
+            { courseId: { in: enrollments.map((item) => item.courseId) } },
+            {
+              session: {
+                courseId: { in: enrollments.map((item) => item.courseId) },
+              },
+            },
+          ],
+          sessionId: { not: null },
+        },
       },
-      _count: { _all: true },
+      select: {
+        assignment: {
+          select: {
+            courseId: true,
+            session: { select: { number: true, courseId: true } },
+          },
+        },
+      },
     });
-    const availableMap = new Map(
-      availableByCourse.map((row) => [row.courseId, row._count._all]),
-    );
+    const homeworkMap = new Map<string, number>();
+    for (const row of homeworkRows) {
+      const courseId =
+        row.assignment.courseId ?? row.assignment.session?.courseId ?? null;
+      const number = row.assignment.session?.number ?? 0;
+      if (!courseId || number <= 0) continue;
+      homeworkMap.set(courseId, Math.max(homeworkMap.get(courseId) ?? 0, number));
+    }
 
     const result = new Map<
       string,
       { progress: number; sessionsDone: number; sessionsTotal: number }
     >();
     for (const item of enrollments) {
+      const sessionsDone = homeworkMap.get(item.courseId) ?? 0;
       result.set(item.courseId, {
-        progress: this.average(grouped.get(item.courseId) ?? []),
-        sessionsDone: availableMap.get(item.courseId) ?? 0,
+        progress:
+          item.course.sessionsTotal > 0
+            ? Math.round((sessionsDone / item.course.sessionsTotal) * 100)
+            : 0,
+        sessionsDone,
         sessionsTotal: item.course.sessionsTotal,
       });
     }
@@ -602,11 +806,19 @@ export class UsersService {
     phone?: string | null;
     nationalId?: string | null;
     address?: string | null;
+    title?: string | null;
+    instrument?: string | null;
+    room?: string | null;
+    bio?: string | null;
     passwordPlain?: string | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
-    _count?: { enrollments: number; achievements: number };
+    _count?: {
+      enrollments: number;
+      achievements: number;
+      taughtCourses?: number;
+    };
     avgProgress?: number;
   }) {
     return {
@@ -617,17 +829,22 @@ export class UsersService {
       email: user.email,
       role: user.role,
       studentCode: user.studentCode,
-      level: normalizeStudentLevel(user.level),
+      level: user.role === Role.STUDENT ? normalizeStudentLevel(user.level) : null,
       avatarUrl: user.avatarUrl ?? null,
       phone: user.phone ?? null,
       nationalId: user.nationalId ?? null,
       address: user.address ?? null,
+      title: user.title ?? null,
+      instrument: user.instrument ?? null,
+      room: user.room ?? null,
+      bio: user.bio ?? null,
       password: user.passwordPlain ?? null,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       enrollmentsCount: user._count?.enrollments ?? 0,
       achievementsCount: user._count?.achievements ?? 0,
+      taughtCoursesCount: user._count?.taughtCourses ?? 0,
       avgProgress: user.avgProgress ?? 0,
     };
   }

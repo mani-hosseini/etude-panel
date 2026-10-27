@@ -14,7 +14,12 @@ import {
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
+<<<<<<< HEAD
+import { routes } from "@/lib/routes";
+import { decodeCourseParam } from "@/lib/slug";
+=======
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
+>>>>>>> origin/main
 import { toDeckSlides } from "@/lib/slides";
 
 function parsePlayView(value: string | null): SessionPlayViewKind {
@@ -32,18 +37,25 @@ export function SessionPlayView({
   courseId,
 }: SessionPlayViewProps) {
   const searchParams = useSearchParams();
+<<<<<<< HEAD
+  const view =
+    searchParams.get("view") === "attachments" ? "attachments" : "slides";
+  const paramCourseId = decodeCourseParam(courseId) ?? courseId;
+  const sessionQuery = useSessionQuery(sessionId, paramCourseId);
+=======
   const view = parsePlayView(searchParams.get("view"));
   const sessionQuery = useSessionQuery(sessionId, courseId);
+>>>>>>> origin/main
   const contentEnabled =
     sessionQuery.isSuccess && sessionQuery.data.status === "available";
   const slidesQuery = useSessionSlidesQuery(
     sessionId,
-    courseId,
+    paramCourseId,
     contentEnabled && view === "slides",
   );
   const attachmentsQuery = useSessionAttachmentsQuery(
     sessionId,
-    courseId,
+    paramCourseId,
     contentEnabled && view === "attachments",
   );
   const exercisesQuery = useSessionExercisesQuery(
@@ -82,7 +94,7 @@ export function SessionPlayView({
   }
 
   const resolvedCourseId =
-    courseId ?? sessionQuery.data.courseId ?? undefined;
+    paramCourseId ?? sessionQuery.data.courseId ?? undefined;
   const sessionLabel = `جلسه ${toFa(sessionQuery.data.number)}`;
   const backHref = resolvedCourseId
     ? routes.courseSession(
@@ -134,6 +146,11 @@ export function SessionPlayView({
       sessionId={sessionId}
       courseId={resolvedCourseId}
       backHref={backHref}
+      homeworkTitle={sessionQuery.data.homeworkTitle}
+      homeworkSource={sessionQuery.data.homeworkSource}
+      homeworkNote={sessionQuery.data.homeworkNote}
+      homework={sessionQuery.data.homework}
+      absent={sessionQuery.data.attendanceStatus === "absent"}
     />
   );
 }

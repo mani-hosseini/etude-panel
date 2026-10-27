@@ -5,7 +5,11 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AttachmentGallery } from "@/components/panel/session/AttachmentGallery";
 import { ExerciseGallery } from "@/components/panel/session/ExerciseGallery";
 import { SlideDeck } from "@/components/slides/SlideDeck";
+<<<<<<< HEAD
+import type { SessionAttachment, SessionHomeworkItem } from "@/lib/api/types";
+=======
 import type { SessionAttachment, SessionExercise } from "@/lib/api/types";
+>>>>>>> origin/main
 import type { Slide } from "@/lib/session-1-slides";
 
 export type SessionWorkspaceView = "slides" | "attachments" | "exercises";
@@ -20,6 +24,11 @@ type SessionWorkspaceProps = {
   courseId?: string;
   playHref: string;
   backHref: string;
+  homeworkTitle?: string;
+  homeworkSource?: string;
+  homeworkNote?: string;
+  homework?: SessionHomeworkItem[];
+  absent?: boolean;
 };
 
 export function SessionWorkspace({
@@ -32,6 +41,11 @@ export function SessionWorkspace({
   courseId,
   playHref,
   backHref,
+  homeworkTitle,
+  homeworkSource,
+  homeworkNote,
+  homework,
+  absent,
 }: SessionWorkspaceProps) {
   const reduceMotion = useReducedMotion();
 
@@ -66,6 +80,11 @@ export function SessionWorkspace({
               courseId={courseId}
               playHref={playHref}
               backHref={backHref}
+              homeworkTitle={homeworkTitle}
+              homeworkSource={homeworkSource}
+              homeworkNote={homeworkNote}
+              homework={homework}
+              absent={absent}
             />
           )}
         </motion.div>

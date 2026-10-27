@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Award, Presentation } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -7,10 +8,13 @@ import { motion, useReducedMotion } from "motion/react";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api/client";
+import { audienceError } from "@/lib/api/errors";
 import {
   queryErrorMessage,
   useCoursesQuery,
 } from "@/lib/api/queries";
+import { saveBlob } from "@/lib/download";
 import { toFa } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -18,6 +22,8 @@ import { cn } from "@/lib/utils";
 export function CertificatesPage() {
   const reduceMotion = useReducedMotion();
   const query = useCoursesQuery();
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   if (query.isPending) {
     return <Skeleton className="h-64 rounded-3xl" />;
@@ -41,6 +47,9 @@ export function CertificatesPage() {
         description="مدارک پایان دورهٔ دوره‌هایی که در آن‌ها ثبت‌نام کرده‌اید."
       />
 
+      {downloadError ? (
+        <p className="text-sm text-rose-600">{downloadError}</p>
+      ) : null}
       {courses.length === 0 ? (
         <div className="surface-panel p-10 text-center text-sm text-muted-foreground">
           هنوز دوره‌ای ثبت نشده است.
@@ -84,7 +93,22 @@ export function CertificatesPage() {
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  disabled={!course.certificateReady}
+                  disabled={!course.certificateReady || downloading === course.id}
+                  onClick={async () => {
+                    if (!course.certificateReady) return;
+                    setDownloadError(null);
+                    setDownloading(course.id);
+                    try {
+                      const blob = await api.downloadCertificate(course.id);
+                      saveBlob(blob, `etude-certificate-${course.id}.html`);
+                    } catch (error) {
+                      setDownloadError(
+                        audienceError(error, "دانلود مدرک انجام نشد."),
+                      );
+                    } finally {
+                      setDownloading(null);
+                    }
+                  }}
                   className={cn(
                     "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold",
                     course.certificateReady

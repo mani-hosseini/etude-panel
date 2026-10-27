@@ -6,6 +6,7 @@ import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Settings2, X } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
+import { AdminCreateTeacherForm } from "@/components/admin/AdminCreateTeacherForm";
 import { AdminCreateUserForm } from "@/components/admin/AdminCreateUserForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,13 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { StudentLevelSelect } from "@/components/admin/StudentLevelSelect";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { adminApi } from "@/lib/api/admin-client";
 import {
@@ -25,16 +33,19 @@ import { toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-type RoleFilter = "ALL" | "STUDENT" | "ADMIN";
+type RoleFilter = "ALL" | "STUDENT" | "TEACHER" | "ADMIN";
 
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
-  const [role, setRole] = useState<RoleFilter>("STUDENT");
+  const [role, setRole] = useState<RoleFilter>("ALL");
   const [level, setLevel] = useState("all");
-  const [showCreate, setShowCreate] = useState(false);
+  const [teacherId, setTeacherId] = useState("all");
+  const [createKind, setCreateKind] = useState<"student" | "teacher" | null>(
+    null,
+  );
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const params = useMemo(
@@ -44,11 +55,14 @@ export function AdminUsersPage() {
       search: search || undefined,
       role: role === "ALL" ? undefined : role,
       level: level === "all" ? undefined : level,
+      teacherId: teacherId === "all" ? undefined : teacherId,
     }),
-    [page, search, role, level],
+    [page, search, role, level, teacherId],
   );
 
   const query = useAdminUsersQuery(params);
+  const teachersQuery = useAdminUsersQuery({ role: "TEACHER", limit: 100 });
+  const teachers = teachersQuery.data?.users ?? [];
 
   const toggleActive = useMutation({
     mutationFn: async (user: { id: string; isActive: boolean }) => {
@@ -69,7 +83,7 @@ export function AdminUsersPage() {
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
     },
     onError: (err) => {
-      setDeleteError(audienceError(err, "حذف هنرجو انجام نشد."));
+      setDeleteError(audienceError(err, "حذف کاربر انجام نشد."));
     },
   });
 
@@ -78,9 +92,11 @@ export function AdminUsersPage() {
     setSearch(searchDraft.trim());
   };
 
-  const hasActiveFilters = level !== "all" || Boolean(search);
+  const hasActiveFilters =
+    level !== "all" || teacherId !== "all" || Boolean(search);
   const clearFilters = () => {
     setLevel("all");
+    setTeacherId("all");
     setSearch("");
     setSearchDraft("");
     setPage(1);
@@ -128,32 +144,59 @@ export function AdminUsersPage() {
           <p className="text-xs font-medium text-brand">مدیریت</p>
           <h2 className="mt-1 text-2xl font-bold text-slate-900">کاربران</h2>
           <p className="mt-1 text-sm text-slate-500">
-            افزودن هنرجو، حذف و مدیریت دسترسی به دوره‌ها.
+            هنرجو، استاد و دسترسی هر کدام به دوره‌ها.
           </p>
         </div>
         {role !== "ADMIN" ? (
-          <Button
-            type="button"
-            className="rounded-xl"
-            onClick={() => setShowCreate((v) => !v)}
-          >
-            <Plus className="size-4" />
-            هنرجوی جدید
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {role !== "TEACHER" ? (
+              <Button
+                type="button"
+                className="rounded-xl"
+                onClick={() =>
+                  setCreateKind((current) =>
+                    current === "student" ? null : "student",
+                  )
+                }
+              >
+                <Plus className="size-4" />
+                هنرجوی جدید
+              </Button>
+            ) : null}
+            {role !== "STUDENT" ? (
+              <Button
+                type="button"
+                variant={role === "TEACHER" ? "default" : "outline"}
+                className="rounded-xl"
+                onClick={() =>
+                  setCreateKind((current) =>
+                    current === "teacher" ? null : "teacher",
+                  )
+                }
+              >
+                <Plus className="size-4" />
+                استاد جدید
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
-      {showCreate ? (
-        <AdminCreateUserForm onClose={() => setShowCreate(false)} />
+      {createKind === "student" ? (
+        <AdminCreateUserForm onClose={() => setCreateKind(null)} />
+      ) : null}
+      {createKind === "teacher" ? (
+        <AdminCreateTeacherForm onClose={() => setCreateKind(null)} />
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {(
             [
-              { id: "STUDENT", label: "هنرجو" },
-              { id: "ADMIN", label: "ادمین" },
               { id: "ALL", label: "همه" },
+              { id: "STUDENT", label: "هنرجو" },
+              { id: "TEACHER", label: "استاد" },
+              { id: "ADMIN", label: "ادمین" },
             ] as const
           ).map((item) => (
             <button
@@ -162,7 +205,10 @@ export function AdminUsersPage() {
               onClick={() => {
                 setRole(item.id);
                 setPage(1);
-                if (item.id === "ADMIN") setLevel("all");
+                if (item.id === "ADMIN" || item.id === "TEACHER") {
+                  setLevel("all");
+                  setTeacherId("all");
+                }
               }}
               className={cn(
                 "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
@@ -174,8 +220,33 @@ export function AdminUsersPage() {
               {item.label}
             </button>
           ))}
-          {role !== "ADMIN" ? (
-            <div className="flex items-center gap-2">
+          {role === "STUDENT" || role === "ALL" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="w-44">
+                <Select
+                  value={teacherId}
+                  onValueChange={(value) => {
+                    setTeacherId(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    id="users-teacher-filter"
+                    className="rounded-xl bg-white"
+                  >
+                    <SelectValue placeholder="همه اساتید" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">همه اساتید</SelectItem>
+                    {teachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>
+                        {teacher.displayName}
+                        {teacher.title ? ` · ${teacher.title}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="w-40">
                 <StudentLevelSelect
                   id="users-level-filter"
@@ -221,7 +292,7 @@ export function AdminUsersPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") applySearch();
               }}
-              placeholder="جستجو نام، ایمیل، کد هنرجو…"
+              placeholder="جستجو نام، کد ملی، تلفن…"
               className="rounded-xl bg-white pe-3 ps-10"
             />
           </div>
@@ -238,7 +309,7 @@ export function AdminUsersPage() {
               <tr>
                 <th className="px-4 py-3 text-right font-semibold">نام</th>
                 <th className="px-4 py-3 text-right font-semibold">نقش</th>
-                <th className="px-4 py-3 text-right font-semibold">سطح هنرجو</th>
+                <th className="px-4 py-3 text-right font-semibold">سطح / عنوان</th>
                 <th className="px-4 py-3 text-right font-semibold">دوره‌ها</th>
                 <th className="px-4 py-3 text-right font-semibold">
                   میانگین پیشرفت اسلایدها
@@ -261,8 +332,8 @@ export function AdminUsersPage() {
                       {audienceError(
                         query.error,
                         hasActiveFilters
-                          ? "هنرجویی با این فیلتر پیدا نشد."
-                          : "فهرست هنرجوها الان در دسترس نیست.",
+                          ? "کاربری با این فیلتر پیدا نشد."
+                          : "فهرست کاربران الان در دسترس نیست.",
                       )}
                     </p>
                     {hasActiveFilters ? (
@@ -289,9 +360,19 @@ export function AdminUsersPage() {
                         avatarUrl={avatarByUserId.get(user.id)}
                         alt={user.displayName}
                       />
-                      <span className="font-semibold text-slate-900">
-                        {user.displayName}
-                      </span>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-slate-900">
+                          {user.displayName}
+                        </span>
+                        {user.nationalId ? (
+                          <p
+                            className="mt-0.5 font-mono text-[11px] text-slate-400"
+                            dir="ltr"
+                          >
+                            {user.nationalId}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -300,18 +381,30 @@ export function AdminUsersPage() {
                         user.role === "ADMIN" ? "default" : "secondary"
                       }
                     >
-                      {user.role === "ADMIN" ? "ادمین" : "هنرجو"}
+                      {user.role === "ADMIN"
+                        ? "ادمین"
+                        : user.role === "TEACHER"
+                          ? "استاد"
+                          : "هنرجو"}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
                     {user.role === "STUDENT" ? (
                       <StudentLevelBadge level={user.level} />
+                    ) : user.role === "TEACHER" ? (
+                      <span className="text-xs text-slate-600">
+                        {user.title || user.instrument || "استاد"}
+                      </span>
                     ) : (
                       <span className="text-xs text-slate-400">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 font-sans tabular-nums">
-                    {toFa(user.enrollmentsCount)}
+                    {toFa(
+                      user.role === "TEACHER"
+                        ? (user.taughtCoursesCount ?? 0)
+                        : user.enrollmentsCount,
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {user.role === "STUDENT" ? (
@@ -361,7 +454,9 @@ export function AdminUsersPage() {
                           {user.isActive ? "غیرفعال" : "فعال"}
                         </Button>
                         <AdminConfirmDelete
-                          title="حذف هنرجو"
+                          title={
+                            user.role === "TEACHER" ? "حذف استاد" : "حذف هنرجو"
+                          }
                           description={`آیا از حذف «${user.displayName}» مطمئن هستید؟`}
                           disabled={removeUser.isPending}
                           onConfirm={() => removeUser.mutate(user.id)}
@@ -379,8 +474,8 @@ export function AdminUsersPage() {
                   >
                     <p>
                       {hasActiveFilters
-                        ? "هنرجویی با این فیلتر پیدا نشد."
-                        : "هنرجویی پیدا نشد."}
+                        ? "کاربری با این فیلتر پیدا نشد."
+                        : "کاربری پیدا نشد."}
                     </p>
                     {hasActiveFilters ? (
                       <Button

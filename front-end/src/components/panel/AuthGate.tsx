@@ -9,6 +9,8 @@ import { SessionProvider } from "@/components/panel/SessionProvider";
 import {
   getServerSession,
   getSession,
+  isTeacherSession,
+  sessionHome,
   subscribeSession,
 } from "@/lib/auth";
 import { routes } from "@/lib/routes";
@@ -32,10 +34,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     if (!session) {
       router.replace(routes.login);
+      return;
+    }
+    if (isTeacherSession(session)) {
+      router.replace(sessionHome(session));
     }
   }, [hydrated, session, router]);
 
-  if (!hydrated || !session) {
+  if (!hydrated || !session || isTeacherSession(session)) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

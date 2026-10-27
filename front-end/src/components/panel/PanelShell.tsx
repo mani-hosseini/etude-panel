@@ -2,34 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Award,
-  BookOpen,
-  CalendarDays,
-  ClipboardCheck,
-  LayoutDashboard,
-  Menu,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { PanelSidebar } from "@/components/panel/PanelSidebar";
 import { copy } from "@/constants/copy";
+import { mobileNavItems, panelNavItems } from "@/constants/panel-nav";
 import { useDashboardQuery } from "@/lib/api/queries";
-import { toFa, weekdayPlural } from "@/lib/format";
-import { isNavActive, routes } from "@/lib/routes";
+import { formatClassDays, toFa } from "@/lib/format";
+import { isNavActive } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
-const mobileNav = [
-  { href: routes.dashboard, label: copy.nav.dashboard, icon: LayoutDashboard },
-  { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
-  { href: routes.exams, label: copy.nav.exams, icon: ClipboardCheck },
-  { href: routes.schedule, label: copy.nav.schedule, icon: CalendarDays },
-  { href: routes.certificates, label: copy.nav.certificates, icon: Award },
-  { href: routes.profile, label: copy.nav.profile, icon: UserRound },
-] as const;
 
 type PanelShellProps = {
   studentName: string;
@@ -59,7 +42,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
   }, [open]);
 
   const title =
-    mobileNav.find((item) => isNavActive(pathname, item.href))?.label ??
+    panelNavItems.find((item) => isNavActive(pathname, item.href))?.label ??
     copy.nav.dashboard;
 
   return (
@@ -110,7 +93,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                             : ""
                         }`
                       : primary
-                        ? `کلاس: ${weekdayPlural(primary.day)} ${toFa(primary.timeShort)}`
+                        ? `کلاس: ${formatClassDays(primary.classDays ?? primary.days, primary.day)} ${toFa(primary.timeShort)}`
                         : null}
                   </span>
                 </div>
@@ -126,9 +109,9 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
             {copy.copyright}
           </footer>
 
-          <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-            <div className="mx-auto grid max-w-lg grid-cols-6 gap-1">
-              {mobileNav.map((item) => {
+          <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+            <div className="grid w-full grid-cols-4">
+              {mobileNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);
                 return (
@@ -136,13 +119,11 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium transition-colors",
-                      active
-                        ? "bg-brand-50 text-brand"
-                        : "text-muted-foreground hover:bg-muted",
+                      "flex w-full flex-col items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium",
+                      active ? "text-brand" : "text-muted-foreground",
                     )}
                   >
-                    <Icon className="size-4" strokeWidth={1.75} />
+                    <Icon className="size-4" strokeWidth={active ? 2 : 1.75} />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 );

@@ -11,6 +11,8 @@ export type CourseCard = {
   teacher: string;
   teacherShort: string;
   day: string;
+  days?: string[];
+  classDays?: string[];
   time: string;
   timeShort: string;
   duration: string;
@@ -37,13 +39,27 @@ export type CourseSession = {
   status: SessionStatus;
   slideCount: number;
   attachmentCount?: number;
-  exerciseCount?: number;
   durationLabel: string;
   dateLabel: string;
   timeLabel?: string;
   courseId?: string;
   courseTitle?: string;
   progressPercent?: number;
+  homeworkTitle?: string;
+  homeworkSource?: string;
+  homeworkNote?: string;
+  homework?: SessionHomeworkItem[];
+  attendanceStatus?: string | null;
+  current?: boolean;
+};
+
+export type SessionHomeworkItem = {
+  id: string;
+  category: string;
+  title: string;
+  source: string;
+  note: string;
+  score: number;
 };
 
 export type ScheduleLesson = {
@@ -60,6 +76,7 @@ export type ScheduleLesson = {
   note?: string;
   status: LessonStatus;
   sessionId?: string;
+  attendanceStatus?: string | null;
 };
 
 export type DashboardStat = {
@@ -75,6 +92,7 @@ export type DashboardPayload = {
     studentCode: string | null;
     level: string | null;
     avatarUrl: string | null;
+    stars?: number;
   };
   courses: CourseCard[];
   primaryCourse: CourseCard | null;
@@ -111,6 +129,7 @@ export type DashboardPayload = {
 export type SessionsPayload = {
   course: CourseCard;
   sessions: CourseSession[];
+  currentSessionNumber?: number;
 };
 
 export type SchedulePayload = {
@@ -123,6 +142,7 @@ export type SchedulePayload = {
     title?: string;
     dateLabel?: string;
     timeLabel?: string;
+    attendanceStatus?: string | null;
   }>;
 };
 
@@ -142,6 +162,7 @@ export type ProfilePayload = {
     attendanceRate: string;
     totalHours: string;
     activeCoursesCount: string;
+    stars?: number;
   };
   courses: CourseCard[];
   primaryCourse: {
@@ -178,16 +199,6 @@ export type SessionAttachment = {
   sortOrder: number;
 };
 
-export type SessionExercise = {
-  id: string;
-  path: string;
-  caption?: string;
-  filename: string;
-  mimeType: string;
-  size: number;
-  sortOrder: number;
-};
-
 export type ExamStatus = "DRAFT" | "PUBLISHED" | "CLOSED";
 
 export type ExamSubmissionSummary = {
@@ -195,6 +206,68 @@ export type ExamSubmissionSummary = {
   submittedAt: string;
   originalName: string;
   size: number;
+};
+
+export type StudentAssignment = {
+  id: string;
+  assignmentId: string;
+  category: string;
+  title: string;
+  source: string;
+  note: string;
+  dueLabel: string;
+  progress: number;
+  score?: number;
+  short: string;
+  teacher: string;
+  courseTitle: string | null;
+  sessionId?: string | null;
+  sessionNumber?: number | null;
+};
+
+export type PracticeSeries = {
+  range: "7d" | "30d" | "90d";
+  points: Array<{ label: string; planned: number; done: number }>;
+  todayMinutes: number;
+};
+
+export type PathLevelProgress = {
+  level: number;
+  progress: number;
+  state: "done" | "current" | "locked";
+  tracks: {
+    technique: number;
+    theory: number;
+    solfege: number;
+    piece: number;
+  };
+};
+
+export type PathTrackStat = {
+  key: "technique" | "theory" | "solfege" | "piece";
+  label: string;
+  average: number;
+  count: number;
+  sessions: Array<{ sessionNumber: number | null; score: number }>;
+};
+
+export type PathProgress = {
+  currentLevel: number;
+  tracks: {
+    technique: number;
+    theory: number;
+    solfege: number;
+    piece: number;
+  };
+  overallPercent: number;
+  stars?: number;
+  todayMinutes?: number;
+  week?: Array<{ label: string; planned: number; done: number }>;
+  streak?: number;
+  assignments?: StudentAssignment[];
+  focus?: StudentAssignment | null;
+  levels?: PathLevelProgress[];
+  trackStats?: PathTrackStat[];
 };
 
 export type StudentExam = {
@@ -213,7 +286,5 @@ export type StudentExam = {
   hasAnswerFile: boolean;
   answerFileName: string | null;
   answerFileSize: number | null;
-  score: number | null;
-  gradedAt: string | null;
   submission: ExamSubmissionSummary | null;
 };

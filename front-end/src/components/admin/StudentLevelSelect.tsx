@@ -9,12 +9,15 @@ import {
 } from "@/components/ui/select";
 import { STUDENT_LEVELS, STUDENT_LEVEL_STYLE } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type StudentLevelSelectProps = {
   value: string;
   onValueChange: (value: string) => void;
   id?: string;
   includeAll?: boolean;
+  disabled?: boolean;
+  className?: string;
 };
 
 export function StudentLevelSelect({
@@ -22,10 +25,12 @@ export function StudentLevelSelect({
   onValueChange,
   id,
   includeAll = false,
+  disabled = false,
+  className,
 }: StudentLevelSelectProps) {
   return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger id={id} className="rounded-xl bg-white">
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger id={id} className={cn("rounded-xl bg-white", className)}>
         <SelectValue placeholder="انتخاب سطح" />
       </SelectTrigger>
       <SelectContent>

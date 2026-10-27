@@ -1,14 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+<<<<<<< HEAD
+import { Eye, EyeOff, Save } from "lucide-react";
+
+import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminStudentCoursesPanel } from "@/components/admin/AdminStudentCoursesPanel";
+import { AdminTeacherCoursesPanel } from "@/components/admin/AdminTeacherCoursesPanel";
+=======
 import { BookOpen, ClipboardCheck, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
 
 import { AdminConfirmDelete } from "@/components/admin/AdminConfirmDelete";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ExamGradeField } from "@/components/admin/exam/ExamGradeField";
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
+>>>>>>> origin/main
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,21 +27,19 @@ import { Progress } from "@/components/ui/progress";
 import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { StudentLevelSelect } from "@/components/admin/StudentLevelSelect";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { announceSaved } from "@/lib/save-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/api/admin-client";
+<<<<<<< HEAD
+import { adminQueryKeys, useAdminUserQuery } from "@/lib/api/admin-queries";
+=======
 import {
   adminQueryKeys,
   useAdminCoursesQuery,
   useAdminExamsQuery,
   useAdminUserQuery,
 } from "@/lib/api/admin-queries";
+>>>>>>> origin/main
 import { audienceError } from "@/lib/api/errors";
 import { parseStudentLevel } from "@/lib/student-level";
 import { toFa } from "@/lib/format";
@@ -58,25 +65,45 @@ function AdminUserEditForm({
   const [nationalId, setNationalId] = useState(user.nationalId ?? "");
   const [address, setAddress] = useState(user.address ?? "");
   const [password, setPassword] = useState(user.password ?? "");
+  const [title, setTitle] = useState(user.title ?? "");
+  const [instrument, setInstrument] = useState(user.instrument ?? "");
+  const [room, setRoom] = useState(user.room ?? "");
+  const [bio, setBio] = useState(user.bio ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const isStudent = user.role === "STUDENT";
+  const isTeacher = user.role === "TEACHER";
 
   const saveUser = useMutation({
     mutationFn: () =>
       adminApi.updateUser(user.id, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        level,
+        ...(isStudent
+          ? {
+              level,
+              address: address.trim(),
+            }
+          : {}),
+        ...(isStudent || isTeacher
+          ? { nationalId: nationalId.trim() }
+          : {}),
+        ...(isTeacher
+          ? {
+              title: title.trim(),
+              instrument: instrument.trim(),
+              room: room.trim(),
+              bio: bio.trim(),
+            }
+          : {}),
         phone: phone.trim(),
-        nationalId: nationalId.trim(),
-        address: address.trim(),
         ...(password.trim() ? { password: password.trim() } : {}),
       }),
     onSuccess: async (updated) => {
       setActionError(null);
       setActionSuccess("اطلاعات کاربر ذخیره شد.");
+      announceSaved("اطلاعات کاربر ذخیره شد.");
       if (updated.password) setPassword(updated.password);
       await onSaved();
     },
@@ -91,7 +118,9 @@ function AdminUserEditForm({
       <div className="border-b border-slate-100 px-5 py-4">
         <h3 className="text-sm font-bold text-slate-900">ویرایش کاربر</h3>
         <p className="mt-1 text-xs text-slate-500">
-          اطلاعات و رمز عبور کاربر را ببینید و تغییر دهید
+          {isStudent || isTeacher
+            ? "نام کاربری و رمز ورود هر دو کد ملی است"
+            : "اطلاعات و رمز عبور کاربر را ببینید و تغییر دهید"}
         </p>
       </div>
       <form
@@ -124,6 +153,19 @@ function AdminUserEditForm({
               required
             />
           </div>
+          {isStudent || isTeacher ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="admin-nationalId">کد ملی / نام کاربری</Label>
+              <Input
+                id="admin-nationalId"
+                inputMode="numeric"
+                dir="ltr"
+                value={nationalId}
+                onChange={(e) => setNationalId(e.target.value)}
+                className="rounded-xl text-left"
+              />
+            </div>
+          ) : null}
           {isStudent ? (
             <>
               <div className="space-y-1.5">
@@ -144,16 +186,6 @@ function AdminUserEditForm({
                   dir="ltr"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="admin-nationalId">کد ملی</Label>
-                <Input
-                  id="admin-nationalId"
-                  value={nationalId}
-                  onChange={(e) => setNationalId(e.target.value)}
-                  className="rounded-xl"
-                  dir="ltr"
-                />
-              </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="admin-address">آدرس</Label>
                 <Input
@@ -165,8 +197,60 @@ function AdminUserEditForm({
               </div>
             </>
           ) : null}
+          {isTeacher ? (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-title">عنوان</Label>
+                <Input
+                  id="admin-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-instrument">ساز</Label>
+                <Input
+                  id="admin-instrument"
+                  value={instrument}
+                  onChange={(e) => setInstrument(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-room">اتاق / استودیو</Label>
+                <Input
+                  id="admin-room"
+                  value={room}
+                  onChange={(e) => setRoom(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-teacher-phone">تلفن</Label>
+                <Input
+                  id="admin-teacher-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="rounded-xl"
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="admin-bio">معرفی</Label>
+                <Input
+                  id="admin-bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            </>
+          ) : null}
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="admin-password">رمز عبور</Label>
+            <Label htmlFor="admin-password">
+              {isStudent || isTeacher ? "رمز ورود" : "رمز عبور"}
+            </Label>
             <div className="flex gap-2">
               <Input
                 id="admin-password"
@@ -174,10 +258,13 @@ function AdminUserEditForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="rounded-xl"
+                dir={isStudent || isTeacher ? "ltr" : undefined}
                 placeholder={
-                  user.password
-                    ? "رمز فعلی نمایش داده شده — برای تغییر ویرایش کنید"
-                    : "رمز عبور جدید (حداقل ۸ کاراکتر)"
+                  isStudent || isTeacher
+                    ? "همان کد ملی"
+                    : user.password
+                      ? "رمز فعلی نمایش داده شده — برای تغییر ویرایش کنید"
+                      : "رمز عبور جدید (حداقل ۸ کاراکتر)"
                 }
                 autoComplete="new-password"
               />
@@ -225,6 +312,8 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const userQuery = useAdminUserQuery(userId);
+<<<<<<< HEAD
+=======
   const coursesQuery = useAdminCoursesQuery({ limit: 100, isActive: true });
   const examsQuery = useAdminExamsQuery(USER_EXAMS_PARAMS);
   const [selectedCourse, setSelectedCourse] = useState("");
@@ -242,6 +331,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       ),
     [coursesQuery.data?.courses, enrolledSlugs],
   );
+>>>>>>> origin/main
 
   const gradeRows = useMemo(() => {
     const exams = examsQuery.data?.exams ?? [];
@@ -268,29 +358,6 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
     await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     await queryClient.invalidateQueries({ queryKey: adminQueryKeys.stats });
   };
-
-  const enroll = useMutation({
-    mutationFn: (courseId: string) => adminApi.enrollUser(userId, courseId),
-    onSuccess: async () => {
-      setSelectedCourse("");
-      setActionError(null);
-      await invalidate();
-    },
-    onError: (err) => {
-      setActionError(audienceError(err, "افزودن دوره انجام نشد."));
-    },
-  });
-
-  const unenroll = useMutation({
-    mutationFn: (courseId: string) => adminApi.unenrollUser(userId, courseId),
-    onSuccess: async () => {
-      setActionError(null);
-      await invalidate();
-    },
-    onError: (err) => {
-      setActionError(audienceError(err, "حذف دوره انجام نشد."));
-    },
-  });
 
   const removeUser = useMutation({
     mutationFn: () => adminApi.deleteUser(userId),
@@ -320,6 +387,7 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
 
   const user = userQuery.data;
   const isStudent = user.role === "STUDENT";
+  const isTeacher = user.role === "TEACHER";
 
   return (
     <div className="space-y-6">
@@ -329,16 +397,18 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
         description={
           isStudent
             ? `${user.isActive ? "فعال" : "غیرفعال"}`
-            : user.email ?? "ادمین"
+            : isTeacher
+              ? user.title || "استاد"
+              : user.email ?? "ادمین"
         }
         backHref={adminRoutes.users}
         backLabel="لیست کاربران"
         actions={
-          isStudent ? (
+          isStudent || isTeacher ? (
             <AdminConfirmDelete
-              title="حذف هنرجو"
+              title={isTeacher ? "حذف استاد" : "حذف هنرجو"}
               description={`آیا از حذف «${user.displayName}» مطمئن هستید؟ این عمل قابل بازگشت نیست.`}
-              triggerLabel="حذف هنرجو"
+              triggerLabel={isTeacher ? "حذف استاد" : "حذف هنرجو"}
               iconOnly={false}
               disabled={removeUser.isPending}
               onConfirm={() => removeUser.mutate()}
@@ -357,13 +427,18 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
           <div>
             <p className="font-semibold text-slate-900">{user.displayName}</p>
             <p className="text-xs text-slate-500">
-              {isStudent ? "هنرجو" : (user.email ?? "ادمین")}
+              {isStudent ? "هنرجو" : isTeacher ? "استاد" : (user.email ?? "ادمین")}
+              {user.nationalId ? ` · ${user.nationalId}` : ""}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
-            {user.role === "ADMIN" ? "ادمین" : "هنرجو"}
+            {user.role === "ADMIN"
+              ? "ادمین"
+              : user.role === "TEACHER"
+                ? "استاد"
+                : "هنرجو"}
           </Badge>
           <Badge variant={user.isActive ? "success" : "warning"}>
             {user.isActive ? "فعال" : "غیرفعال"}
@@ -393,6 +468,12 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
       />
 
       {isStudent ? (
+<<<<<<< HEAD
+        <AdminStudentCoursesPanel
+          userId={user.id}
+          enrollments={user.enrollments}
+        />
+=======
         <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <h3 className="text-sm font-bold text-slate-900">نمره میان‌ترم</h3>
@@ -541,11 +622,16 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
             )}
           </div>
         </Card>
+>>>>>>> origin/main
       ) : null}
 
-      {actionError ? (
-        <p className="text-sm text-rose-600">{actionError}</p>
+      {isTeacher ? (
+        <AdminTeacherCoursesPanel
+          userId={user.id}
+          taughtCourses={user.taughtCourses ?? []}
+        />
       ) : null}
+
       {removeUser.isError ? (
         <p className="text-sm text-rose-600">
           {audienceError(removeUser.error, "حذف هنرجو انجام نشد.")}

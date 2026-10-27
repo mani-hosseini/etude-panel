@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,13 +11,17 @@ import { Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { normalizeName, normalizeStudentLevel } from '../common/utils/mappers';
+import {
+  normalizeName,
+  normalizeNationalId,
+  normalizeStudentLevel,
+} from '../common/utils/mappers';
 import type { AuthUser } from '../common/decorators/auth.decorators';
 import {
   AdminLoginDto,
   LoginDto,
-  RegisterDto,
   RegisterStudentDto,
+  RegisterTeacherDto,
 } from './dto/auth.dto';
 
 type TokenPair = {
@@ -34,25 +40,60 @@ export class AuthService {
   ) {}
 
   async loginStudent(dto: LoginDto, meta?: { ip?: string; userAgent?: string }) {
-    const firstName = normalizeName(dto.firstName);
-    const lastName = normalizeName(dto.lastName);
+    const nationalId = dto.username ? normalizeNationalId(dto.username) : '';
+    const firstName = dto.firstName ? normalizeName(dto.firstName) : '';
+    const lastName = dto.lastName ? normalizeName(dto.lastName) : '';
 
-    const user = await this.prisma.user.findFirst({
-      where: {
-        firstName,
-        lastName,
-        role: Role.STUDENT,
-        isActive: true,
-      },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('نام فارسی یا رمز عبور نادرست است.');
+    if (!nationalId && (!firstName || !lastName)) {
+      throw new BadRequestException(
+        'ورود یا با کد ملی است یا با نام و نام خانوادگی.',
+      );
     }
 
-    const valid = await argon2.verify(user.passwordHash, dto.password);
+    const user = nationalId
+      ? await this.prisma.user.findFirst({
+          where: {
+            OR: [{ nationalId }, { studentCode: nationalId }],
+            role: { in: [Role.STUDENT, Role.TEACHER] },
+            isActive: true,
+          },
+        })
+      : await this.prisma.user.findFirst({
+          where: {
+            firstName,
+            lastName,
+            role: { in: [Role.STUDENT, Role.TEACHER] },
+            isActive: true,
+          },
+        });
+
+    if (!user) {
+      throw new UnauthorizedException(
+        nationalId
+          ? 'نام کاربری یا رمز عبور نادرست است.'
+          : 'نام فارسی یا رمز عبور نادرست است.',
+      );
+    }
+
+    const passwordCandidates = Array.from(
+      new Set(
+        [
+          dto.password,
+          nationalId ? normalizeNationalId(dto.password) : '',
+        ].filter((value) => value.length > 0),
+      ),
+    );
+    let valid = false;
+    for (const candidate of passwordCandidates) {
+      valid = await argon2.verify(user.passwordHash, candidate);
+      if (valid) break;
+    }
     if (!valid) {
-      throw new UnauthorizedException('نام فارسی یا رمز عبور نادرست است.');
+      throw new UnauthorizedException(
+        nationalId
+          ? 'نام کاربری یا رمز عبور نادرست است.'
+          : 'نام فارسی یا رمز عبور نادرست است.',
+      );
     }
 
     const tokens = await this.issueTokens(user.id, user.role, meta);
@@ -65,6 +106,7 @@ export class AuthService {
         displayName: user.displayName,
         loggedInAt: new Date().toISOString(),
         studentCode: user.studentCode,
+        role: user.role,
       },
     };
   }
@@ -91,89 +133,78 @@ export class AuthService {
     };
   }
 
-  /** ثبت‌نام عمومی هنرجو */
-  async registerPublic(
-    dto: RegisterDto,
-    meta?: { ip?: string; userAgent?: string },
-  ) {
-    const firstName = normalizeName(dto.firstName);
-    const lastName = normalizeName(dto.lastName);
-
-    const existing = await this.prisma.user.findFirst({
-      where: { firstName, lastName },
-    });
-    if (existing) {
-      throw new ConflictException(
-        'حسابی با این نام و نام خانوادگی از قبل وجود دارد. وارد شوید.',
-      );
-    }
-
-    const passwordHash = await argon2.hash(dto.password);
-    const studentCode = await this.generateStudentCode();
-
-    const user = await this.prisma.user.create({
-      data: {
-        firstName,
-        lastName,
-        displayName: `${firstName} ${lastName}`,
-        passwordHash,
-        passwordPlain: dto.password,
-        role: Role.STUDENT,
-        studentCode,
-        level: '1',
-      },
-    });
-
-    const achievement = await this.prisma.achievement.findUnique({
-      where: { code: 'joined' },
-    });
-    if (achievement) {
-      await this.prisma.userAchievement.create({
-        data: { userId: user.id, achievementId: achievement.id },
-      });
-    }
-
-    const tokens = await this.issueTokens(user.id, user.role, meta);
-    return {
-      ...tokens,
-      user: this.toPublicUser(user),
-      session: {
-        firstName: user.firstName,
-        lastName: user.lastName,
-        displayName: user.displayName,
-        loggedInAt: new Date().toISOString(),
-        studentCode: user.studentCode,
-      },
-    };
+  /** ثبت‌نام عمومی فعلاً بسته است؛ هنرجوها فقط با کد ملی وارد می‌شوند. */
+  registerPublicDisabled() {
+    throw new ForbiddenException(
+      'ثبت‌نام عمومی غیرفعال است. با کد ملی وارد شوید.',
+    );
   }
 
   async registerStudent(dto: RegisterStudentDto) {
     const firstName = normalizeName(dto.firstName);
     const lastName = normalizeName(dto.lastName);
+    const nationalId = normalizeNationalId(dto.nationalId);
+    const password = dto.password?.trim() || nationalId;
     const studentCode =
-      dto.studentCode?.trim().toUpperCase() ||
-      (await this.generateStudentCode());
+      dto.studentCode?.trim().toUpperCase() || nationalId;
 
     const existing = await this.prisma.user.findFirst({
       where: {
-        OR: [{ firstName, lastName }, { studentCode }],
+        OR: [{ firstName, lastName }, { studentCode }, { nationalId }],
       },
     });
     if (existing) {
       throw new ConflictException('هنرجو با این مشخصات از قبل وجود دارد.');
     }
 
-    const passwordHash = await argon2.hash(dto.password);
+    const passwordHash = await argon2.hash(password);
     const user = await this.prisma.user.create({
       data: {
         firstName,
         lastName,
         displayName: `${firstName} ${lastName}`,
         passwordHash,
-        passwordPlain: dto.password,
+        passwordPlain: password,
         role: Role.STUDENT,
         studentCode,
+        nationalId,
         level: normalizeStudentLevel(dto.level),
+      },
+    });
+
+    return this.toPublicUser(user);
+  }
+
+  async registerTeacher(dto: RegisterTeacherDto) {
+    const firstName = normalizeName(dto.firstName);
+    const lastName = normalizeName(dto.lastName);
+    const nationalId = normalizeNationalId(dto.nationalId);
+    const password = dto.password?.trim() || nationalId;
+
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ firstName, lastName }, { nationalId }],
+      },
+    });
+    if (existing) {
+      throw new ConflictException('استادی با این مشخصات از قبل وجود دارد.');
+    }
+
+    const passwordHash = await argon2.hash(password);
+    const user = await this.prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`,
+        passwordHash,
+        passwordPlain: password,
+        role: Role.TEACHER,
+        nationalId,
+        title: dto.title?.trim() || 'استاد',
+        instrument: dto.instrument?.trim() || null,
+        room: dto.room?.trim() || null,
+        bio: dto.bio?.trim() || null,
+        phone: dto.phone?.trim() || null,
       },
     });
 
@@ -369,7 +400,8 @@ export class AuthService {
       studentCode: user.studentCode,
       email: user.email,
       role: user.role,
-      level: normalizeStudentLevel(user.level),
+      level:
+        user.role === Role.STUDENT ? normalizeStudentLevel(user.level) : null,
       avatarUrl: user.avatarUrl ?? null,
     };
   }
