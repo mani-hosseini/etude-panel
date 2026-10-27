@@ -1,6 +1,6 @@
 "use client";
 
-import { WEEKDAYS } from "@/lib/format";
+import { WEEKDAYS, normalizeWeekday } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type WeekdayPickerProps = {
@@ -20,15 +20,17 @@ export function WeekdayPicker({
   disabled = false,
   size = "md",
 }: WeekdayPickerProps) {
-  const selected = new Set(value);
+  const selected = new Set(value.map((item) => normalizeWeekday(item)));
 
   const toggle = (day: string) => {
     if (disabled) return;
-    const next = selected.has(day)
-      ? value.filter((item) => item !== day)
+    const key = normalizeWeekday(day);
+    const next = selected.has(key)
+      ? value.filter((item) => normalizeWeekday(item) !== key)
       : [...value, day];
     if (next.length < min) return;
-    onChange(WEEKDAYS.filter((item) => next.includes(item)));
+    const chosen = new Set(next.map((item) => normalizeWeekday(item)));
+    onChange(WEEKDAYS.filter((item) => chosen.has(item)));
   };
 
   return (
@@ -39,7 +41,7 @@ export function WeekdayPicker({
       )}
     >
       {options.map((day) => {
-        const active = selected.has(day);
+        const active = selected.has(normalizeWeekday(day));
         return (
           <button
             key={day}

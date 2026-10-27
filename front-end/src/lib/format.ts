@@ -58,8 +58,8 @@ export const WEEKDAYS = [
 export type Weekday = (typeof WEEKDAYS)[number];
 
 export function normalizeWeekday(value: string): Weekday | string {
-  const compact = value.replace(/‌/g, "").trim();
-  return WEEKDAYS.find((day) => day.replace(/‌/g, "") === compact) ?? value;
+  const compact = value.replace(/‌/g, "").replace(/\s/g, "").trim();
+  return WEEKDAYS.find((day) => day.replace(/‌/g, "") === compact) ?? value.trim();
 }
 
 export function parseDays(

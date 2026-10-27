@@ -11,7 +11,10 @@ export const WEEKDAYS = [
 export type Weekday = (typeof WEEKDAYS)[number];
 
 export function normalizeWeekday(value: string): string {
-  return value.replace(/‌/g, '').trim();
+  const compact = value.replace(/‌/g, '').replace(/\s/g, '').trim();
+  return (
+    WEEKDAYS.find((day) => day.replace(/‌/g, '') === compact) ?? value.trim()
+  );
 }
 
 function splitDayTokens(value: string): string[] {

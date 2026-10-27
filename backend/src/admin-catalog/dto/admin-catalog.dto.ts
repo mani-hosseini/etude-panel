@@ -12,7 +12,12 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import {
+  WEEKDAYS,
+  normalizeDays,
+  normalizeWeekday,
+} from '../../common/utils/weekdays';
 import {
   CourseStatus,
   LessonStatus,
@@ -63,14 +68,22 @@ export class UpsertCourseDto {
   teacherShort!: string;
 
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? normalizeWeekday(value) : value,
+  )
   @IsString()
   @MaxLength(64)
   day?: string;
 
   @IsOptional()
+  @Transform(({ value, obj }) => {
+    const list = Array.isArray(value) ? value : value ? [value] : [];
+    const fallback = typeof obj?.day === 'string' ? obj.day : undefined;
+    return normalizeDays(list, fallback);
+  })
   @IsArray()
   @ArrayMinSize(1, { message: 'حداقل یک روز برگزاری انتخاب کنید.' })
-  @IsIn(['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'], {
+  @IsIn([...WEEKDAYS], {
     each: true,
     message: 'روز برگزاری کلاس را از روزهای هفته انتخاب کنید.',
   })

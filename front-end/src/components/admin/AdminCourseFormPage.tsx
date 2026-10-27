@@ -106,6 +106,9 @@ export function AdminCourseFormPage({ courseId }: Props) {
   const save = useMutation({
     mutationFn: async () => {
       const days = parseDays(form.days, form.day);
+      if (days.length === 0) {
+        throw new Error("حداقل یک روز برگزاری انتخاب کنید.");
+      }
       const { slug: _slug, ...fields } = form;
       const body: UpsertCourseBody = {
         ...fields,
