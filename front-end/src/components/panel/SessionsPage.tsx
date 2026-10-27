@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/queries";
 import { toFa, formatClassDays, cleanCourseTitle } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { isSessionOpen } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +97,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
   if (!listMode && courseId && sessions.some((item) => item.current)) {
     return <Skeleton className="h-64 rounded-3xl" />;
   }
-  const available = sessions.filter((s) => s.status === "available").length;
+  const available = sessions.filter((s) => isSessionOpen(s)).length;
 
   return (
     <div className="space-y-6 pb-4 sm:space-y-8">
@@ -144,7 +145,8 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
       <div className="grid gap-4">
         {sessions.map((session, index) => {
           const completed =
-            session.status === "available" &&
+            isSessionOpen(session) &&
+            session.attendanceStatus !== "absent" &&
             (session.progressPercent ?? 0) >= 100;
           const meta =
             session.attendanceStatus === "absent"
@@ -154,9 +156,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                 : completed
                   ? { label: "مشاهده شد", variant: "success" as const }
                   : statusMeta[session.status];
-          const clickable =
-            session.status === "available" ||
-            session.attendanceStatus === "absent";
+          const clickable = isSessionOpen(session);
           const href = routes.courseSession(course.id, session.id);
 
           const card = (
@@ -212,7 +212,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                       ))}
                     </div>
                   ) : null}
-                  {session.status === "available" && session.slideCount > 0 ? (
+                  {isSessionOpen(session) && session.slideCount > 0 ? (
                     <div className="mt-4 space-y-1.5">
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                         <span>پیشرفت اسلایدها</span>

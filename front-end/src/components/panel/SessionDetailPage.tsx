@@ -27,6 +27,7 @@ import {
 import { executionScoreLabel, toFa } from "@/lib/format";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { decodeCourseParam } from "@/lib/slug";
+import { isSessionOpen } from "@/lib/session-access";
 import { toDeckSlides } from "@/lib/slides";
 
 function parseWorkspaceView(value: string | null): SessionWorkspaceView {
@@ -75,7 +76,7 @@ export function SessionDetailPage({
 
   const sessionQuery = useSessionQuery(sessionId, resolvedCourseId);
   const slidesEnabled =
-    sessionQuery.isSuccess && sessionQuery.data.status === "available";
+    sessionQuery.isSuccess && isSessionOpen(sessionQuery.data);
   const slidesQuery = useSessionSlidesQuery(
     sessionId,
     resolvedCourseId,
@@ -197,7 +198,7 @@ export function SessionDetailPage({
     );
   };
 
-  if (session.status !== "available") {
+  if (!isSessionOpen(session)) {
     const absent = session.attendanceStatus === "absent";
     return (
       <div className="space-y-6">

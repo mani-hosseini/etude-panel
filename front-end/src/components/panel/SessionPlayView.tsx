@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
+import { isSessionOpen } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
 import { toDeckSlides } from "@/lib/slides";
 
@@ -37,7 +38,7 @@ export function SessionPlayView({
   const paramCourseId = decodeCourseParam(courseId) ?? courseId;
   const sessionQuery = useSessionQuery(sessionId, paramCourseId);
   const contentEnabled =
-    sessionQuery.isSuccess && sessionQuery.data.status === "available";
+    sessionQuery.isSuccess && isSessionOpen(sessionQuery.data);
   const slidesQuery = useSessionSlidesQuery(
     sessionId,
     paramCourseId,
@@ -79,7 +80,7 @@ export function SessionPlayView({
     );
   }
 
-  if (sessionQuery.data.status !== "available") {
+  if (!isSessionOpen(sessionQuery.data)) {
     notFound();
   }
 

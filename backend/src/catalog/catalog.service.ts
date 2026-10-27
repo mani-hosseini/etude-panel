@@ -152,7 +152,9 @@ export class CatalogService {
         orderBy: { number: 'asc' },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        include: { _count: { select: { slides: true, attachments: true } } },
+        include: {
+          _count: { select: { slides: true, attachments: true, exercises: true } },
+        },
       }),
     ]);
 
@@ -203,6 +205,7 @@ export class CatalogService {
             homeworkBySession.get(session.id),
             attendanceBySession.get(session.id),
             cursor,
+            session._count.exercises,
           );
         }),
       },
@@ -215,10 +218,13 @@ export class CatalogService {
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
-    const [slideCount, attachmentCount, homeworkBySession, attendanceBySession, cursor] =
+    const [slideCount, attachmentCount, exerciseCount, homeworkBySession, attendanceBySession, cursor] =
       await Promise.all([
         this.prisma.slide.count({ where: { sessionId: session.id } }),
         this.prisma.sessionAttachment.count({
+          where: { sessionId: session.id },
+        }),
+        this.prisma.sessionExercise.count({
           where: { sessionId: session.id },
         }),
         this.sessionHomeworkForStudent(userId, [session.id]),
@@ -235,6 +241,7 @@ export class CatalogService {
         homeworkBySession.get(session.id),
         attendanceBySession.get(session.id),
         cursor,
+        exerciseCount,
       ),
       courseId: course.slug,
       courseTitle: course.title,
@@ -479,7 +486,11 @@ export class CatalogService {
               courseId: primaryEnrollment.courseId,
               number: homeworkCursor,
             },
-            include: { _count: { select: { slides: true, attachments: true } } },
+            include: {
+              _count: {
+                select: { slides: true, attachments: true, exercises: true },
+              },
+            },
           })
         : null;
 
@@ -571,6 +582,7 @@ export class CatalogService {
             undefined,
             undefined,
             homeworkCursor,
+            currentSession._count.exercises,
           )
         : null,
       schedulePreview: scheduleWindow.map((lesson) => ({
@@ -760,9 +772,7 @@ export class CatalogService {
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
 
-    if (session.status !== SessionStatus.AVAILABLE) {
-      throw new NotFoundException('این جلسه هنوز برای ثبت پیشرفت فعال نیست.');
-    }
+    await this.assertSessionVisible(userId, session);
 
     const slideCount = await this.prisma.slide.count({
       where: { sessionId: session.id },
@@ -1130,6 +1140,15 @@ export class CatalogService {
     };
   }
 
+  private async sessionHasPublishedContent(sessionId: string) {
+    const [slides, attachments, exercises] = await Promise.all([
+      this.prisma.slide.count({ where: { sessionId } }),
+      this.prisma.sessionAttachment.count({ where: { sessionId } }),
+      this.prisma.sessionExercise.count({ where: { sessionId } }),
+    ]);
+    return slides + attachments + exercises > 0;
+  }
+
   private async assertSessionVisible(
     userId: string,
     session: {
@@ -1139,6 +1158,9 @@ export class CatalogService {
       courseId: string;
     },
   ) {
+    if (session.status === SessionStatus.AVAILABLE) {
+      return;
+    }
     const cursor = await this.lastHomeworkNumber(userId, session.courseId);
     if (cursor > 0 && session.number <= cursor) {
       return;
@@ -1151,6 +1173,9 @@ export class CatalogService {
       session.id,
     ]);
     if (attendance.has(session.id)) {
+      return;
+    }
+    if (await this.sessionHasPublishedContent(session.id)) {
       return;
     }
     throw new NotFoundException('محتوای این جلسه هنوز در دسترس نیست.');
@@ -1289,15 +1314,22 @@ export class CatalogService {
     }>,
     attendance?: AttendanceStatus,
     cursor = 0,
+    exerciseCount = 0,
   ) {
     const absent = attendance === AttendanceStatus.ABSENT;
     const hasHomework = !absent && (personalHomework?.length ?? 0) > 0;
     const attendanceMarked = Boolean(attendance);
-    const locked =
-      session.number > cursor && !hasHomework && !attendanceMarked;
-    const status = locked
-      ? SESSION_STATUS_API.LOCKED
-      : SESSION_STATUS_API.AVAILABLE;
+    const hasContent =
+      slideCount > 0 || attachmentCount > 0 || exerciseCount > 0;
+    const unlocked =
+      session.status === SessionStatus.AVAILABLE ||
+      (cursor > 0 && session.number <= cursor) ||
+      hasHomework ||
+      attendanceMarked ||
+      hasContent;
+    const status = unlocked
+      ? SESSION_STATUS_API.AVAILABLE
+      : SESSION_STATUS_API.LOCKED;
     const homework = absent ? [] : personalHomework ?? [];
     const first = homework[0];
     const homeworkTitle = first?.title || session.homeworkTitle || '';
