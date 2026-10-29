@@ -17,7 +17,7 @@ const EXACT_MAP: Record<string, string> = {
   "توکن تازه‌سازی الزامی است.": "",
   "Not Found": "مورد نظر یافت نشد.",
   "not found": "مورد نظر یافت نشد.",
-  "property level should not exist": "هنرجویی با این فیلتر پیدا نشد.",
+  "property level should not exist": "این مقدار قابل ذخیره نیست.",
 };
 
 function looksTechnical(message: string): boolean {
@@ -50,11 +50,8 @@ export function toAudienceMessage(
   const trimmed = raw.trim();
   if (EXACT_MAP[trimmed] !== undefined) return EXACT_MAP[trimmed];
 
-  if (
-    /should not exist/i.test(trimmed) ||
-    /must be one of/i.test(trimmed)
-  ) {
-    return "هنرجویی با این فیلتر پیدا نشد.";
+  if (/should not exist/i.test(trimmed) || /must be one of/i.test(trimmed)) {
+    return "ثبت تمرین انجام نشد. صفحه را یک‌بار تازه کنید و دوباره بزنید.";
   }
 
   if (status === 401 || code === "UNAUTHORIZED") {

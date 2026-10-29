@@ -46,6 +46,8 @@ export type StudioStudentSession = {
   attendance: string | null;
   current?: boolean;
   confirmed?: boolean;
+  reviewSessionId?: string | null;
+  reviewSessionNumber?: number | null;
 };
 
 export type StudioAssignment = {
@@ -258,6 +260,26 @@ export const studioApi = {
     forNextSession?: boolean;
   }) =>
     studentHttp.requestData<StudioAssignment>("/studio/assignments", {
+      method: "POST",
+      body,
+    }),
+  createAssignments: (body: {
+    courseId?: string;
+    studentIds?: string[];
+    sessionId?: string;
+    dueLabel?: string;
+    forNextSession?: boolean;
+    items: Array<{
+      category: string;
+      title: string;
+      source?: string;
+      note?: string;
+    }>;
+  }) =>
+    studentHttp.requestData<{
+      saved: number;
+      assignments: StudioAssignment[];
+    }>("/studio/assignments/batch", {
       method: "POST",
       body,
     }),

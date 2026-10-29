@@ -22,10 +22,11 @@ import {
   useDashboardQuery,
 } from "@/lib/api/queries";
 import { resolveAvatarUrl } from "@/lib/avatar";
-import { toFa, formatClassDays, cleanCourseTitle } from "@/lib/format";
+import { toFa, cleanCourseTitle } from "@/lib/format";
 import { parseStudentLevel } from "@/lib/student-level";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { routes } from "@/lib/routes";
+import { isSessionOpen } from "@/lib/session-access";
 
 export function DashboardHome() {
   const reduceMotion = useReducedMotion();
@@ -93,9 +94,13 @@ export function DashboardHome() {
               {copy.dashboard.nextLesson}
             </p>
             <p className="mt-1 font-medium text-navy">{nextLesson.title}</p>
-            <p className="text-xs text-muted-foreground">
-              {toFa(nextLesson.day)} · {toFa(nextLesson.time)}
-            </p>
+            {nextLesson.dateLabel &&
+            nextLesson.dateLabel !== "—" &&
+            nextLesson.dateLabel !== "قفل" ? (
+              <p className="text-xs text-muted-foreground">
+                {toFa(nextLesson.dateLabel)}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </motion.section>
@@ -166,9 +171,7 @@ export function DashboardHome() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {course.teacher} ·{" "}
-                    {formatClassDays(course.classDays ?? course.days, course.day)}{" "}
-                    {course.timeShort}
+                    {course.teacher}
                   </p>
                 </div>
                 <span className="shrink-0 font-sans text-sm tabular-nums text-navy">
@@ -182,10 +185,14 @@ export function DashboardHome() {
 
         {currentSession && data.primaryCourse ? (
           <Link
-            href={routes.courseSession(
-              data.primaryCourse.id,
-              currentSession.id,
-            )}
+            href={
+              isSessionOpen(currentSession)
+                ? routes.courseSession(
+                    data.primaryCourse.id,
+                    currentSession.id,
+                  )
+                : routes.courseSessions(data.primaryCourse.id)
+            }
             className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 transition hover:bg-muted/40"
           >
             <div className="flex items-center gap-3">

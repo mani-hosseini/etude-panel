@@ -27,7 +27,7 @@ import {
 import { executionScoreLabel, toFa } from "@/lib/format";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { decodeCourseParam } from "@/lib/slug";
-import { isSessionOpen } from "@/lib/session-access";
+import { homeworkForStudentSession, isSessionOpen } from "@/lib/session-access";
 import { toDeckSlides } from "@/lib/slides";
 
 function parseWorkspaceView(value: string | null): SessionWorkspaceView {
@@ -157,26 +157,13 @@ export function SessionDetailPage({
     course?.title ??
     "دوره";
   const sessionLabel = `جلسه ${toFa(session.number)}`;
-  const sessionWork =
-    session.homework && session.homework.length > 0
-      ? session.homework
-      : (assignmentsQuery.data ?? [])
-          .filter(
-            (item) =>
-              item.sessionId === session.uuid ||
-              item.sessionId === session.id ||
-              item.sessionNumber === session.number,
-          )
-          .map((item) => ({
-            id: item.id,
-            category: item.category,
-            title: item.title,
-            source: item.source,
-            note: item.note,
-            score: item.score ?? 0,
-          }));
-  const assigned = sessionWork[0];
   const sessions = sessionsQuery.data?.sessions ?? [];
+  const sessionWork = homeworkForStudentSession(
+    session,
+    sessions,
+    assignmentsQuery.data ?? [],
+  );
+  const assigned = sessionWork[0];
   const pager = (
     <SessionPager
       courseId={pathCourseId}

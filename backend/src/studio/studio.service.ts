@@ -17,10 +17,12 @@ import {
 import { isPieceCategory } from './assignment-categories';
 import {
   classWasHeld,
+  previousSessionForReview,
   studentFacingSessionStatus,
 } from '../common/utils/session-unlock';
 import {
   CreateAssignmentDto,
+  CreateAssignmentsBatchDto,
   CreatePracticeLogDto,
   MarkTodayAttendanceDto,
   SaveScoresDto,
@@ -490,17 +492,7 @@ export class StudioService {
       throw new NotFoundException('این جلسه برای شما ثبت نشده است.');
     }
 
-    let homeworkSession = classSession;
-    if (dto.forNextSession && classSession) {
-      const next = await this.prisma.courseSession.findFirst({
-        where: {
-          courseId: classSession.courseId,
-          number: classSession.number + 1,
-        },
-        include: { course: true },
-      });
-      if (next) homeworkSession = next;
-    }
+    const homeworkSession = classSession;
 
     const course = homeworkSession
       ? homeworkSession.course
@@ -565,8 +557,33 @@ export class StudioService {
       if (homeworkSession.id === classSession?.id) {
         await this.markPresentIfUnmarked(homeworkSession, studentIds, teacherId);
       }
+      await Promise.all(
+        studentIds.map((id) =>
+          this.syncEnrollmentCursor(id, homeworkSession.courseId),
+        ),
+      );
     }
     return this.mapAssignment(created);
+  }
+
+  async createAssignments(teacherId: string, dto: CreateAssignmentsBatchDto) {
+    const assignments = [];
+    for (const item of dto.items) {
+      assignments.push(
+        await this.createAssignment(teacherId, {
+          courseId: dto.courseId,
+          studentIds: dto.studentIds,
+          sessionId: dto.sessionId,
+          dueLabel: dto.dueLabel,
+          forNextSession: dto.forNextSession,
+          category: item.category,
+          title: item.title,
+          source: item.source,
+          note: item.note,
+        }),
+      );
+    }
+    return { saved: assignments.length, assignments };
   }
 
   async deleteAssignment(teacherId: string, id: string) {
@@ -1465,7 +1482,7 @@ export class StudioService {
         Math.max(cursorByCourse.get(session.courseId) ?? 0, session.number),
       );
     }
-    return sessions.map((session) => {
+    const mapped = sessions.map((session) => {
       const cursor = cursorByCourse.get(session.courseId) ?? 0;
       const attendance = markBySession.get(session.id) ?? null;
       const status = studentFacingSessionStatus(attendance);
@@ -1488,6 +1505,14 @@ export class StudioService {
         attendance: attendance?.toLowerCase() ?? null,
         current: session.number === cursor,
         confirmed: session.number < cursor,
+      };
+    });
+    return mapped.map((session) => {
+      const review = previousSessionForReview(mapped, session);
+      return {
+        ...session,
+        reviewSessionId: review?.id ?? null,
+        reviewSessionNumber: review?.number ?? null,
       };
     });
   }
@@ -1590,14 +1615,35 @@ export class StudioService {
       },
       select: {
         assignment: {
-          select: { session: { select: { number: true } } },
+          select: {
+            session: { select: { id: true, number: true } },
+          },
         },
       },
     });
-    return rows.reduce(
-      (max, row) => Math.max(max, row.assignment.session?.number ?? 0),
-      0,
+    const sessionIds = [
+      ...new Set(
+        rows
+          .map((row) => row.assignment.session?.id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const marks = sessionIds.length
+      ? await this.prisma.attendanceRecord.findMany({
+          where: { studentId, meetingKey: { in: sessionIds } },
+        })
+      : [];
+    const held = new Set(
+      marks.filter((item) => classWasHeld(item.status)).map((item) => item.meetingKey),
     );
+    return rows.reduce((max, row) => {
+      const session = row.assignment.session;
+      if (!session) return max;
+      const number = held.has(session.id)
+        ? session.number
+        : Math.max(session.number - 1, 1);
+      return Math.max(max, number);
+    }, 0);
   }
 
   private async syncEnrollmentCursor(studentId: string, courseId: string) {

@@ -10,6 +10,11 @@ export default async function TeacherStudentRoute({
   const { id } = await params;
   const { session, from } = await searchParams;
   return (
-    <TeacherStudentDetail id={id} requestedSession={session} from={from} />
+    <TeacherStudentDetail
+      key={id}
+      id={id}
+      requestedSession={session}
+      from={from}
+    />
   );
 }

@@ -8,14 +8,16 @@ import { SlideDeck } from "@/components/slides/SlideDeck";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   queryErrorMessage,
+  useAssignmentsQuery,
   useSessionAttachmentsQuery,
   useSessionExercisesQuery,
   useSessionQuery,
+  useSessionsQuery,
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
-import { isSessionOpen } from "@/lib/session-access";
+import { homeworkForStudentSession, isSessionOpen } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
 import { toDeckSlides } from "@/lib/slides";
 
@@ -37,6 +39,8 @@ export function SessionPlayView({
   const view = parsePlayView(searchParams.get("view"));
   const paramCourseId = decodeCourseParam(courseId) ?? courseId;
   const sessionQuery = useSessionQuery(sessionId, paramCourseId);
+  const sessionsQuery = useSessionsQuery(paramCourseId);
+  const assignmentsQuery = useAssignmentsQuery();
   const contentEnabled =
     sessionQuery.isSuccess && isSessionOpen(sessionQuery.data);
   const slidesQuery = useSessionSlidesQuery(
@@ -140,7 +144,11 @@ export function SessionPlayView({
       homeworkTitle={sessionQuery.data.homeworkTitle}
       homeworkSource={sessionQuery.data.homeworkSource}
       homeworkNote={sessionQuery.data.homeworkNote}
-      homework={sessionQuery.data.homework}
+      homework={homeworkForStudentSession(
+        sessionQuery.data,
+        sessionsQuery.data?.sessions ?? [],
+        assignmentsQuery.data ?? [],
+      )}
       absent={sessionQuery.data.attendanceStatus === "absent"}
     />
   );

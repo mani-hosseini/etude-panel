@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -27,11 +27,15 @@ import {
   averageTracksFromItems,
 } from "@/lib/piano-path";
 import { teacherRoutes } from "@/lib/routes";
-import { studentDisplayName } from "@/lib/teacher-studio";
+import {
+  assignmentsForSession,
+  defaultTeacherSessionId,
+  previousSessionForReview,
+  studentDisplayName,
+} from "@/lib/teacher-studio";
 
 export function TeacherStudentDetail({
   id,
-  requestedSession,
   from,
 }: {
   id: string;
@@ -40,28 +44,14 @@ export function TeacherStudentDetail({
 }) {
   const query = useStudioStudentQuery(id);
   const sessions = query.data?.sessions;
+  const [studentKey, setStudentKey] = useState(id);
   const [sessionId, setSessionId] = useState("");
   const fromClass = from === "class";
 
-  useEffect(() => {
-    const list = sessions ?? [];
-    if (list.length === 0) {
-      setSessionId("");
-      return;
-    }
-    setSessionId((prev) => {
-      if (
-        requestedSession &&
-        list.some((item) => item.id === requestedSession)
-      ) {
-        return requestedSession;
-      }
-      if (prev && list.some((item) => item.id === prev)) return prev;
-      const current = list.find((item) => item.current);
-      const last = [...list].sort((a, b) => b.number - a.number)[0];
-      return current?.id ?? last!.id;
-    });
-  }, [id, sessions, requestedSession]);
+  if (studentKey !== id) {
+    setStudentKey(id);
+    setSessionId("");
+  }
 
   if (query.isPending) {
     return (
@@ -90,8 +80,23 @@ export function TeacherStudentDetail({
       ? `${student.classTitle ?? student.classId} · ${formatDays(student.classDays)}`
       : (student.classTitle ?? student.classId);
   const sessionList = sessions ?? [];
+  const resolvedSessionId =
+    sessionId && sessionList.some((item) => item.id === sessionId)
+      ? sessionId
+      : defaultTeacherSessionId(sessionList, student.assignments ?? []);
+  if (resolvedSessionId && resolvedSessionId !== sessionId) {
+    setSessionId(resolvedSessionId);
+  }
   const session =
-    sessionList.find((item) => item.id === sessionId) ?? sessionList[0] ?? null;
+    sessionList.find((item) => item.id === resolvedSessionId) ?? null;
+  const reviewSession = previousSessionForReview(sessionList, session);
+  const reviewAssignments = assignmentsForSession(
+    student.assignments ?? [],
+    reviewSession,
+  );
+  const reviewingWrappedLast =
+    Boolean(session && reviewSession && session.number === 1 && reviewSession.number > 1);
+  const showReview = reviewAssignments.length > 0 || (Boolean(reviewSession) && !reviewingWrappedLast);
   const absent = session?.attendance === "absent";
 
   return (
@@ -173,16 +178,17 @@ export function TeacherStudentDetail({
             <div>
               <h2 className="text-sm font-semibold text-navy">کار جلسه</h2>
               <p className="mt-0.5 text-xs leading-6 text-muted-foreground">
-                حضور را مشخص کنید و تکلیف جلسه بعد را ثبت کنید. نمره اجرا همان
-                تمرین هفته قبل است.
+                حضور را مشخص کنید و تکلیف همین جلسه را ثبت کنید. نمره تمرین‌های
+                جلسه قبل در ستون کنار ثبت می‌شود.
               </p>
             </div>
           </div>
           <TeacherSessionWork
+            key={student.id}
             studentId={student.id}
             sessions={sessionList}
             assignments={student.assignments ?? []}
-            sessionId={session?.id ?? ""}
+            sessionId={resolvedSessionId}
             onSessionIdChange={setSessionId}
           />
         </article>
@@ -195,18 +201,21 @@ export function TeacherStudentDetail({
               </span>
               <div>
                 <h2 className="text-sm font-semibold text-navy">
-                  امتیاز تمرین این جلسه
+                  {showReview && reviewSession
+                    ? `امتیاز تمرین جلسه ${toFa(reviewSession.number)}`
+                    : "امتیاز تمرین جلسه قبل"}
                 </h2>
                 <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  {session
-                    ? `نمره از ۰ تا ۱۰۰ برای جلسه ${toFa(session.number)}؛ با نوار یا عدد تنظیم کنید، بعد ثبت نهایی بزنید`
-                    : "نمره بعد از اجرا ثبت می‌شود"}
+                  {showReview && reviewSession
+                    ? `تکلیف جلسه ${toFa(reviewSession.number)} را در این کلاس نمره بدهید؛ تمرین تازه روی همین جلسه ثبت می‌شود.`
+                    : "نمره تمرین‌ها از جلسه بعد ثبت می‌شود"}
                 </p>
               </div>
             </div>
             <TeacherSessionScores
               studentId={student.id}
               session={session}
+              sessions={sessionList}
               assignments={student.assignments ?? []}
               disabled={absent}
             />

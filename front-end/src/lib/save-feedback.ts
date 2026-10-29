@@ -1,10 +1,15 @@
 const SAVED_EVENT = "etude:saved";
 
-export function announceSaved(message = "ثبت شد.") {
+export function announceSaved(
+  message = "ثبت شد.",
+  options?: { scroll?: boolean },
+) {
   if (typeof window === "undefined") return;
-  const root = document.scrollingElement ?? document.documentElement;
-  root.scrollTo({ top: 0, behavior: "smooth" });
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (options?.scroll !== false) {
+    const root = document.scrollingElement ?? document.documentElement;
+    root.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   window.dispatchEvent(new CustomEvent(SAVED_EVENT, { detail: message }));
 }
 

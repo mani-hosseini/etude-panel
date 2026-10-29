@@ -5,8 +5,6 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
-  CalendarClock,
-  Clock3,
   Filter,
   Music2,
   Piano,
@@ -176,14 +174,6 @@ export function CoursesPage() {
                     <span className="inline-flex items-center gap-1.5">
                       <UserRound className="size-3.5" />
                       {course.teacher}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <CalendarClock className="size-3.5" />
-                      {course.nextLesson}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock3 className="size-3.5" />
-                      {toFa(course.weeklyHours)} ساعت/هفته
                     </span>
                     {course.instrument || course.level ? (
                       <span className="rounded-md bg-brand-50 px-2 py-0.5 text-brand-700">

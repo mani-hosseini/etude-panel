@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,10 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ApiError } from "@/lib/api/client";
 import { audienceError } from "@/lib/api/errors";
 import {
   studioApi,
@@ -23,8 +23,9 @@ import {
   type StudioStudentSession,
 } from "@/lib/api/studio";
 import { studioKeys } from "@/lib/api/studio-queries";
-import { toFa } from "@/lib/format";
+import { toFa, toLatinDigits } from "@/lib/format";
 import { teacherSessionStatus } from "@/lib/session-access";
+import { assignmentsForSession } from "@/lib/teacher-studio";
 import { announceSaved } from "@/lib/save-feedback";
 import { cn } from "@/lib/utils";
 
@@ -35,10 +36,11 @@ const CLASS_MARKS = [
 
 const AXES = ["تکنیک", "تئوری موسیقی", "قطعه", "سلفژ"] as const;
 type Axis = (typeof AXES)[number];
+type Draft = { title: string; source: string };
+type Drafts = Record<Axis, Draft>;
 
-const ADD_TITLE_VALUE = "__add_title__";
-const EMPTY_TITLE_VALUE = "__empty_title__";
 const TITLES_STORAGE_KEY = "etude-exercise-titles-v1";
+const LAST_TITLES_KEY = "etude-last-exercise-titles-v1";
 
 const DEFAULT_TITLES: Record<Axis, string[]> = {
   تکنیک: ["بیر", "چرنی ۵۹۹", "چرنی ۲۹۹", "کلاسیک فاوریز", "گام و آرپژ"],
@@ -52,6 +54,10 @@ const DEFAULT_TITLES: Record<Axis, string[]> = {
 
 function emptyCustomTitles(): Record<Axis, string[]> {
   return { تکنیک: [], "تئوری موسیقی": [], قطعه: [], سلفژ: [] };
+}
+
+function emptyLastTitles(): Record<Axis, string> {
+  return { تکنیک: "", "تئوری موسیقی": "", قطعه: "", سلفژ: "" };
 }
 
 function readCustomTitles(): Record<Axis, string[]> {
@@ -75,6 +81,25 @@ function readCustomTitles(): Record<Axis, string[]> {
   return fallback;
 }
 
+function readLastTitles(): Record<Axis, string> {
+  const fallback = emptyLastTitles();
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(LAST_TITLES_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<Record<Axis, unknown>>;
+    for (const axis of AXES) {
+      const value = parsed[axis];
+      if (typeof value === "string" && value.trim()) {
+        fallback[axis] = value.trim();
+      }
+    }
+  } catch {
+    return emptyLastTitles();
+  }
+  return fallback;
+}
+
 function uniqueTitles(...groups: string[][]) {
   const seen = new Set<string>();
   const list: string[] = [];
@@ -87,6 +112,55 @@ function uniqueTitles(...groups: string[][]) {
     }
   }
   return list;
+}
+
+function defaultTitleFor(
+  axis: Axis,
+  lastTitles: Record<Axis, string>,
+  options: string[],
+) {
+  if (axis === "قطعه") return "";
+  const remembered = lastTitles[axis]?.trim();
+  if (remembered && options.includes(remembered)) return remembered;
+  return options[0] ?? "";
+}
+
+function initialDrafts(): Drafts {
+  const last = readLastTitles();
+  const custom = readCustomTitles();
+  const drafts = emptyLastTitles() as unknown as Drafts;
+  for (const axis of AXES) {
+    const options = uniqueTitles(DEFAULT_TITLES[axis], custom[axis]);
+    drafts[axis] = {
+      title: defaultTitleFor(axis, last, options),
+      source: "",
+    };
+  }
+  return drafts;
+}
+
+function formatLessonSource(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const latin = toLatinDigits(trimmed).replace(/\s/g, "");
+  if (/^\d+$/.test(latin)) return `درس ${latin}`;
+  const prefixed = latin.match(/^(?:درس|lesson)\s*(\d+)$/i);
+  if (prefixed?.[1]) return `درس ${prefixed[1]}`;
+  return trimmed;
+}
+
+function collectItems(drafts: Drafts) {
+  const items: Array<{ category: Axis; title: string; source?: string }> = [];
+  for (const axis of AXES) {
+    const title = drafts[axis].title.trim();
+    if (axis === "قطعه") {
+      if (title) items.push({ category: axis, title });
+      continue;
+    }
+    const source = formatLessonSource(drafts[axis].source);
+    if (title && source) items.push({ category: axis, title, source });
+  }
+  return items;
 }
 
 type AttendanceStatus = (typeof CLASS_MARKS)[number]["id"];
@@ -112,52 +186,48 @@ export function TeacherSessionWork({
 }) {
   const queryClient = useQueryClient();
   const session =
-    sessions.find((item) => item.id === sessionId) ?? sessions[0] ?? null;
-  const nextSession = session
-    ? (sessions.find(
-        (item) =>
-          item.courseId === session.courseId &&
-          item.number === session.number + 1,
-      ) ?? null)
-    : null;
-  const homeworkSession = nextSession ?? session;
+    sessions.find((item) => item.id === sessionId) ??
+    (sessionId ? null : sessions[0] ?? null);
+  const homeworkSession = session;
 
-  const [category, setCategory] = useState<Axis>("تکنیک");
-  const [title, setTitle] = useState("");
-  const [source, setSource] = useState("");
-  const [customTitles, setCustomTitles] = useState<Record<Axis, string[]>>(
-    emptyCustomTitles,
-  );
-  const [titleMenuOpen, setTitleMenuOpen] = useState(false);
-  const [addingTitle, setAddingTitle] = useState(false);
+  const [drafts, setDrafts] = useState<Drafts>(initialDrafts);
+  const [customTitles, setCustomTitles] = useState(readCustomTitles);
+  const [addingAxis, setAddingAxis] = useState<Axis | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCustomTitles(readCustomTitles());
-  }, []);
 
   const currentAttendance = useMemo(
     () => (session?.attendance as AttendanceStatus | null) ?? null,
     [session],
   );
 
-  const nextAssignments = assignments.filter(
-    (item) => item.sessionId === homeworkSession?.id,
-  );
+  const sessionAssignments = assignmentsForSession(assignments, session);
 
-  const titleOptions = useMemo(
-    () =>
-      uniqueTitles(
-        DEFAULT_TITLES[category],
-        customTitles[category],
-        assignments
-          .filter((item) => item.category === category)
-          .map((item) => item.title),
-      ),
-    [assignments, category, customTitles],
-  );
+  const titleOptionsFor = (axis: Axis) =>
+    uniqueTitles(
+      DEFAULT_TITLES[axis],
+      customTitles[axis],
+      assignments
+        .filter((item) => item.category === axis)
+        .map((item) => item.title),
+    );
+
+  const patchDraft = (axis: Axis, patch: Partial<Draft>) => {
+    setDrafts((current) => ({
+      ...current,
+      [axis]: { ...current[axis], ...patch },
+    }));
+  };
+
+  const rememberTitle = (axis: Axis, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const next = { ...readLastTitles(), [axis]: trimmed };
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LAST_TITLES_KEY, JSON.stringify(next));
+    }
+  };
 
   const persistCustomTitle = (axis: Axis, value: string) => {
     const trimmed = value.trim();
@@ -172,32 +242,9 @@ export function TeacherSessionWork({
       }
       return next;
     });
-    setTitle(trimmed);
-    setAddingTitle(false);
-    setNewTitle("");
-    setTitleMenuOpen(false);
-  };
-
-  const selectAxis = (axis: Axis) => {
-    setCategory(axis);
-    setSource("");
-    setNewTitle("");
-    setAddingTitle(false);
-    setError(null);
-    setTitle("");
-    setTitleMenuOpen(axis !== "قطعه" && DEFAULT_TITLES[axis].length > 0);
-  };
-
-  const chooseTitle = (value: string) => {
-    if (value === EMPTY_TITLE_VALUE) return;
-    if (value === ADD_TITLE_VALUE) {
-      setAddingTitle(true);
-      setTitle("");
-      setTitleMenuOpen(false);
-      return;
-    }
-    setTitle(value);
-    setAddingTitle(false);
+    patchDraft(axis, { title: trimmed });
+    rememberTitle(axis, trimmed);
+    setAddingAxis(null);
     setNewTitle("");
   };
 
@@ -209,25 +256,11 @@ export function TeacherSessionWork({
       queryClient.invalidateQueries({ queryKey: studioKeys.today }),
     ]);
 
-  const confirm = useMutation({
-    mutationFn: () => {
-      if (!session) throw new Error("جلسه‌ای انتخاب نشده");
-      return studioApi.confirmSession(studentId, session.id);
-    },
-    onSuccess: async (result) => {
-      setError(null);
-      const text = result.isLast
-        ? `جلسه ${toFa(result.confirmedNumber)} تأیید شد. این آخرین جلسه است.`
-        : `جلسه ${toFa(result.confirmedNumber)} تأیید شد. جلسه بعد وقتی برای هنرجو باز می‌شود که تکلیفش را ثبت کنید.`;
-      setMessage(text);
-      announceSaved(text);
-      await refresh();
-    },
-    onError: (err) => {
-      setMessage(null);
-      setError(audienceError(err, "تأیید جلسه انجام نشد."));
-    },
-  });
+  const stay = (text: string) => {
+    setError(null);
+    setMessage(text);
+    announceSaved(text, { scroll: false });
+  };
 
   const mark = useMutation({
     mutationFn: (attendance: AttendanceStatus) => {
@@ -238,13 +271,12 @@ export function TeacherSessionWork({
       });
     },
     onSuccess: async (_result, attendance) => {
-      setError(null);
-      const text =
+      if (session) onSessionIdChange(session.id);
+      stay(
         attendance === "absent"
           ? "کلاس تشکیل نشد. جلسه برای هنرجو باز می‌شود و پیام غیبت را می‌بیند؛ تکلیفی داده نمی‌شود."
-          : "کلاس تشکیل شد و این جلسه برای هنرجو باز شد.";
-      setMessage(text);
-      announceSaved(text);
+          : "کلاس تشکیل شد و این جلسه برای هنرجو باز شد.",
+      );
       await refresh();
     },
     onError: (err) => {
@@ -254,48 +286,99 @@ export function TeacherSessionWork({
   });
 
   const create = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!session) throw new Error("جلسه‌ای انتخاب نشده");
-      return studioApi.createAssignment({
+      const items = collectItems(drafts);
+      if (items.length === 0) {
+        throw new Error("حداقل یک تمرین را کامل کنید.");
+      }
+      const payload = {
         courseId: session.courseId,
         sessionId: session.id,
         studentIds: [studentId],
-        category,
-        title: title.trim(),
-        source: category === "قطعه" ? undefined : source.trim() || undefined,
-        dueLabel: homeworkSession
-          ? `جلسه ${homeworkSession.number}`
-          : "کلاس بعد",
-        forNextSession: Boolean(nextSession),
-      });
+        dueLabel: session ? `جلسه ${session.number}` : "کلاس بعد",
+        forNextSession: false,
+        items,
+      };
+      let created: { saved: number; assignments: unknown[] };
+      try {
+        created = await studioApi.createAssignments(payload);
+      } catch (err) {
+        if (
+          !(err instanceof ApiError) ||
+          (err.status !== 404 && err.status !== 405 && err.status !== 400)
+        ) {
+          throw err;
+        }
+        const assignments = [];
+        for (const item of items) {
+          assignments.push(
+            await studioApi.createAssignment({
+              courseId: payload.courseId,
+              sessionId: payload.sessionId,
+              studentIds: payload.studentIds,
+              dueLabel: payload.dueLabel,
+              forNextSession: payload.forNextSession,
+              category: item.category,
+              title: item.title,
+              source: item.source,
+            }),
+          );
+        }
+        created = { saved: assignments.length, assignments };
+      }
+      try {
+        await studioApi.confirmSession(studentId, session.id);
+      } catch {
+        /* homework already saved; confirm is implied */
+      }
+      return created;
     },
-    onSuccess: async () => {
-      setTitle("");
-      setSource("");
-      setAddingTitle(false);
+    onSuccess: async (result) => {
+      if (session) onSessionIdChange(session.id);
+      for (const axis of AXES) {
+        if (axis !== "قطعه") rememberTitle(axis, drafts[axis].title);
+      }
+      setDrafts((current) => {
+        const next = { ...current };
+        for (const axis of AXES) {
+          next[axis] =
+            axis === "قطعه"
+              ? { title: "", source: "" }
+              : { ...current[axis], source: "" };
+        }
+        return next;
+      });
+      setAddingAxis(null);
       setNewTitle("");
-      setError(null);
-      const targetNumber = homeworkSession?.number ?? session?.number;
-      const text = nextSession
-        ? `تمرین جلسه ${toFa(targetNumber)} ثبت شد و برای هنرجو باز شد. نمره اجرا را جلسه بعد بدهید.`
-        : "تمرین این جلسه ثبت شد. نمره اجرا را بعد از اجرای هنرجو بدهید.";
-      setMessage(text);
-      announceSaved(text);
+      const targetNumber = homeworkSession?.number ?? session?.number ?? 0;
+      stay(
+        result.saved > 1
+          ? `${toFa(result.saved)} تمرین جلسه ${toFa(targetNumber)} ثبت شد.`
+          : `تمرین جلسه ${toFa(targetNumber)} ثبت شد.`,
+      );
       await refresh();
     },
     onError: (err) => {
       setMessage(null);
-      setError(audienceError(err, "ثبت تمرین انجام نشد."));
+      setError(
+        err instanceof Error && err.message === "حداقل یک تمرین را کامل کنید."
+          ? err.message
+          : audienceError(err, "ثبت تمرین انجام نشد."),
+      );
     },
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => studioApi.deleteAssignment(id),
     onSuccess: async () => {
-      announceSaved("تمرین حذف شد.");
+      announceSaved("تمرین حذف شد.", { scroll: false });
       await refresh();
     },
   });
+
+  const pendingItems = collectItems(drafts);
+  const canSubmit = pendingItems.length > 0 && !create.isPending;
 
   if (sessions.length === 0) {
     return (
@@ -307,19 +390,9 @@ export function TeacherSessionWork({
 
   return (
     <div className="space-y-6">
-      {message ? (
-        <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
-          {message}
-        </p>
-      ) : null}
-      {error ? (
-        <p className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
-          {error}
-        </p>
-      ) : null}
       <WorkBlock
         title="جلسه و تشکیل کلاس"
-        hint="جلسه را انتخاب کنید. اگر کلاس تشکیل شد جلسه برای هنرجو باز می‌شود؛ اگر تشکیل نشد همان جلسه را با پیام غیبت می‌بیند و تکلیفی نمی‌گیرد."
+        hint="اگر کلاس تشکیل شد همان جلسه برای همین هنرجو باز می‌شود."
       >
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_auto] sm:items-end">
         <div>
@@ -388,194 +461,213 @@ export function TeacherSessionWork({
       </WorkBlock>
 
       {currentAttendance === "absent" ? (
-        <p className="rounded-xl bg-rose-50 px-3 py-2.5 text-xs leading-6 text-rose-700">
-          کلاس تشکیل نشد. جلسه برای هنرجو باز می‌شود و پیام غیبت را می‌بیند؛
-          تکلیفی به او داده نمی‌شود.
-        </p>
+        <div className="space-y-3">
+          <p className="rounded-xl bg-rose-50 px-3 py-2.5 text-xs leading-6 text-rose-700">
+            کلاس تشکیل نشد. جلسه برای هنرجو باز می‌شود و پیام غیبت را می‌بیند؛
+            تکلیفی به او داده نمی‌شود.
+          </p>
+          {error ? (
+            <p className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
+              {error}
+            </p>
+          ) : null}
+          {message ? (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+              {message}
+            </p>
+          ) : null}
+        </div>
       ) : (
-        <>
-          {nextAssignments.length > 0 ? (
-            <WorkBlock
-              title={
-                nextSession
-                  ? `تمرین‌های جلسه بعد · جلسه ${toFa(nextSession.number)}`
-                  : "تمرین‌های این جلسه"
-              }
-              hint="نمره اجرا را جلسه بعد، بعد از اجرای هنرجو، ثبت کنید."
-            >
+        <WorkBlock
+          title={
+            session
+              ? `تمرین این جلسه · جلسه ${toFa(session.number)}`
+              : "تمرین این جلسه"
+          }
+          hint={
+            session &&
+            !sessions.some(
+              (item) =>
+                item.courseId === session.courseId &&
+                item.number === session.number + 1,
+            )
+              ? "محورها را پر کنید. نمره این تمرین‌ها وقتی جلسه اول دوره باز شود ثبت می‌شود."
+              : "محورها را پر کنید و یک‌بار ثبت بزنید. نمره این تمرین‌ها در جلسه بعد گرفته می‌شود."
+          }
+        >
+          {sessionAssignments.length > 0 ? (
             <ul className="space-y-2">
-              {nextAssignments.map((item) => (
+              {sessionAssignments.map((item) => (
                 <li
                   key={item.id}
-                  className="rounded-xl border border-border/80 p-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border/80 px-3 py-2"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-navy">
-                        {item.title}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {item.source || item.note || "تمرین جلسه بعد"}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      <Badge variant="outline">{item.category}</Badge>
-                      <button
-                        type="button"
-                        onClick={() => remove.mutate(item.id)}
-                        className="text-[11px] text-muted-foreground hover:text-destructive"
-                      >
-                        حذف
-                      </button>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-navy">
+                      {item.title}
+                      {item.source ? (
+                        <span className="font-normal text-muted-foreground">
+                          {" "}
+                          · {item.source}
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="outline">{item.category}</Badge>
+                    <button
+                      type="button"
+                      onClick={() => remove.mutate(item.id)}
+                      className="text-[11px] text-muted-foreground hover:text-destructive"
+                    >
+                      حذف
+                    </button>
                   </div>
                 </li>
               ))}
             </ul>
-            </WorkBlock>
           ) : null}
 
-          <WorkBlock
-            title={
-              nextSession
-                ? `تمرین جلسه بعد · جلسه ${toFa(nextSession.number)}`
-                : "تمرین جدید"
-            }
-            hint={
-              category === "قطعه"
-                ? "نام قطعه را در کادر بنویسید. نمره اجرا جلسه بعد ثبت می‌شود."
-                : "عنوان را از فهرست انتخاب کنید. استاد فقط منبع را وارد می‌کند، مثلاً درس ۴. نمره اجرا جلسه بعد ثبت می‌شود."
-            }
+          <form
+            className="space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canSubmit) create.mutate();
+            }}
           >
-          <div>
-            <Label className="mb-1.5 block">محور</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {AXES.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => selectAxis(item)}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition",
-                    category === item
-                      ? "bg-navy text-white ring-navy"
-                      : "bg-white text-muted-foreground ring-border hover:text-navy",
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label className="mb-1.5 block">
-              {category === "قطعه" ? "نام قطعه" : "عنوان تمرین"}
-            </Label>
-            {category === "قطعه" ? (
-              <Input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="نام قطعه را بنویسید"
-                autoFocus
-              />
-            ) : (
-              <>
-                <Select
-                  value={title || EMPTY_TITLE_VALUE}
-                  open={titleMenuOpen}
-                  onOpenChange={setTitleMenuOpen}
-                  onValueChange={chooseTitle}
-                >
-                  <SelectTrigger
-                    className={cn(!title && "text-muted-foreground")}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {AXES.map((axis) => {
+                const draft = drafts[axis];
+                const options = titleOptionsFor(axis);
+                return (
+                  <div
+                    key={axis}
+                    className={cn(
+                      "space-y-2 rounded-2xl border border-border/80 p-3",
+                      axis === "قطعه" && "sm:col-span-2",
+                    )}
                   >
-                    <SelectValue placeholder="انتخاب عنوان" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_TITLE_VALUE} className="hidden">
-                      انتخاب عنوان
-                    </SelectItem>
-                    {titleOptions.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                    {titleOptions.length > 0 ? <SelectSeparator /> : null}
-                    <SelectItem value={ADD_TITLE_VALUE}>
-                      <span className="inline-flex items-center gap-1.5">
-                        <Plus className="size-3.5" />
-                        افزودن عنوان جدید
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {addingTitle ? (
-                  <div className="mt-2 flex gap-2">
-                    <Input
-                      value={newTitle}
-                      onChange={(event) => setNewTitle(event.target.value)}
-                      placeholder="عنوان جدید را بنویسید"
-                      autoFocus
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          persistCustomTitle(category, newTitle);
+                    <p className="text-xs font-semibold text-navy">{axis}</p>
+                    {axis === "قطعه" ? (
+                      <Input
+                        value={draft.title}
+                        onChange={(event) =>
+                          patchDraft(axis, { title: event.target.value })
                         }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      disabled={!newTitle.trim()}
-                      onClick={() => persistCustomTitle(category, newTitle)}
-                    >
-                      افزودن
-                    </Button>
+                        placeholder="نام قطعه"
+                      />
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-1.5">
+                          {options.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => {
+                                patchDraft(axis, { title: item });
+                                rememberTitle(axis, item);
+                                setAddingAxis(null);
+                              }}
+                              className={cn(
+                                "rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition",
+                                draft.title === item
+                                  ? "bg-brand-50 text-navy ring-brand"
+                                  : "bg-white text-muted-foreground ring-border hover:text-navy",
+                              )}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAddingAxis((current) =>
+                                current === axis ? null : axis,
+                              )
+                            }
+                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-dashed ring-border hover:text-navy"
+                          >
+                            <Plus className="size-3" />
+                            جدید
+                          </button>
+                        </div>
+                        {addingAxis === axis ? (
+                          <div className="flex gap-2">
+                            <Input
+                              value={newTitle}
+                              onChange={(event) =>
+                                setNewTitle(event.target.value)
+                              }
+                              placeholder="عنوان جدید"
+                              autoFocus
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  persistCustomTitle(axis, newTitle);
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              disabled={!newTitle.trim()}
+                              onClick={() =>
+                                persistCustomTitle(axis, newTitle)
+                              }
+                            >
+                              افزودن
+                            </Button>
+                          </div>
+                        ) : null}
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 text-sm font-medium text-navy">
+                            درس
+                          </span>
+                          <Input
+                            value={draft.source}
+                            onChange={(event) =>
+                              patchDraft(axis, { source: event.target.value })
+                            }
+                            inputMode="numeric"
+                            placeholder="۴"
+                            className="h-11 max-w-28 text-center text-base"
+                            autoComplete="off"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
-                ) : null}
-              </>
-            )}
-          </div>
-          {category === "قطعه" ? null : (
-            <div>
-              <Label className="mb-1.5 block">منبع</Label>
-              <Input
-                value={source}
-                onChange={(event) => setSource(event.target.value)}
-                placeholder="مثلاً درس ۴"
-              />
+                );
+              })}
             </div>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={
-              create.isPending ||
-              !title.trim() ||
-              (category !== "قطعه" && !source.trim())
-            }
-            onClick={() => create.mutate()}
-          >
-            {nextSession
-              ? `ثبت تمرین جلسه ${toFa(nextSession.number)}`
-              : "ثبت تمرین این جلسه"}
-          </Button>
-          </WorkBlock>
-        </>
+
+            {error ? (
+              <p className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
+                {error}
+              </p>
+            ) : null}
+            {message ? (
+              <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+                {message}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              <Button type="submit" disabled={!canSubmit}>
+                {create.isPending
+                  ? "در حال ثبت…"
+                  : pendingItems.length > 1
+                    ? `ثبت ${toFa(pendingItems.length)} تمرین`
+                    : session
+                      ? `ثبت تمرین جلسه ${toFa(session.number)}`
+                      : "ثبت تمرین"}
+              </Button>
+            </div>
+          </form>
+        </WorkBlock>
       )}
-      <div className="border-t border-border pt-4">
-      <Button
-        type="button"
-        className="w-full sm:w-auto"
-        disabled={confirm.isPending || mark.isPending || !session}
-        onClick={() => confirm.mutate()}
-      >
-        <Check className="size-4" />
-        {session?.confirmed ? "تأیید مجدد جلسه" : "تأیید جلسه"}
-      </Button>
-      </div>
     </div>
   );
 }

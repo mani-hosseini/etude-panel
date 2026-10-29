@@ -21,9 +21,9 @@ import {
   queryErrorMessage,
   useSessionsQuery,
 } from "@/lib/api/queries";
-import { toFa, formatClassDays, cleanCourseTitle } from "@/lib/format";
+import { toFa, cleanCourseTitle } from "@/lib/format";
 import { routes } from "@/lib/routes";
-import { isSessionOpen } from "@/lib/session-access";
+import { isSessionOpen, studentHomeSession } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 
@@ -61,9 +61,9 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
   const listMode = searchParams.get("list") === "1";
   useEffect(() => {
     if (listMode || !courseId || !query.isSuccess) return;
-    const current = query.data.sessions.find((item) => item.current);
-    if (!current) return;
-    router.replace(routes.courseSession(query.data.course.id, current.id));
+    const landing = studentHomeSession(query.data.sessions);
+    if (!landing) return;
+    router.replace(routes.courseSession(query.data.course.id, landing.id));
   }, [listMode, courseId, query.isSuccess, query.data, router]);
 
   if (!courseId && (queryCourseId || query.isSuccess)) {
@@ -94,7 +94,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
   }
 
   const { course, sessions } = query.data;
-  if (!listMode && courseId && sessions.some((item) => item.current)) {
+  if (!listMode && courseId && studentHomeSession(sessions)) {
     return <Skeleton className="h-64 rounded-3xl" />;
   }
   const available = sessions.filter((s) => isSessionOpen(s)).length;
@@ -118,9 +118,9 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
             <h3 className="mt-1 text-xl font-bold sm:text-2xl">
               {cleanCourseTitle(course.title)}
             </h3>
-            <p className="mt-2 text-sm text-white/80">
-              {formatClassDays(course.classDays ?? course.days, course.day)} · {course.time} · {course.room}
-            </p>
+            {course.room ? (
+              <p className="mt-2 text-sm text-white/80">{course.room}</p>
+            ) : null}
           </div>
           <div className="grid grid-cols-3 gap-2">
             {[

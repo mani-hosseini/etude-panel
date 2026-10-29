@@ -1226,16 +1226,33 @@ export class CatalogService {
         assignment: {
           select: {
             courseId: true,
-            session: { select: { number: true, courseId: true } },
+            session: { select: { id: true, number: true, courseId: true } },
           },
         },
       },
     });
+    const sessionIds = [
+      ...new Set(
+        rows
+          .map((row) => row.assignment.session?.id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const marks = sessionIds.length
+      ? await this.prisma.attendanceRecord.findMany({
+          where: { studentId: userId, meetingKey: { in: sessionIds } },
+        })
+      : [];
+    const held = new Set(
+      marks.filter((item) => classWasHeld(item.status)).map((item) => item.meetingKey),
+    );
     for (const row of rows) {
-      const courseId =
-        row.assignment.courseId ?? row.assignment.session?.courseId ?? null;
-      const number = row.assignment.session?.number ?? 0;
-      if (!courseId || number <= 0) continue;
+      const session = row.assignment.session;
+      const courseId = row.assignment.courseId ?? session?.courseId ?? null;
+      if (!courseId || !session) continue;
+      const number = held.has(session.id)
+        ? session.number
+        : Math.max(session.number - 1, 1);
       result.set(courseId, Math.max(result.get(courseId) ?? 0, number));
     }
     return result;
@@ -1270,29 +1287,68 @@ export class CatalogService {
       }>
     >();
     if (sessionIds.length === 0) return result;
-    const rows = await this.prisma.practiceAssignmentTarget.findMany({
-      where: {
-        studentId: userId,
-        assignment: { sessionId: { in: sessionIds } },
-      },
-      include: {
-        assignment: {
-          select: {
-            sessionId: true,
-            category: true,
-            title: true,
-            source: true,
-            note: true,
-            createdAt: true,
+    const requested = await this.prisma.courseSession.findMany({
+      where: { id: { in: sessionIds } },
+      select: { id: true, number: true, courseId: true },
+    });
+    const nextSessions = requested.length
+      ? await this.prisma.courseSession.findMany({
+          where: {
+            OR: requested.map((item) => ({
+              courseId: item.courseId,
+              number: item.number + 1,
+            })),
+          },
+          select: { id: true, number: true, courseId: true },
+        })
+      : [];
+    const lookupIds = [
+      ...new Set([...sessionIds, ...nextSessions.map((item) => item.id)]),
+    ];
+    const [rows, marks] = await Promise.all([
+      this.prisma.practiceAssignmentTarget.findMany({
+        where: {
+          studentId: userId,
+          assignment: { sessionId: { in: lookupIds } },
+        },
+        include: {
+          assignment: {
+            select: {
+              sessionId: true,
+              category: true,
+              title: true,
+              source: true,
+              note: true,
+              createdAt: true,
+            },
           },
         },
-      },
-      orderBy: { assignment: { createdAt: 'asc' } },
-    });
+        orderBy: { assignment: { createdAt: 'asc' } },
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: { studentId: userId, meetingKey: { in: lookupIds } },
+      }),
+    ]);
+    const held = new Set(
+      marks.filter((item) => classWasHeld(item.status)).map((item) => item.meetingKey),
+    );
+    const previousId = new Map<string, string>();
+    for (const next of nextSessions) {
+      const prev = requested.find(
+        (item) =>
+          item.courseId === next.courseId && item.number === next.number - 1,
+      );
+      if (prev) previousId.set(next.id, prev.id);
+    }
     for (const row of rows) {
-      const sessionId = row.assignment.sessionId;
-      if (!sessionId) continue;
-      const list = result.get(sessionId) ?? [];
+      const storedId = row.assignment.sessionId;
+      if (!storedId) continue;
+      const displayId =
+        held.has(storedId) || !previousId.has(storedId)
+          ? storedId
+          : previousId.get(storedId)!;
+      if (!sessionIds.includes(displayId)) continue;
+      const list = result.get(displayId) ?? [];
       list.push({
         id: row.id,
         category: row.assignment.category,
@@ -1301,7 +1357,7 @@ export class CatalogService {
         note: row.assignment.note,
         score: row.score,
       });
-      result.set(sessionId, list);
+      result.set(displayId, list);
     }
     return result;
   }

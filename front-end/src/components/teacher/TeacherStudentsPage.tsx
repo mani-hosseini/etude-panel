@@ -103,6 +103,7 @@ export function TeacherStudentsPage() {
             >
               <Link
                 href={teacherRoutes.student(student.id)}
+                scroll
                 className="flex items-start gap-3 p-4 pb-2"
               >
                 <UserAvatar

@@ -15,6 +15,10 @@ import { studioKeys } from "@/lib/api/studio-queries";
 import { toFa } from "@/lib/format";
 import { PATH_TRACKS, TRACK_CATEGORY_MAP } from "@/lib/piano-path";
 import { announceSaved } from "@/lib/save-feedback";
+import {
+  assignmentsForSession,
+  previousSessionForReview,
+} from "@/lib/teacher-studio";
 import { cn } from "@/lib/utils";
 
 function clampScore(value: number) {
@@ -25,18 +29,24 @@ function clampScore(value: number) {
 export function TeacherSessionScores({
   studentId,
   session,
+  sessions = [],
   assignments,
   disabled,
 }: {
   studentId: string;
   session: StudioStudentSession | null;
+  sessions?: StudioStudentSession[];
   assignments: StudioAssignment[];
   disabled?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const reviewSession = useMemo(
+    () => previousSessionForReview(sessions, session),
+    [sessions, session],
+  );
   const sessionAssignments = useMemo(
-    () => assignments.filter((item) => item.sessionId === session?.id),
-    [assignments, session?.id],
+    () => assignmentsForSession(assignments, reviewSession),
+    [assignments, reviewSession],
   );
 
   const rows = useMemo(
@@ -68,7 +78,7 @@ export function TeacherSessionScores({
 
   useEffect(() => {
     setDrafts(savedScores);
-  }, [session?.id, studentId, savedKey]);
+  }, [reviewSession?.id, studentId, savedKey]);
 
   const dirty = Object.entries(drafts).some(
     ([id, score]) => score !== (savedScores[id] ?? 0),
@@ -109,6 +119,26 @@ export function TeacherSessionScores({
     return (
       <p className="text-xs leading-6 text-muted-foreground">
         کلاس تشکیل نشد؛ نمره اجرا برای این جلسه ثبت نمی‌شود.
+      </p>
+    );
+  }
+
+  const wrappedLast =
+    session.number === 1 && reviewSession != null && reviewSession.number > 1;
+
+  if (!reviewSession || (wrappedLast && scorableCount === 0)) {
+    return (
+      <p className="text-xs leading-6 text-muted-foreground">
+        جلسه اول است. نمره تمرین‌ها از جلسه بعد ثبت می‌شود.
+      </p>
+    );
+  }
+
+  if (scorableCount === 0) {
+    return (
+      <p className="text-xs leading-6 text-muted-foreground">
+        هنوز تکلیفی برای جلسه {toFa(reviewSession.number)} ثبت نشده تا نمره
+        بگیرد.
       </p>
     );
   }

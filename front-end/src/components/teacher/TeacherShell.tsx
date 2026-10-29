@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { TeacherSidebar } from "@/components/teacher/TeacherSidebar";
@@ -48,6 +48,12 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname]);
 
   const title =
     teacherNavItems.find((item) => isNavActive(pathname, item.href))?.label ??

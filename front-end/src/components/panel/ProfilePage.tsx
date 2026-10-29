@@ -319,10 +319,6 @@ export function ProfilePage() {
               value: primaryCourse?.teacher ?? "—",
             },
             { label: "سطح", value: `سطح ${toFa(parseStudentLevel(student.level))}` },
-            {
-              label: "زمان کلاس",
-              value: primaryCourse ? `${primaryCourse.timeShort}` : "—",
-            },
           ].map((field) => (
             <div
               key={field.label}

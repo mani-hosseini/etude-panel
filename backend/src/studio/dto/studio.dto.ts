@@ -95,6 +95,70 @@ export class CreateAssignmentDto {
   forNextSession?: boolean;
 }
 
+export class AssignmentItemDto {
+  @ApiProperty({ example: 'تکنیک', enum: ASSIGNMENT_CATEGORIES })
+  @IsString()
+  @IsIn([...ASSIGNMENT_CATEGORIES], { message: 'محور تمرین نامعتبر است.' })
+  category!: string;
+
+  @ApiProperty({ example: 'چرنی ۵۹۹' })
+  @IsString()
+  @MinLength(2, { message: 'عنوان تمرین را وارد کنید.' })
+  @MaxLength(200)
+  title!: string;
+
+  @ApiPropertyOptional({ example: 'درس ۴' })
+  @ValidateIf((dto: AssignmentItemDto) => dto.category !== PIECE_CATEGORY)
+  @IsString()
+  @MinLength(1, { message: 'منبع تمرین را وارد کنید، مثلاً درس ۴.' })
+  @MaxLength(200)
+  source?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class CreateAssignmentsBatchDto {
+  @ApiPropertyOptional({ description: 'slug یا uuid دوره' })
+  @IsOptional()
+  @IsString()
+  courseId?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  studentIds?: string[];
+
+  @ApiPropertyOptional({ description: 'uuid جلسه' })
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
+
+  @ApiPropertyOptional({ example: 'کلاس بعد' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  dueLabel?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  forNextSession?: boolean;
+
+  @ApiProperty({ type: [AssignmentItemDto] })
+  @IsArray()
+  @ArrayMinSize(1, { message: 'حداقل یک تمرین را وارد کنید.' })
+  @ArrayMaxSize(8)
+  @ValidateNested({ each: true })
+  @Type(() => AssignmentItemDto)
+  items!: AssignmentItemDto[];
+}
+
 export class UpdateAssignmentProgressDto {
   @ApiPropertyOptional()
   @IsOptional()

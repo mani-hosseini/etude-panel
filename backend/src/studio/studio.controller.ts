@@ -18,6 +18,7 @@ import {
 } from '../common/decorators/auth.decorators';
 import {
   CreateAssignmentDto,
+  CreateAssignmentsBatchDto,
   MarkTodayAttendanceDto,
   SaveScoresDto,
   SaveSessionWorkDto,
@@ -132,6 +133,15 @@ export class StudioController {
     @Body() dto: CreateAssignmentDto,
   ) {
     return this.studio.createAssignment(user.id, dto);
+  }
+
+  @Post('assignments/batch')
+  @ApiOperation({ summary: 'ثبت چند تمرین با یک درخواست' })
+  createAssignments(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateAssignmentsBatchDto,
+  ) {
+    return this.studio.createAssignments(user.id, dto);
   }
 
   @Delete('assignments/:id')
