@@ -41,6 +41,13 @@ export class CreateAssignmentDto {
   @IsUUID()
   sessionId?: string;
 
+  @ApiPropertyOptional({ example: 1, description: 'شماره ترم هنرجو' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
+
   @ApiProperty({ example: 'تکنیک', enum: ASSIGNMENT_CATEGORIES })
   @IsString()
   @IsIn([...ASSIGNMENT_CATEGORIES], { message: 'محور تمرین نامعتبر است.' })
@@ -138,6 +145,13 @@ export class CreateAssignmentsBatchDto {
   @IsUUID()
   sessionId?: string;
 
+  @ApiPropertyOptional({ example: 1, description: 'شماره ترم هنرجو' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
+
   @ApiPropertyOptional({ example: 'کلاس بعد' })
   @IsOptional()
   @IsString()
@@ -206,6 +220,13 @@ export class SaveSessionWorkDto {
   @IsUUID()
   studentId?: string;
 
+  @ApiPropertyOptional({ example: 1, description: 'شماره ترم هنرجو' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
+
   @ApiPropertyOptional({ enum: AttendanceStatus })
   @IsOptional()
   @Transform(({ value }) =>
@@ -244,6 +265,13 @@ export class TodayAttendanceMarkDto {
   @IsUUID()
   sessionId!: string;
 
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
+
   @ApiProperty({ enum: ['present', 'absent', 'PRESENT', 'ABSENT'] })
   @Transform(({ value }) =>
     value == null || value === ''
@@ -277,6 +305,13 @@ export class UpsertAttendanceDto {
   @ApiProperty()
   @IsUUID()
   studentId!: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
 
   @ApiProperty({ enum: AttendanceStatus })
   @Transform(({ value }) => String(value ?? '').toUpperCase())

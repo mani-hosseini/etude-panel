@@ -18,6 +18,7 @@ type SessionPagerProps = {
   sessions: SessionPagerItem[];
   currentNumber: number;
   view?: SessionPlayViewKind;
+  term?: number;
   className?: string;
 };
 
@@ -26,6 +27,7 @@ export function SessionPager({
   sessions,
   currentNumber,
   view,
+  term,
   className,
 }: SessionPagerProps) {
   if (!courseId || sessions.length === 0) return null;
@@ -40,7 +42,7 @@ export function SessionPager({
     <div className={cn("flex items-center gap-2", className)}>
       {prev ? (
         <Button asChild variant="outline" size="sm" className="rounded-xl">
-          <Link href={routes.courseSession(courseId, prev.id, view)}>
+          <Link href={routes.courseSession(courseId, prev.id, view, term)}>
             <ChevronRight className="size-3.5" />
             جلسه قبل
           </Link>
@@ -56,7 +58,7 @@ export function SessionPager({
       </span>
       {next ? (
         <Button asChild variant="outline" size="sm" className="rounded-xl">
-          <Link href={routes.courseSession(courseId, next.id, view)}>
+          <Link href={routes.courseSession(courseId, next.id, view, term)}>
             جلسه بعد
             <ChevronLeft className="size-3.5" />
           </Link>

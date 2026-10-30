@@ -24,10 +24,14 @@ export function studentFacingSessionStatus(
   return classWasHeld(attendance) ? 'available' : 'locked';
 }
 
-/** Homework assigned on session N is graded on session N+1. Session 1 reviews the last session. */
+/** Homework assigned on session N is graded on session N+1. Session 1 of term 2+ reviews the last session of the previous term. */
 export function previousSessionForReview<
   T extends { id: string; number: number; courseId?: string | null },
->(sessions: T[], current: T | null | undefined): T | null {
+>(
+  sessions: T[],
+  current: T | null | undefined,
+  term = 1,
+): T | null {
   if (!current || sessions.length === 0) return null;
   const courseSessions = sessions
     .filter(
@@ -41,7 +45,12 @@ export function previousSessionForReview<
   );
   if (previous) return previous;
   const last = courseSessions[courseSessions.length - 1]!;
-  if (current.number === 1 && last.id !== current.id && last.number > 1) {
+  if (
+    current.number === 1 &&
+    term > 1 &&
+    last.id !== current.id &&
+    last.number > 1
+  ) {
     return last;
   }
   return null;

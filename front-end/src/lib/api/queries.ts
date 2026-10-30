@@ -14,15 +14,31 @@ export const queryKeys = {
   dashboard: ["dashboard"] as const,
   courses: ["courses"] as const,
   course: (courseId: string) => ["course", courseId] as const,
-  sessions: (courseId?: string) => ["sessions", courseId ?? "primary"] as const,
-  session: (sessionId: string, courseId?: string) =>
-    ["session", courseId ?? "primary", sessionId] as const,
-  sessionSlides: (sessionId: string, courseId?: string) =>
-    ["session-slides", courseId ?? "primary", sessionId] as const,
-  sessionAttachments: (sessionId: string, courseId?: string) =>
-    ["session-attachments", courseId ?? "primary", sessionId] as const,
-  sessionExercises: (sessionId: string, courseId?: string) =>
-    ["session-exercises", courseId ?? "primary", sessionId] as const,
+  sessions: (courseId?: string, term?: number) =>
+    ["sessions", courseId ?? "primary", term ?? "current"] as const,
+  session: (sessionId: string, courseId?: string, term?: number) =>
+    ["session", courseId ?? "primary", sessionId, term ?? "current"] as const,
+  sessionSlides: (sessionId: string, courseId?: string, term?: number) =>
+    [
+      "session-slides",
+      courseId ?? "primary",
+      sessionId,
+      term ?? "current",
+    ] as const,
+  sessionAttachments: (sessionId: string, courseId?: string, term?: number) =>
+    [
+      "session-attachments",
+      courseId ?? "primary",
+      sessionId,
+      term ?? "current",
+    ] as const,
+  sessionExercises: (sessionId: string, courseId?: string, term?: number) =>
+    [
+      "session-exercises",
+      courseId ?? "primary",
+      sessionId,
+      term ?? "current",
+    ] as const,
   schedule: (courseId?: string) =>
     ["schedule", courseId ?? "primary"] as const,
   profile: ["profile"] as const,
@@ -60,19 +76,23 @@ export function useCourseQuery(courseId: string | undefined, enabled = true) {
   });
 }
 
-export function useSessionsQuery(courseId?: string) {
+export function useSessionsQuery(courseId?: string, term?: number) {
   const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessions(id),
-    queryFn: () => api.sessions(id),
+    queryKey: queryKeys.sessions(id, term),
+    queryFn: () => api.sessions(id, term),
   });
 }
 
-export function useSessionQuery(sessionId: string, courseId?: string) {
+export function useSessionQuery(
+  sessionId: string,
+  courseId?: string,
+  term?: number,
+) {
   const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.session(sessionId, id),
-    queryFn: () => api.session(sessionId, id),
+    queryKey: queryKeys.session(sessionId, id, term),
+    queryFn: () => api.session(sessionId, id, term),
   });
 }
 
@@ -80,11 +100,12 @@ export function useSessionSlidesQuery(
   sessionId: string,
   courseId?: string,
   enabled = true,
+  term?: number,
 ) {
   const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessionSlides(sessionId, id),
-    queryFn: () => api.sessionSlides(sessionId, id),
+    queryKey: queryKeys.sessionSlides(sessionId, id, term),
+    queryFn: () => api.sessionSlides(sessionId, id, term),
     enabled,
   });
 }
@@ -93,11 +114,12 @@ export function useSessionAttachmentsQuery(
   sessionId: string,
   courseId?: string,
   enabled = true,
+  term?: number,
 ) {
   const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessionAttachments(sessionId, id),
-    queryFn: () => api.sessionAttachments(sessionId, id),
+    queryKey: queryKeys.sessionAttachments(sessionId, id, term),
+    queryFn: () => api.sessionAttachments(sessionId, id, term),
     enabled,
   });
 }
@@ -106,11 +128,12 @@ export function useSessionExercisesQuery(
   sessionId: string,
   courseId?: string,
   enabled = true,
+  term?: number,
 ) {
   const id = courseKey(courseId);
   return useQuery({
-    queryKey: queryKeys.sessionExercises(sessionId, id),
-    queryFn: () => api.sessionExercises(sessionId, id),
+    queryKey: queryKeys.sessionExercises(sessionId, id, term),
+    queryFn: () => api.sessionExercises(sessionId, id, term),
     enabled,
   });
 }

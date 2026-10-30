@@ -20,6 +20,7 @@ import {
   previousSessionForReview,
   studentFacingSessionStatus,
 } from '../common/utils/session-unlock';
+import { normalizeTerm } from '../common/utils/term';
 import {
   CreateAssignmentDto,
   CreateAssignmentsBatchDto,
@@ -182,7 +183,7 @@ export class StudioService {
     );
   }
 
-  async getStudent(teacherId: string, studentId: string) {
+  async getStudent(teacherId: string, studentId: string, term?: number) {
     const enrollment = await this.prisma.enrollment.findFirst({
       where: {
         userId: studentId,
@@ -194,12 +195,25 @@ export class StudioService {
     if (!enrollment) {
       throw new NotFoundException('این هنرجو در کلاس‌های شما نیست.');
     }
+    await this.advanceIfCurrentTermComplete(
+      studentId,
+      enrollment.courseId,
+      normalizeTerm(enrollment.currentTerm),
+    );
+    const latest = await this.prisma.enrollment.findUnique({
+      where: { id: enrollment.id },
+      select: { currentTerm: true },
+    });
+    const currentTerm = normalizeTerm(
+      latest?.currentTerm ?? enrollment.currentTerm,
+    );
+    const selectedTerm = Math.min(normalizeTerm(term ?? currentTerm), currentTerm);
     const [rates, pieces, stars, assignments, sessions] = await Promise.all([
       this.attendanceRates(teacherId, [studentId]),
       this.latestPieces(teacherId, [studentId]),
       this.starRatings(teacherId, [studentId]),
       this.listAssignments(teacherId, studentId),
-      this.studentSessions(teacherId, studentId),
+      this.studentSessions(teacherId, studentId, selectedTerm),
     ]);
     return {
       ...this.mapStudent(
@@ -210,6 +224,10 @@ export class StudioService {
         stars,
         enrollment.classDays,
       ),
+      currentTerm,
+      selectedTerm,
+      termCount: currentTerm,
+      sessionsTotal: enrollment.course.sessionsTotal,
       assignments,
       sessions,
     };
@@ -504,16 +522,34 @@ export class StudioService {
       course?.id ?? null,
       dto.studentIds,
     );
+    const termByStudent = new Map<string, number>();
+    if (course) {
+      for (const studentId of studentIds) {
+        termByStudent.set(
+          studentId,
+          await this.resolveStudentTerm(studentId, course.id, dto.term),
+        );
+      }
+    }
     if (classSession && studentIds.length > 0) {
       const absent = await this.prisma.attendanceRecord.findMany({
         where: {
           meetingKey: classSession.id,
           studentId: { in: studentIds },
           status: AttendanceStatus.ABSENT,
+          term: {
+            in: [...new Set(termByStudent.values())],
+          },
         },
-        select: { studentId: true },
+        select: { studentId: true, term: true },
       });
-      const absentIds = new Set(absent.map((row) => row.studentId));
+      const absentIds = new Set(
+        absent
+          .filter(
+            (row) => termByStudent.get(row.studentId) === row.term,
+          )
+          .map((row) => row.studentId),
+      );
       studentIds = studentIds.filter((id) => !absentIds.has(id));
     }
     if (studentIds.length === 0) {
@@ -524,11 +560,15 @@ export class StudioService {
       );
     }
 
+    const assignmentTerm =
+      (studentIds[0] ? termByStudent.get(studentIds[0]) : undefined) ??
+      normalizeTerm(dto.term);
     const created = await this.prisma.practiceAssignment.create({
       data: {
         teacherId,
         courseId: course?.id ?? null,
         sessionId: homeworkSession?.id ?? null,
+        term: assignmentTerm,
         category: dto.category.trim(),
         title: dto.title.trim(),
         source: isPieceCategory(dto.category)
@@ -553,13 +593,36 @@ export class StudioService {
       },
     });
     if (homeworkSession) {
-      await this.openSessionForStudents(homeworkSession, studentIds, true);
+      await this.openSessionForStudents(
+        homeworkSession,
+        studentIds,
+        true,
+        assignmentTerm,
+      );
       if (homeworkSession.id === classSession?.id) {
-        await this.markPresentIfUnmarked(homeworkSession, studentIds, teacherId);
+        await this.markPresentIfUnmarked(
+          homeworkSession,
+          studentIds,
+          teacherId,
+          assignmentTerm,
+        );
       }
       await Promise.all(
         studentIds.map((id) =>
-          this.syncEnrollmentCursor(id, homeworkSession.courseId),
+          this.syncEnrollmentCursor(
+            id,
+            homeworkSession.courseId,
+            termByStudent.get(id) ?? assignmentTerm,
+          ),
+        ),
+      );
+      await Promise.all(
+        studentIds.map((id) =>
+          this.maybeAdvanceTerm(
+            id,
+            homeworkSession,
+            termByStudent.get(id) ?? assignmentTerm,
+          ),
         ),
       );
     }
@@ -567,6 +630,11 @@ export class StudioService {
   }
 
   async createAssignments(teacherId: string, dto: CreateAssignmentsBatchDto) {
+    let term = dto.term;
+    if (term == null && dto.studentIds?.[0] && dto.courseId) {
+      const course = await this.requireTaughtCourse(teacherId, dto.courseId);
+      term = await this.resolveStudentTerm(dto.studentIds[0], course.id);
+    }
     const assignments = [];
     for (const item of dto.items) {
       assignments.push(
@@ -576,6 +644,7 @@ export class StudioService {
           sessionId: dto.sessionId,
           dueLabel: dto.dueLabel,
           forNextSession: dto.forNextSession,
+          term,
           category: item.category,
           title: item.title,
           source: item.source,
@@ -681,6 +750,13 @@ export class StudioService {
         ]
       : await this.resolveTargets(teacherId, session.courseId);
 
+    const term = dto.studentId
+      ? await this.resolveStudentTerm(
+          dto.studentId,
+          session.courseId,
+          dto.term,
+        )
+      : 1;
     if (dto.attendance) {
       if (!dto.studentId) {
         throw new ForbiddenException(
@@ -689,16 +765,18 @@ export class StudioService {
       }
       await this.prisma.attendanceRecord.upsert({
         where: {
-          courseId_studentId_meetingKey: {
+          courseId_studentId_meetingKey_term: {
             courseId: session.courseId,
             studentId: dto.studentId,
             meetingKey: session.id,
+            term,
           },
         },
         create: {
           courseId: session.courseId,
           studentId: dto.studentId,
           meetingKey: session.id,
+          term,
           status: dto.attendance,
           markedById: teacherId,
         },
@@ -709,13 +787,15 @@ export class StudioService {
           teacherId,
           session.id,
           dto.studentId,
+          term,
         );
-        await this.syncEnrollmentCursor(dto.studentId, session.courseId);
+        await this.syncEnrollmentCursor(dto.studentId, session.courseId, term);
       } else if (classWasHeld(dto.attendance)) {
         await this.prisma.enrollment.updateMany({
           where: {
             courseId: session.courseId,
             userId: dto.studentId,
+            currentTerm: term,
             currentSessionNumber: { lt: session.number },
           },
           data: { currentSessionNumber: session.number },
@@ -724,7 +804,11 @@ export class StudioService {
     }
 
     const marks = await this.prisma.attendanceRecord.findMany({
-      where: { meetingKey: session.id, studentId: { in: studentIds } },
+      where: {
+        meetingKey: session.id,
+        studentId: { in: studentIds },
+        term,
+      },
     });
     const statusByStudent = new Map(
       marks.map((item) => [item.studentId, item.status]),
@@ -763,7 +847,7 @@ export class StudioService {
       (id) => statusByStudent.get(id) !== AttendanceStatus.ABSENT,
     );
     if (unlock) {
-      await this.openSessionForStudents(session, presentIds, true);
+      await this.openSessionForStudents(session, presentIds, true, term);
     }
 
     if (homeworkTouched && nextTitle.length > 0) {
@@ -772,10 +856,13 @@ export class StudioService {
           sessionId: session.id,
           courseId: session.courseId,
           studentId,
+          term,
           title: nextTitle,
           source: nextSource,
           note: nextNote,
         });
+        await this.syncEnrollmentCursor(studentId, session.courseId, term);
+        await this.maybeAdvanceTerm(studentId, session, term);
       }
     }
 
@@ -785,10 +872,11 @@ export class StudioService {
     const attendance = dto.studentId
       ? await this.prisma.attendanceRecord.findUnique({
           where: {
-            courseId_studentId_meetingKey: {
+            courseId_studentId_meetingKey_term: {
               courseId: session.courseId,
               studentId: dto.studentId,
               meetingKey: session.id,
+              term,
             },
           },
         })
@@ -834,9 +922,11 @@ export class StudioService {
     const nextNumber = Math.min(session.number + 1, maxNumber);
     const isLast = nextNumber === session.number;
 
+    const term = normalizeTerm(enrollment.currentTerm);
     const homeworkCursor = await this.lastHomeworkNumber(
       studentId,
       session.courseId,
+      term,
     );
     const currentSessionNumber = homeworkCursor;
     await this.prisma.enrollment.update({
@@ -872,18 +962,25 @@ export class StudioService {
   async upsertAttendance(teacherId: string, dto: UpsertAttendanceDto) {
     const course = await this.requireTaughtCourse(teacherId, dto.courseId);
     await this.requireStudentOfTeacher(teacherId, dto.studentId, course.id);
+    const term = await this.resolveStudentTerm(
+      dto.studentId,
+      course.id,
+      dto.term,
+    );
     const row = await this.prisma.attendanceRecord.upsert({
       where: {
-        courseId_studentId_meetingKey: {
+        courseId_studentId_meetingKey_term: {
           courseId: course.id,
           studentId: dto.studentId,
           meetingKey: dto.meetingKey,
+          term,
         },
       },
       create: {
         courseId: course.id,
         studentId: dto.studentId,
         meetingKey: dto.meetingKey,
+        term,
         status: dto.status,
         markedById: teacherId,
       },
@@ -922,16 +1019,20 @@ export class StudioService {
           meetingKey: { in: sessionIds },
           status: AttendanceStatus.ABSENT,
         },
-        select: { meetingKey: true },
+        select: { meetingKey: true, term: true },
       });
-      for (const mark of marks) absentKeys.add(mark.meetingKey);
+      for (const mark of marks) {
+        absentKeys.add(`${mark.meetingKey}:${mark.term}`);
+      }
     }
 
     return rows
       .filter(
         (row) =>
           !row.assignment.sessionId ||
-          !absentKeys.has(row.assignment.sessionId),
+          !absentKeys.has(
+            `${row.assignment.sessionId}:${row.assignment.term ?? 1}`,
+          ),
       )
       .map((row) => ({
         id: row.id,
@@ -948,6 +1049,7 @@ export class StudioService {
         courseTitle: row.assignment.course?.title ?? null,
         sessionId: row.assignment.sessionId,
         sessionNumber: row.assignment.session?.number ?? null,
+        term: row.assignment.term ?? 1,
       }));
   }
 
@@ -1294,6 +1396,7 @@ export class StudioService {
     note: string;
     dueLabel: string;
     createdAt: Date;
+    term?: number;
     sessionId?: string | null;
     session?: { id: string; number: number; title: string } | null;
     course: { slug: string; title: string } | null;
@@ -1328,6 +1431,7 @@ export class StudioService {
       sessionTitle: row.session?.title ?? null,
       classId: row.course?.slug ?? null,
       classTitle: row.course?.title ?? null,
+      term: row.term ?? 1,
       studentIds: row.targets.map((item) => item.studentId),
       targets: row.targets.map((item) => ({
         id: item.id,
@@ -1440,7 +1544,11 @@ export class StudioService {
     return rows.reduce((max, row) => Math.max(max, row.stars), 0);
   }
 
-  private async studentSessions(teacherId: string, studentId: string) {
+  private async studentSessions(
+    teacherId: string,
+    studentId: string,
+    term = 1,
+  ) {
     const [sessions, marks, homeworkRows] = await Promise.all([
       this.prisma.courseSession.findMany({
         where: {
@@ -1453,19 +1561,23 @@ export class StudioService {
         orderBy: [{ course: { sortOrder: 'asc' } }, { number: 'asc' }],
       }),
       this.prisma.attendanceRecord.findMany({
-        where: { studentId, course: { teacherId } },
+        where: { studentId, course: { teacherId }, term },
       }),
       this.prisma.practiceAssignmentTarget.findMany({
         where: {
           studentId,
           assignment: {
+            term,
             session: { course: { teacherId } },
             sessionId: { not: null },
           },
         },
         select: {
           assignment: {
-            select: { session: { select: { courseId: true, number: true } } },
+            select: {
+              term: true,
+              session: { select: { courseId: true, number: true } },
+            },
           },
         },
       }),
@@ -1508,11 +1620,13 @@ export class StudioService {
       };
     });
     return mapped.map((session) => {
-      const review = previousSessionForReview(mapped, session);
+      const review = previousSessionForReview(mapped, session, term);
       return {
         ...session,
         reviewSessionId: review?.id ?? null,
         reviewSessionNumber: review?.number ?? null,
+        reviewTerm:
+          session.number === 1 && term > 1 ? term - 1 : term,
       };
     });
   }
@@ -1523,15 +1637,18 @@ export class StudioService {
       sessionId: string;
       courseId: string;
       studentId: string;
+      term?: number;
       title: string;
       source: string;
       note: string;
     },
   ) {
+    const term = normalizeTerm(input.term);
     const existing = await this.prisma.practiceAssignment.findFirst({
       where: {
         teacherId,
         sessionId: input.sessionId,
+        term,
         targets: { some: { studentId: input.studentId } },
       },
     });
@@ -1544,6 +1661,7 @@ export class StudioService {
           source: input.source,
           note: input.note,
           category,
+          term,
         },
       });
       return;
@@ -1553,6 +1671,7 @@ export class StudioService {
         teacherId,
         courseId: input.courseId,
         sessionId: input.sessionId,
+        term,
         category,
         title: input.title,
         source: input.source,
@@ -1567,11 +1686,13 @@ export class StudioService {
     teacherId: string,
     sessionId: string,
     studentId: string,
+    term = 1,
   ) {
     const existing = await this.prisma.practiceAssignment.findFirst({
       where: {
         teacherId,
         sessionId,
+        term,
         targets: { some: { studentId } },
       },
       include: { _count: { select: { targets: true } } },
@@ -1604,11 +1725,16 @@ export class StudioService {
     return user;
   }
 
-  private async lastHomeworkNumber(studentId: string, courseId: string) {
+  private async lastHomeworkNumber(
+    studentId: string,
+    courseId: string,
+    term = 1,
+  ) {
     const rows = await this.prisma.practiceAssignmentTarget.findMany({
       where: {
         studentId,
         assignment: {
+          term,
           OR: [{ courseId }, { session: { courseId } }],
           sessionId: { not: null },
         },
@@ -1630,7 +1756,7 @@ export class StudioService {
     ];
     const marks = sessionIds.length
       ? await this.prisma.attendanceRecord.findMany({
-          where: { studentId, meetingKey: { in: sessionIds } },
+          where: { studentId, meetingKey: { in: sessionIds }, term },
         })
       : [];
     const held = new Set(
@@ -1646,10 +1772,19 @@ export class StudioService {
     }, 0);
   }
 
-  private async syncEnrollmentCursor(studentId: string, courseId: string) {
-    const homeworkCursor = await this.lastHomeworkNumber(studentId, courseId);
+  private async syncEnrollmentCursor(
+    studentId: string,
+    courseId: string,
+    term?: number,
+  ) {
+    const resolved = await this.resolveStudentTerm(studentId, courseId, term);
+    const homeworkCursor = await this.lastHomeworkNumber(
+      studentId,
+      courseId,
+      resolved,
+    );
     await this.prisma.enrollment.updateMany({
-      where: { userId: studentId, courseId },
+      where: { userId: studentId, courseId, currentTerm: resolved },
       data: { currentSessionNumber: Math.max(homeworkCursor, 1) },
     });
   }
@@ -1663,12 +1798,14 @@ export class StudioService {
     },
     studentIds: string[],
     advanceCursor = false,
+    term?: number,
   ) {
     if (!advanceCursor || studentIds.length === 0) return;
     await this.prisma.enrollment.updateMany({
       where: {
         courseId: session.courseId,
         userId: { in: studentIds },
+        ...(term ? { currentTerm: term } : {}),
         currentSessionNumber: { lt: session.number },
       },
       data: { currentSessionNumber: session.number },
@@ -1679,14 +1816,21 @@ export class StudioService {
     session: { id: string; courseId: string },
     studentIds: string[],
     teacherId: string,
+    term = 1,
   ) {
     for (const studentId of studentIds) {
+      const resolved = await this.resolveStudentTerm(
+        studentId,
+        session.courseId,
+        term,
+      );
       const existing = await this.prisma.attendanceRecord.findUnique({
         where: {
-          courseId_studentId_meetingKey: {
+          courseId_studentId_meetingKey_term: {
             courseId: session.courseId,
             studentId,
             meetingKey: session.id,
+            term: resolved,
           },
         },
       });
@@ -1696,11 +1840,88 @@ export class StudioService {
           courseId: session.courseId,
           studentId,
           meetingKey: session.id,
+          term: resolved,
           status: AttendanceStatus.PRESENT,
           markedById: teacherId,
         },
       });
     }
+  }
+
+  private async resolveStudentTerm(
+    studentId: string,
+    courseId: string,
+    requested?: number | null,
+  ) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId: studentId, courseId } },
+      select: { currentTerm: true },
+    });
+    const current = normalizeTerm(enrollment?.currentTerm);
+    if (requested == null) return current;
+    return Math.min(normalizeTerm(requested), current);
+  }
+
+  private async termLastSessionNumber(courseId: string) {
+    const existing =
+      (
+        await this.prisma.courseSession.aggregate({
+          where: { courseId },
+          _max: { number: true },
+        })
+      )._max.number ?? 0;
+    if (existing > 0) return existing;
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { sessionsTotal: true },
+    });
+    return course?.sessionsTotal && course.sessionsTotal > 0
+      ? course.sessionsTotal
+      : 1;
+  }
+
+  private async maybeAdvanceTerm(
+    studentId: string,
+    session: { number: number; courseId: string },
+    term: number,
+  ) {
+    const lastNumber = await this.termLastSessionNumber(session.courseId);
+    if (session.number < lastNumber) return;
+    await this.prisma.enrollment.updateMany({
+      where: {
+        userId: studentId,
+        courseId: session.courseId,
+        currentTerm: term,
+      },
+      data: {
+        currentTerm: term + 1,
+        currentSessionNumber: 1,
+      },
+    });
+  }
+
+  private async advanceIfCurrentTermComplete(
+    studentId: string,
+    courseId: string,
+    term: number,
+  ) {
+    const lastNumber = await this.termLastSessionNumber(courseId);
+    const lastHomework = await this.prisma.practiceAssignmentTarget.findFirst({
+      where: {
+        studentId,
+        assignment: {
+          term,
+          session: { courseId, number: lastNumber },
+        },
+      },
+      select: { id: true },
+    });
+    if (!lastHomework) return;
+    await this.maybeAdvanceTerm(
+      studentId,
+      { number: lastNumber, courseId },
+      term,
+    );
   }
 
   private async requireTaughtCourse(teacherId: string, idOrSlug: string) {

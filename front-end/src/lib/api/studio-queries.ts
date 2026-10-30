@@ -8,7 +8,10 @@ export const studioKeys = {
   overview: ["studio", "overview"] as const,
   profile: ["studio", "profile"] as const,
   students: ["studio", "students"] as const,
-  student: (id: string) => ["studio", "student", id] as const,
+  student: (id: string, term?: number) =>
+    term != null
+      ? (["studio", "student", id, term] as const)
+      : (["studio", "student", id] as const),
   assignments: ["studio", "assignments"] as const,
   schedule: ["studio", "schedule"] as const,
   meetings: ["studio", "meetings"] as const,
@@ -36,10 +39,10 @@ export function useStudioStudentsQuery() {
   });
 }
 
-export function useStudioStudentQuery(id: string) {
+export function useStudioStudentQuery(id: string, term?: number) {
   return useQuery({
-    queryKey: studioKeys.student(id),
-    queryFn: () => studioApi.student(id),
+    queryKey: studioKeys.student(id, term),
+    queryFn: () => studioApi.student(id, term),
     enabled: Boolean(id),
   });
 }

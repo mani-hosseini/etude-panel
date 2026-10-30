@@ -20,6 +20,7 @@ import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { homeworkForStudentSession, isSessionOpen } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
 import { toDeckSlides } from "@/lib/slides";
+import { parseTerm } from "@/lib/term";
 
 function parsePlayView(value: string | null): SessionPlayViewKind {
   if (value === "attachments" || value === "exercises") return value;
@@ -37,9 +38,10 @@ export function SessionPlayView({
 }: SessionPlayViewProps) {
   const searchParams = useSearchParams();
   const view = parsePlayView(searchParams.get("view"));
+  const selectedTerm = parseTerm(searchParams.get("term"));
   const paramCourseId = decodeCourseParam(courseId) ?? courseId;
-  const sessionQuery = useSessionQuery(sessionId, paramCourseId);
-  const sessionsQuery = useSessionsQuery(paramCourseId);
+  const sessionQuery = useSessionQuery(sessionId, paramCourseId, selectedTerm);
+  const sessionsQuery = useSessionsQuery(paramCourseId, selectedTerm);
   const assignmentsQuery = useAssignmentsQuery();
   const contentEnabled =
     sessionQuery.isSuccess && isSessionOpen(sessionQuery.data);
@@ -47,16 +49,19 @@ export function SessionPlayView({
     sessionId,
     paramCourseId,
     contentEnabled && view === "slides",
+    selectedTerm,
   );
   const attachmentsQuery = useSessionAttachmentsQuery(
     sessionId,
     paramCourseId,
     contentEnabled && view === "attachments",
+    selectedTerm,
   );
   const exercisesQuery = useSessionExercisesQuery(
     sessionId,
     paramCourseId,
     contentEnabled && view === "exercises",
+    selectedTerm,
   );
 
   const contentPending =
@@ -91,11 +96,17 @@ export function SessionPlayView({
   const resolvedCourseId =
     paramCourseId ?? sessionQuery.data.courseId ?? undefined;
   const sessionLabel = `جلسه ${toFa(sessionQuery.data.number)}`;
+  const term =
+    selectedTerm ??
+    sessionQuery.data.term ??
+    sessionsQuery.data?.selectedTerm ??
+    sessionsQuery.data?.currentTerm;
   const backHref = resolvedCourseId
     ? routes.courseSession(
         resolvedCourseId,
         sessionId,
         view === "slides" ? undefined : view,
+        term,
       )
     : routes.sessions;
 
@@ -148,6 +159,7 @@ export function SessionPlayView({
         sessionQuery.data,
         sessionsQuery.data?.sessions ?? [],
         assignmentsQuery.data ?? [],
+        term,
       )}
       absent={sessionQuery.data.attendanceStatus === "absent"}
     />

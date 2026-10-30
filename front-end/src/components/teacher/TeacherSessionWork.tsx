@@ -176,13 +176,17 @@ export function TeacherSessionWork({
   sessions,
   assignments,
   sessionId,
+  term,
   onSessionIdChange,
+  onLastSessionSaved,
 }: {
   studentId: string;
   sessions: StudioStudentSession[];
   assignments: StudioAssignment[];
   sessionId: string;
+  term?: number;
   onSessionIdChange: (id: string) => void;
+  onLastSessionSaved?: () => void;
 }) {
   const queryClient = useQueryClient();
   const session =
@@ -202,7 +206,19 @@ export function TeacherSessionWork({
     [session],
   );
 
-  const sessionAssignments = assignmentsForSession(assignments, session);
+  const sessionAssignments = assignmentsForSession(
+    assignments,
+    session,
+    term,
+  );
+  const isLastSession = Boolean(
+    session &&
+      !sessions.some(
+        (item) =>
+          item.courseId === session.courseId &&
+          item.number === session.number + 1,
+      ),
+  );
 
   const titleOptionsFor = (axis: Axis) =>
     uniqueTitles(
@@ -268,6 +284,7 @@ export function TeacherSessionWork({
       return studioApi.saveSessionWork(session.id, {
         studentId,
         attendance,
+        ...(term != null ? { term } : {}),
       });
     },
     onSuccess: async (_result, attendance) => {
@@ -298,6 +315,7 @@ export function TeacherSessionWork({
         studentIds: [studentId],
         dueLabel: session ? `جلسه ${session.number}` : "کلاس بعد",
         forNextSession: false,
+        ...(term != null ? { term } : {}),
         items,
       };
       let created: { saved: number; assignments: unknown[] };
@@ -319,6 +337,7 @@ export function TeacherSessionWork({
               studentIds: payload.studentIds,
               dueLabel: payload.dueLabel,
               forNextSession: payload.forNextSession,
+              term: payload.term,
               category: item.category,
               title: item.title,
               source: item.source,
@@ -335,7 +354,7 @@ export function TeacherSessionWork({
       return created;
     },
     onSuccess: async (result) => {
-      if (session) onSessionIdChange(session.id);
+      if (session && !isLastSession) onSessionIdChange(session.id);
       for (const axis of AXES) {
         if (axis !== "قطعه") rememberTitle(axis, drafts[axis].title);
       }
@@ -358,6 +377,7 @@ export function TeacherSessionWork({
           : `تمرین جلسه ${toFa(targetNumber)} ثبت شد.`,
       );
       await refresh();
+      if (isLastSession) onLastSessionSaved?.();
     },
     onError: (err) => {
       setMessage(null);
@@ -485,13 +505,8 @@ export function TeacherSessionWork({
               : "تمرین این جلسه"
           }
           hint={
-            session &&
-            !sessions.some(
-              (item) =>
-                item.courseId === session.courseId &&
-                item.number === session.number + 1,
-            )
-              ? "محورها را پر کنید. نمره این تمرین‌ها وقتی جلسه اول دوره باز شود ثبت می‌شود."
+            isLastSession
+              ? "محورها را پر کنید. با ثبت تکلیف آخرین جلسه، ترم بعد با همین تعداد جلسه باز می‌شود."
               : "محورها را پر کنید و یک‌بار ثبت بزنید. نمره این تمرین‌ها در جلسه بعد گرفته می‌شود."
           }
         >

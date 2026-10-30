@@ -14,6 +14,7 @@ import {
   type SessionWorkspaceView,
 } from "@/components/panel/session/SessionWorkspace";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TermPills } from "@/components/ui/term-pills";
 import {
   queryErrorMessage,
   useAssignmentsQuery,
@@ -29,6 +30,7 @@ import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { decodeCourseParam } from "@/lib/slug";
 import { homeworkForStudentSession, isSessionOpen } from "@/lib/session-access";
 import { toDeckSlides } from "@/lib/slides";
+import { parseTerm } from "@/lib/term";
 
 function parseWorkspaceView(value: string | null): SessionWorkspaceView {
   if (value === "attachments" || value === "exercises") return value;
@@ -52,6 +54,7 @@ export function SessionDetailPage({
   const searchParams = useSearchParams();
   const queryCourseId = decodeCourseParam(searchParams.get("courseId"));
   const viewParam = parseWorkspaceView(searchParams.get("view"));
+  const selectedTerm = parseTerm(searchParams.get("term"));
   const [workspaceView, setWorkspaceView] =
     useState<SessionWorkspaceView>(viewParam);
 
@@ -66,34 +69,42 @@ export function SessionDetailPage({
           queryCourseId,
           sessionId,
           viewParam === "slides" ? undefined : viewParam,
+          selectedTerm,
         ),
       );
     }
-  }, [courseId, queryCourseId, sessionId, router, viewParam]);
+  }, [courseId, queryCourseId, sessionId, router, viewParam, selectedTerm]);
 
   const resolvedCourseId =
     decodeCourseParam(courseId) ?? queryCourseId ?? undefined;
 
-  const sessionQuery = useSessionQuery(sessionId, resolvedCourseId);
+  const sessionQuery = useSessionQuery(
+    sessionId,
+    resolvedCourseId,
+    selectedTerm,
+  );
   const slidesEnabled =
     sessionQuery.isSuccess && isSessionOpen(sessionQuery.data);
   const slidesQuery = useSessionSlidesQuery(
     sessionId,
     resolvedCourseId,
     slidesEnabled,
+    selectedTerm,
   );
   const attachmentsQuery = useSessionAttachmentsQuery(
     sessionId,
     resolvedCourseId,
     slidesEnabled,
+    selectedTerm,
   );
   const exercisesQuery = useSessionExercisesQuery(
     sessionId,
     resolvedCourseId,
     slidesEnabled,
+    selectedTerm,
   );
   const courseQuery = useCourseQuery(resolvedCourseId, Boolean(resolvedCourseId));
-  const sessionsQuery = useSessionsQuery(resolvedCourseId);
+  const sessionsQuery = useSessionsQuery(resolvedCourseId, selectedTerm);
   const assignmentsQuery = useAssignmentsQuery();
 
   useEffect(() => {
@@ -105,6 +116,7 @@ export function SessionDetailPage({
         slug,
         sessionId,
         viewParam === "slides" ? undefined : viewParam,
+        selectedTerm,
       ),
     );
   }, [
@@ -114,6 +126,7 @@ export function SessionDetailPage({
     sessionId,
     router,
     viewParam,
+    selectedTerm,
   ]);
 
   if (!courseId && (queryCourseId || sessionQuery.data?.courseId)) {
@@ -158,10 +171,16 @@ export function SessionDetailPage({
     "دوره";
   const sessionLabel = `جلسه ${toFa(session.number)}`;
   const sessions = sessionsQuery.data?.sessions ?? [];
+  const term =
+    selectedTerm ??
+    session.term ??
+    sessionsQuery.data?.selectedTerm ??
+    sessionsQuery.data?.currentTerm;
   const sessionWork = homeworkForStudentSession(
     session,
     sessions,
     assignmentsQuery.data ?? [],
+    term,
   );
   const assigned = sessionWork[0];
   const pager = (
@@ -170,6 +189,7 @@ export function SessionDetailPage({
       sessions={sessions}
       currentNumber={session.number}
       view={workspaceView === "slides" ? undefined : workspaceView}
+      term={term}
     />
   );
   const selectView = (view: SessionWorkspaceView) => {
@@ -180,6 +200,7 @@ export function SessionDetailPage({
         pathCourseId,
         session.id,
         view === "slides" ? undefined : view,
+        term,
       ),
       { scroll: false },
     );
@@ -193,7 +214,10 @@ export function SessionDetailPage({
           <Link
             href={
               pathCourseId
-                ? routes.courseSessions(pathCourseId, { list: true })
+                ? routes.courseSessions(pathCourseId, {
+                    list: true,
+                    term,
+                  })
                 : routes.sessions
             }
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand"
@@ -237,7 +261,10 @@ export function SessionDetailPage({
             <Link
               href={
                 pathCourseId
-                  ? routes.courseSessions(pathCourseId, { list: true })
+                  ? routes.courseSessions(pathCourseId, {
+                      list: true,
+                      term,
+                    })
                   : routes.sessions
               }
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand"
@@ -247,8 +274,25 @@ export function SessionDetailPage({
             </Link>
             {pager}
           </div>
+          {pathCourseId && (sessionsQuery.data?.currentTerm ?? 1) > 1 ? (
+            <TermPills
+              className="mb-3"
+              currentTerm={sessionsQuery.data?.currentTerm ?? 1}
+              selectedTerm={term ?? 1}
+              onChange={(next) =>
+                router.replace(
+                  routes.courseSession(
+                    pathCourseId,
+                    session.id,
+                    workspaceView === "slides" ? undefined : workspaceView,
+                    next,
+                  ),
+                )
+              }
+            />
+          ) : null}
           <PageHeader
-            eyebrow={`${courseTitle} · جلسه ${toFa(session.number)}`}
+            eyebrow={`${courseTitle} · ترم ${toFa(term ?? 1)} · جلسه ${toFa(session.number)}`}
             title={session.title}
             description={
               session.attendanceStatus === "absent"
@@ -273,6 +317,7 @@ export function SessionDetailPage({
               pathCourseId,
               session.id,
               playViewOf(workspaceView),
+              term,
             )}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-navy px-4 py-3 text-sm font-semibold text-white shadow-lift transition hover:bg-navy-soft"
           >
@@ -347,6 +392,7 @@ export function SessionDetailPage({
                 pathCourseId,
                 session.id,
                 playViewOf(workspaceView),
+                term,
               )
             : routes.sessions
         }
@@ -356,6 +402,7 @@ export function SessionDetailPage({
                 pathCourseId,
                 session.id,
                 workspaceView === "slides" ? undefined : workspaceView,
+                term,
               )
             : routes.sessions
         }

@@ -35,7 +35,7 @@ export function studentHomeSession<T extends CourseSession>(
     pickLatest(withHomework) ??
     pickLatest(open) ??
     sessions.find((item) => item.current) ??
-    pickLatest(sessions)
+    [...sessions].sort((a, b) => a.number - b.number)[0]
   );
 }
 
@@ -57,6 +57,7 @@ export function homeworkForStudentSession(
   session: Pick<CourseSession, "id" | "uuid" | "number" | "homework">,
   sessions: CourseSession[],
   assignments: StudentAssignment[] = [],
+  term?: number,
 ): SessionHomeworkItem[] {
   const next = sessions.find((item) => item.number === session.number + 1);
   const ids = new Set(
@@ -66,6 +67,7 @@ export function homeworkForStudentSession(
   const fromNext =
     next && !isSessionOpen(next) ? (next.homework ?? []) : [];
   const fromAssignments = assignments.filter((item) => {
+    if (term != null && item.term != null && item.term !== term) return false;
     if (item.sessionId && ids.has(item.sessionId)) return true;
     if (item.sessionNumber === session.number) return true;
     if (next && !isSessionOpen(next) && item.sessionNumber === next.number) {

@@ -24,6 +24,11 @@ function courseSlug(courseId?: string | null): string | undefined {
   return decodeCourseParam(courseId) ?? (courseId?.trim() || undefined);
 }
 
+function withTerm(path: string, term?: number) {
+  if (term == null || term < 1) return path;
+  return path.includes("?") ? `${path}&term=${term}` : `${path}?term=${term}`;
+}
+
 async function requestWithCourseFallback<T>(
   courseId: string | undefined,
   makePath: (id: string | undefined) => string,
@@ -111,50 +116,63 @@ export const api = {
       `/courses/${encodeURIComponent(slug)}`,
     );
   },
-  sessions: (courseId?: string) =>
+  sessions: (courseId?: string, term?: number) =>
     requestWithCourseFallback<SessionsPayload>(courseId, (id) => {
       const params = new URLSearchParams({ limit: "100" });
       if (id) params.set("courseId", id);
+      if (term != null && term >= 1) params.set("term", String(term));
       return `/sessions?${params}`;
     }),
-  session: (id: string, courseId?: string) =>
+  session: (id: string, courseId?: string, term?: number) =>
     requestWithCourseFallback<CourseSession>(courseId, (slug) =>
-      slug
-        ? `/sessions/${id}?courseId=${encodeURIComponent(slug)}`
-        : `/sessions/${id}`,
+      withTerm(
+        slug
+          ? `/sessions/${id}?courseId=${encodeURIComponent(slug)}`
+          : `/sessions/${id}`,
+        term,
+      ),
     ),
-  sessionSlides: (id: string, courseId?: string) =>
+  sessionSlides: (id: string, courseId?: string, term?: number) =>
     requestWithCourseFallback<{
       sessionId: string;
       total: number;
       slides: ApiSlide[];
       courseTitle?: string;
     }>(courseId, (slug) =>
-      slug
-        ? `/sessions/${id}/slides?courseId=${encodeURIComponent(slug)}`
-        : `/sessions/${id}/slides`,
+      withTerm(
+        slug
+          ? `/sessions/${id}/slides?courseId=${encodeURIComponent(slug)}`
+          : `/sessions/${id}/slides`,
+        term,
+      ),
     ),
-  sessionAttachments: (id: string, courseId?: string) =>
+  sessionAttachments: (id: string, courseId?: string, term?: number) =>
     requestWithCourseFallback<{
       sessionId: string;
       total: number;
       attachments: SessionAttachment[];
       courseTitle?: string;
     }>(courseId, (slug) =>
-      slug
-        ? `/sessions/${id}/attachments?courseId=${encodeURIComponent(slug)}`
-        : `/sessions/${id}/attachments`,
+      withTerm(
+        slug
+          ? `/sessions/${id}/attachments?courseId=${encodeURIComponent(slug)}`
+          : `/sessions/${id}/attachments`,
+        term,
+      ),
     ),
-  sessionExercises: (id: string, courseId?: string) =>
+  sessionExercises: (id: string, courseId?: string, term?: number) =>
     requestWithCourseFallback<{
       sessionId: string;
       total: number;
       exercises: SessionExercise[];
       courseTitle?: string;
     }>(courseId, (slug) =>
-      slug
-        ? `/sessions/${id}/exercises?courseId=${encodeURIComponent(slug)}`
-        : `/sessions/${id}/exercises`,
+      withTerm(
+        slug
+          ? `/sessions/${id}/exercises?courseId=${encodeURIComponent(slug)}`
+          : `/sessions/${id}/exercises`,
+        term,
+      ),
     ),
   schedule: (courseId?: string) =>
     requestWithCourseFallback<SchedulePayload>(courseId, (slug) =>

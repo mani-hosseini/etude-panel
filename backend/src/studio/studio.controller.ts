@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
@@ -75,8 +76,14 @@ export class StudioController {
   student(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('term') term?: string,
   ) {
-    return this.studio.getStudent(user.id, id);
+    const parsed = Number(term);
+    return this.studio.getStudent(
+      user.id,
+      id,
+      Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined,
+    );
   }
 
   @Patch('students/:id/stars')

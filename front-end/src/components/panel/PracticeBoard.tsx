@@ -45,6 +45,8 @@ export function AssignmentProgressCard({ item }: { item: StudentAssignment }) {
             {item.title}
           </h4>
           <p className="mt-0.5 text-xs text-muted-foreground">
+            {item.term ? `ترم ${toFa(item.term)}` : ""}
+            {item.term && item.sessionNumber ? " · " : ""}
             {item.sessionNumber
               ? `جلسه ${toFa(item.sessionNumber)}`
               : item.source}
@@ -81,16 +83,20 @@ export function AssignmentProgressCard({ item }: { item: StudentAssignment }) {
 export function SessionPracticeBoard({
   sessionNumber,
   sessionUuid,
+  term,
 }: {
   sessionNumber: number;
   sessionUuid?: string;
+  term?: number;
 }) {
   const query = useAssignmentsQuery();
-  const items = (query.data ?? []).filter(
-    (item) =>
+  const items = (query.data ?? []).filter((item) => {
+    if (term != null && item.term != null && item.term !== term) return false;
+    return (
       (sessionUuid && item.sessionId === sessionUuid) ||
-      item.sessionNumber === sessionNumber,
-  );
+      item.sessionNumber === sessionNumber
+    );
+  });
 
   if (query.isPending) return null;
   if (items.length === 0) return null;

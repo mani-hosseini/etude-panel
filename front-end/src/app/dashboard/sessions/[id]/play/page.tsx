@@ -10,12 +10,23 @@ function LegacyPlayContent({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseId = searchParams.get("courseId") ?? undefined;
+  const view = searchParams.get("view");
+  const term = Number(searchParams.get("term"));
 
   useEffect(() => {
     if (courseId) {
-      router.replace(routes.courseSessionPlay(courseId, sessionId));
+      router.replace(
+        routes.courseSessionPlay(
+          courseId,
+          sessionId,
+          view === "attachments" || view === "exercises"
+            ? view
+            : undefined,
+          Number.isInteger(term) && term >= 1 ? term : undefined,
+        ),
+      );
     }
-  }, [courseId, sessionId, router]);
+  }, [courseId, sessionId, router, view, term]);
 
   if (courseId) {
     return (

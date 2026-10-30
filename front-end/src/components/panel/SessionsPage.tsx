@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TermPills } from "@/components/ui/term-pills";
 import type { SessionStatus } from "@/lib/api/types";
 import {
   queryErrorMessage,
@@ -25,6 +26,7 @@ import { toFa, cleanCourseTitle } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { isSessionOpen, studentHomeSession } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
+import { parseTerm } from "@/lib/term";
 import { cn } from "@/lib/utils";
 
 const statusMeta: Record<
@@ -50,7 +52,8 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
 
   const resolvedCourseId =
     decodeCourseParam(courseId) ?? queryCourseId ?? undefined;
-  const query = useSessionsQuery(resolvedCourseId);
+  const selectedTerm = parseTerm(searchParams.get("term"));
+  const query = useSessionsQuery(resolvedCourseId, selectedTerm);
 
   useEffect(() => {
     if (courseId || queryCourseId) return;
@@ -63,8 +66,15 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
     if (listMode || !courseId || !query.isSuccess) return;
     const landing = studentHomeSession(query.data.sessions);
     if (!landing) return;
-    router.replace(routes.courseSession(query.data.course.id, landing.id));
-  }, [listMode, courseId, query.isSuccess, query.data, router]);
+    router.replace(
+      routes.courseSession(
+        query.data.course.id,
+        landing.id,
+        undefined,
+        selectedTerm,
+      ),
+    );
+  }, [listMode, courseId, query.isSuccess, query.data, router, selectedTerm]);
 
   if (!courseId && (queryCourseId || query.isSuccess)) {
     return <Skeleton className="h-64 rounded-3xl" />;
@@ -94,6 +104,8 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
   }
 
   const { course, sessions } = query.data;
+  const currentTerm = query.data.currentTerm ?? 1;
+  const term = query.data.selectedTerm ?? selectedTerm ?? currentTerm;
   if (!listMode && courseId && studentHomeSession(sessions)) {
     return <Skeleton className="h-64 rounded-3xl" />;
   }
@@ -106,6 +118,20 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
         title={`جلسات · ${course.title}`}
         description="تکلیف و نکته‌هایی که استاد برای هر جلسه می‌گذارد اینجا دیده می‌شود."
       />
+      {resolvedCourseId ? (
+        <TermPills
+          currentTerm={currentTerm}
+          selectedTerm={term}
+          onChange={(next) =>
+            router.replace(
+              routes.courseSessions(resolvedCourseId, {
+                list: true,
+                term: next,
+              }),
+            )
+          }
+        />
+      ) : null}
 
       <motion.section
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
@@ -157,7 +183,12 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   ? { label: "مشاهده شد", variant: "success" as const }
                   : statusMeta[session.status];
           const clickable = isSessionOpen(session);
-          const href = routes.courseSession(course.id, session.id);
+          const href = routes.courseSession(
+            course.id,
+            session.id,
+            undefined,
+            term,
+          );
 
           const card = (
             <motion.article

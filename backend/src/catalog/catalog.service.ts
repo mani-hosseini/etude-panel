@@ -28,6 +28,7 @@ import {
   classWasHeld,
   courseUnlocksByClassHeld,
 } from '../common/utils/session-unlock';
+import { normalizeTerm } from '../common/utils/term';
 import {
   buildPaginationMeta,
   PaginationQueryDto,
@@ -124,7 +125,7 @@ export class CatalogService {
 
   async listSessions(
     userId: string,
-    query: PaginationQueryDto & { courseId?: string },
+    query: PaginationQueryDto & { courseId?: string; term?: number },
   ) {
     const course = query.courseId
       ? await this.findEnrolledCourse(userId, query.courseId)
@@ -172,14 +173,18 @@ export class CatalogService {
       progressRows.map((p) => [p.sessionId, p]),
     );
     const sessionIds = rows.map((r) => r.id);
-    const [homeworkBySession, attendanceBySession, enrollment, cursor] =
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId: course.id } },
+    });
+    const { currentTerm, selectedTerm } = this.pickTerm(
+      enrollment?.currentTerm,
+      query.term,
+    );
+    const [homeworkBySession, attendanceBySession, cursor] =
       await Promise.all([
-        this.sessionHomeworkForStudent(userId, sessionIds),
-        this.sessionAttendanceForStudent(userId, sessionIds),
-        this.prisma.enrollment.findUnique({
-          where: { userId_courseId: { userId, courseId: course.id } },
-        }),
-        this.lastHomeworkNumber(userId, course.id),
+        this.sessionHomeworkForStudent(userId, sessionIds, selectedTerm),
+        this.sessionAttendanceForStudent(userId, sessionIds, selectedTerm),
+        this.lastHomeworkNumber(userId, course.id, selectedTerm),
       ]);
 
     return {
@@ -190,6 +195,9 @@ export class CatalogService {
           cursor,
         ),
         currentSessionNumber: cursor,
+        currentTerm,
+        selectedTerm,
+        termCount: currentTerm,
         sessions: rows.map((session) => {
           const progress = progressBySession.get(session.id);
           const slideCount = session._count.slides;
@@ -200,29 +208,44 @@ export class CatalogService {
                 progress.completedAt,
               )
             : 0;
-          return this.mapSession(
-            session,
-            slideCount,
-            percent,
-            session._count.attachments,
-            course.timeShort,
-            homeworkBySession.get(session.id),
-            attendanceBySession.get(session.id),
-            cursor,
-            session._count.exercises,
-            courseUnlocksByClassHeld(course),
-          );
+          return {
+            ...this.mapSession(
+              session,
+              slideCount,
+              percent,
+              session._count.attachments,
+              course.timeShort,
+              homeworkBySession.get(session.id),
+              attendanceBySession.get(session.id),
+              cursor,
+              session._count.exercises,
+              courseUnlocksByClassHeld(course),
+            ),
+            term: selectedTerm,
+          };
         }),
       },
       meta: buildPaginationMeta(total, query.page, query.limit),
     };
   }
 
-  async getSession(userId: string, idOrNumber: string, courseId?: string) {
+  async getSession(
+    userId: string,
+    idOrNumber: string,
+    courseId?: string,
+    term?: number,
+  ) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId: course.id } },
+    });
+    const { currentTerm, selectedTerm } = this.pickTerm(
+      enrollment?.currentTerm,
+      term,
+    );
     const [slideCount, attachmentCount, exerciseCount, homeworkBySession, attendanceBySession, cursor] =
       await Promise.all([
         this.prisma.slide.count({ where: { sessionId: session.id } }),
@@ -232,9 +255,9 @@ export class CatalogService {
         this.prisma.sessionExercise.count({
           where: { sessionId: session.id },
         }),
-        this.sessionHomeworkForStudent(userId, [session.id]),
-        this.sessionAttendanceForStudent(userId, [session.id]),
-        this.lastHomeworkNumber(userId, course.id),
+        this.sessionHomeworkForStudent(userId, [session.id], selectedTerm),
+        this.sessionAttendanceForStudent(userId, [session.id], selectedTerm),
+        this.lastHomeworkNumber(userId, course.id, selectedTerm),
       ]);
     return {
       ...this.mapSession(
@@ -251,6 +274,8 @@ export class CatalogService {
       ),
       courseId: course.slug,
       courseTitle: course.title,
+      term: selectedTerm,
+      currentTerm,
     };
   }
 
@@ -258,13 +283,19 @@ export class CatalogService {
     userId: string,
     idOrNumber: string,
     courseId?: string,
+    term?: number,
   ) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
+    const selectedTerm = await this.resolveCourseTerm(
+      userId,
+      course.id,
+      term,
+    );
 
-    await this.assertSessionVisible(userId, session, course);
+    await this.assertSessionVisible(userId, session, course, selectedTerm);
 
     const slides = await this.prisma.slide.findMany({
       where: { sessionId: session.id },
@@ -298,13 +329,19 @@ export class CatalogService {
     userId: string,
     idOrNumber: string,
     courseId?: string,
+    term?: number,
   ) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
+    const selectedTerm = await this.resolveCourseTerm(
+      userId,
+      course.id,
+      term,
+    );
 
-    await this.assertSessionVisible(userId, session, course);
+    await this.assertSessionVisible(userId, session, course, selectedTerm);
 
     const attachments = await this.prisma.sessionAttachment.findMany({
       where: { sessionId: session.id },
@@ -332,13 +369,19 @@ export class CatalogService {
     userId: string,
     idOrNumber: string,
     courseId?: string,
+    term?: number,
   ) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
+    const selectedTerm = await this.resolveCourseTerm(
+      userId,
+      course.id,
+      term,
+    );
 
-    await this.assertSessionVisible(userId, session, course);
+    await this.assertSessionVisible(userId, session, course, selectedTerm);
 
     const exercises = await this.prisma.sessionExercise.findMany({
       where: { sessionId: session.id },
@@ -377,6 +420,7 @@ export class CatalogService {
       duration: course.duration,
     };
 
+    const currentTerm = await this.resolveCourseTerm(userId, course.id);
     const [lessons, sessions, mapped, marks] = await Promise.all([
       this.buildFullScheduleFromSessions(course.id, courseMeta),
       this.prisma.courseSession.findMany({
@@ -395,10 +439,14 @@ export class CatalogService {
       this.mapCourseWithProgress(
         course,
         classDays,
-        await this.lastHomeworkNumber(userId, course.id),
+        await this.lastHomeworkNumber(userId, course.id, currentTerm),
       ),
       this.prisma.attendanceRecord.findMany({
-        where: { studentId: userId, courseId: course.id },
+        where: {
+          studentId: userId,
+          courseId: course.id,
+          term: currentTerm,
+        },
         select: { meetingKey: true, status: true },
       }),
     ]);
@@ -502,9 +550,11 @@ export class CatalogService {
     const currentAttendance =
       currentSession && primaryEnrollment
         ? (
-            await this.sessionAttendanceForStudent(userId, [
-              currentSession.id,
-            ])
+            await this.sessionAttendanceForStudent(
+              userId,
+              [currentSession.id],
+              normalizeTerm(primaryEnrollment.currentTerm),
+            )
           ).get(currentSession.id)
         : undefined;
 
@@ -781,13 +831,19 @@ export class CatalogService {
     idOrNumber: string,
     lastSlideIndex: number,
     courseId?: string,
+    term?: number,
   ) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)
       : await this.findCourseForSession(userId, idOrNumber);
     const session = await this.findSession(course.id, idOrNumber);
+    const selectedTerm = await this.resolveCourseTerm(
+      userId,
+      course.id,
+      term,
+    );
 
-    await this.assertSessionVisible(userId, session, course);
+    await this.assertSessionVisible(userId, session, course, selectedTerm);
 
     const slideCount = await this.prisma.slide.count({
       where: { sessionId: session.id },
@@ -839,6 +895,7 @@ export class CatalogService {
     userId: string,
     idOrNumber: string,
     courseId?: string,
+    _term?: number,
   ) {
     const course = courseId
       ? await this.findEnrolledCourse(userId, courseId)
@@ -1164,6 +1221,25 @@ export class CatalogService {
     return slides + attachments + exercises > 0;
   }
 
+  private pickTerm(currentTerm?: number | null, requested?: number) {
+    const current = normalizeTerm(currentTerm);
+    const selected =
+      requested == null ? current : Math.min(normalizeTerm(requested), current);
+    return { currentTerm: current, selectedTerm: selected };
+  }
+
+  private async resolveCourseTerm(
+    userId: string,
+    courseId: string,
+    requested?: number,
+  ) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId } },
+      select: { currentTerm: true },
+    });
+    return this.pickTerm(enrollment?.currentTerm, requested).selectedTerm;
+  }
+
   private async assertSessionVisible(
     userId: string,
     session: {
@@ -1173,10 +1249,15 @@ export class CatalogService {
       courseId: string;
     },
     course: { slug?: string | null; instrument?: string | null; title?: string | null },
+    term?: number,
   ) {
-    const attendance = await this.sessionAttendanceForStudent(userId, [
-      session.id,
-    ]);
+    const selectedTerm =
+      term ?? (await this.resolveCourseTerm(userId, session.courseId));
+    const attendance = await this.sessionAttendanceForStudent(
+      userId,
+      [session.id],
+      selectedTerm,
+    );
     if (courseUnlocksByClassHeld(course)) {
       if (attendance.has(session.id)) {
         return;
@@ -1186,11 +1267,19 @@ export class CatalogService {
     if (session.status === SessionStatus.AVAILABLE) {
       return;
     }
-    const cursor = await this.lastHomeworkNumber(userId, session.courseId);
+    const cursor = await this.lastHomeworkNumber(
+      userId,
+      session.courseId,
+      selectedTerm,
+    );
     if (cursor > 0 && session.number <= cursor) {
       return;
     }
-    const homework = await this.sessionHomeworkForStudent(userId, [session.id]);
+    const homework = await this.sessionHomeworkForStudent(
+      userId,
+      [session.id],
+      selectedTerm,
+    );
     if ((homework.get(session.id)?.length ?? 0) > 0) {
       return;
     }
@@ -1203,14 +1292,36 @@ export class CatalogService {
     throw new NotFoundException('محتوای این جلسه هنوز در دسترس نیست.');
   }
 
-  private async lastHomeworkNumber(userId: string, courseId: string) {
-    const map = await this.lastHomeworkByCourse(userId, [courseId]);
+  private async lastHomeworkNumber(
+    userId: string,
+    courseId: string,
+    term?: number,
+  ) {
+    const map = await this.lastHomeworkByCourse(
+      userId,
+      [courseId],
+      term == null ? undefined : new Map([[courseId, term]]),
+    );
     return map.get(courseId) ?? 0;
   }
 
-  private async lastHomeworkByCourse(userId: string, courseIds: string[]) {
+  private async lastHomeworkByCourse(
+    userId: string,
+    courseIds: string[],
+    termByCourse?: Map<string, number>,
+  ) {
     const result = new Map(courseIds.map((id) => [id, 0]));
     if (courseIds.length === 0) return result;
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { userId, courseId: { in: courseIds } },
+      select: { courseId: true, currentTerm: true },
+    });
+    const terms = new Map(
+      enrollments.map((item) => [
+        item.courseId,
+        termByCourse?.get(item.courseId) ?? normalizeTerm(item.currentTerm),
+      ]),
+    );
     const rows = await this.prisma.practiceAssignmentTarget.findMany({
       where: {
         studentId: userId,
@@ -1226,6 +1337,7 @@ export class CatalogService {
         assignment: {
           select: {
             courseId: true,
+            term: true,
             session: { select: { id: true, number: true, courseId: true } },
           },
         },
@@ -1244,13 +1356,17 @@ export class CatalogService {
         })
       : [];
     const held = new Set(
-      marks.filter((item) => classWasHeld(item.status)).map((item) => item.meetingKey),
+      marks
+        .filter((item) => classWasHeld(item.status))
+        .map((item) => `${item.meetingKey}:${item.term}`),
     );
     for (const row of rows) {
       const session = row.assignment.session;
       const courseId = row.assignment.courseId ?? session?.courseId ?? null;
       if (!courseId || !session) continue;
-      const number = held.has(session.id)
+      const term = terms.get(courseId) ?? 1;
+      if ((row.assignment.term ?? 1) !== term) continue;
+      const number = held.has(`${session.id}:${term}`)
         ? session.number
         : Math.max(session.number - 1, 1);
       result.set(courseId, Math.max(result.get(courseId) ?? 0, number));
@@ -1261,11 +1377,16 @@ export class CatalogService {
   private async sessionAttendanceForStudent(
     userId: string,
     sessionIds: string[],
+    term = 1,
   ) {
     const result = new Map<string, AttendanceStatus>();
     if (sessionIds.length === 0) return result;
     const rows = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: userId, meetingKey: { in: sessionIds } },
+      where: {
+        studentId: userId,
+        meetingKey: { in: sessionIds },
+        term,
+      },
     });
     for (const row of rows) result.set(row.meetingKey, row.status);
     return result;
@@ -1274,6 +1395,7 @@ export class CatalogService {
   private async sessionHomeworkForStudent(
     userId: string,
     sessionIds: string[],
+    term = 1,
   ) {
     const result = new Map<
       string,
@@ -1309,7 +1431,7 @@ export class CatalogService {
       this.prisma.practiceAssignmentTarget.findMany({
         where: {
           studentId: userId,
-          assignment: { sessionId: { in: lookupIds } },
+          assignment: { sessionId: { in: lookupIds }, term },
         },
         include: {
           assignment: {
@@ -1326,7 +1448,7 @@ export class CatalogService {
         orderBy: { assignment: { createdAt: 'asc' } },
       }),
       this.prisma.attendanceRecord.findMany({
-        where: { studentId: userId, meetingKey: { in: lookupIds } },
+        where: { studentId: userId, meetingKey: { in: lookupIds }, term },
       }),
     ]);
     const held = new Set(

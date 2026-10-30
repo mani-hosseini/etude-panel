@@ -83,7 +83,7 @@ export class CatalogController {
     @Param('id') id: string,
     @Query() query: CourseScopedQueryDto,
   ) {
-    return this.catalog.getSession(user.id, id, query.courseId);
+    return this.catalog.getSession(user.id, id, query.courseId, query.term);
   }
 
   @Get('sessions/:id/slides')
@@ -94,7 +94,7 @@ export class CatalogController {
     @Param('id') id: string,
     @Query() query: CourseScopedQueryDto,
   ) {
-    return this.catalog.getSessionSlides(user.id, id, query.courseId);
+    return this.catalog.getSessionSlides(user.id, id, query.courseId, query.term);
   }
 
   @Get('sessions/:id/attachments')
@@ -105,7 +105,12 @@ export class CatalogController {
     @Param('id') id: string,
     @Query() query: CourseScopedQueryDto,
   ) {
-    return this.catalog.getSessionAttachments(user.id, id, query.courseId);
+    return this.catalog.getSessionAttachments(
+      user.id,
+      id,
+      query.courseId,
+      query.term,
+    );
   }
 
   @Get('sessions/:id/exercises')
@@ -116,7 +121,12 @@ export class CatalogController {
     @Param('id') id: string,
     @Query() query: CourseScopedQueryDto,
   ) {
-    return this.catalog.getSessionExercises(user.id, id, query.courseId);
+    return this.catalog.getSessionExercises(
+      user.id,
+      id,
+      query.courseId,
+      query.term,
+    );
   }
 
   @Get('sessions/:id/progress')
@@ -127,7 +137,12 @@ export class CatalogController {
     @Param('id') id: string,
     @Query() query: CourseScopedQueryDto,
   ) {
-    return this.catalog.getSessionProgress(user.id, id, query.courseId);
+    return this.catalog.getSessionProgress(
+      user.id,
+      id,
+      query.courseId,
+      query.term,
+    );
   }
 
   @Patch('sessions/:id/progress')
@@ -144,6 +159,7 @@ export class CatalogController {
       id,
       dto.lastSlideIndex,
       query.courseId,
+      query.term,
     );
   }
 

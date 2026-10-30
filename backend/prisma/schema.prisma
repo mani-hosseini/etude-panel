@@ -164,6 +164,7 @@ model Enrollment {
   userId               String   @db.Uuid
   courseId             String   @db.Uuid
   currentSessionNumber Int      @default(1)
+  currentTerm          Int      @default(1)
   classDays            String[] @default([])
   joinedAt             DateTime @default(now())
 
@@ -396,6 +397,7 @@ model PracticeAssignment {
   teacherId String   @db.Uuid
   courseId  String?  @db.Uuid
   sessionId String?  @db.Uuid
+  term      Int      @default(1)
   category  String   @db.VarChar(32)
   title     String   @db.VarChar(200)
   source    String   @default("") @db.VarChar(200)
@@ -412,6 +414,7 @@ model PracticeAssignment {
   @@index([teacherId, createdAt])
   @@index([courseId])
   @@index([sessionId])
+  @@index([courseId, term])
 }
 
 model PracticeAssignmentTarget {
@@ -434,6 +437,7 @@ model AttendanceRecord {
   courseId   String           @db.Uuid
   studentId  String           @db.Uuid
   meetingKey String           @db.VarChar(80)
+  term       Int              @default(1)
   status     AttendanceStatus
   markedById String           @db.Uuid
   createdAt  DateTime         @default(now())
@@ -443,7 +447,7 @@ model AttendanceRecord {
   student  User   @relation("AttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
   markedBy User   @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: Cascade)
 
-  @@unique([courseId, studentId, meetingKey])
+  @@unique([courseId, studentId, meetingKey, term])
   @@index([courseId, meetingKey])
   @@index([studentId])
 }

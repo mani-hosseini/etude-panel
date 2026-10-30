@@ -51,6 +51,7 @@ export type CourseSession = {
   homework?: SessionHomeworkItem[];
   attendanceStatus?: string | null;
   current?: boolean;
+  term?: number;
 };
 
 export type SessionHomeworkItem = {
@@ -130,6 +131,9 @@ export type SessionsPayload = {
   course: CourseCard;
   sessions: CourseSession[];
   currentSessionNumber?: number;
+  currentTerm?: number;
+  selectedTerm?: number;
+  termCount?: number;
 };
 
 export type SchedulePayload = {
@@ -233,6 +237,7 @@ export type StudentAssignment = {
   courseTitle: string | null;
   sessionId?: string | null;
   sessionNumber?: number | null;
+  term?: number;
 };
 
 export type PracticeSeries = {

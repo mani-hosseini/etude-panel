@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 export class SessionsQueryDto extends PaginationQueryDto {
@@ -7,6 +8,13 @@ export class SessionsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   courseId?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'شماره ترم هنرجو' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
 }
 
 export class CourseScopedQueryDto {
@@ -14,4 +22,11 @@ export class CourseScopedQueryDto {
   @IsOptional()
   @IsString()
   courseId?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'شماره ترم هنرجو' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
 }

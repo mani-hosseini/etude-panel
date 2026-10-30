@@ -31,22 +31,27 @@ export function TeacherSessionScores({
   session,
   sessions = [],
   assignments,
+  term = 1,
   disabled,
 }: {
   studentId: string;
   session: StudioStudentSession | null;
   sessions?: StudioStudentSession[];
   assignments: StudioAssignment[];
+  term?: number;
   disabled?: boolean;
 }) {
   const queryClient = useQueryClient();
   const reviewSession = useMemo(
-    () => previousSessionForReview(sessions, session),
-    [sessions, session],
+    () => previousSessionForReview(sessions, session, term),
+    [sessions, session, term],
   );
+  const reviewTerm =
+    session?.reviewTerm ??
+    (session?.number === 1 && term > 1 ? term - 1 : term);
   const sessionAssignments = useMemo(
-    () => assignmentsForSession(assignments, reviewSession),
-    [assignments, reviewSession],
+    () => assignmentsForSession(assignments, reviewSession, reviewTerm),
+    [assignments, reviewSession, reviewTerm],
   );
 
   const rows = useMemo(

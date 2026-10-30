@@ -30,6 +30,10 @@ export type StudioStudent = {
   avatarUrl?: string | null;
   assignments?: StudioAssignment[];
   sessions?: StudioStudentSession[];
+  currentTerm?: number;
+  selectedTerm?: number;
+  termCount?: number;
+  sessionsTotal?: number;
 };
 
 export type StudioStudentSession = {
@@ -48,6 +52,7 @@ export type StudioStudentSession = {
   confirmed?: boolean;
   reviewSessionId?: string | null;
   reviewSessionNumber?: number | null;
+  reviewTerm?: number | null;
 };
 
 export type StudioAssignment = {
@@ -65,6 +70,7 @@ export type StudioAssignment = {
   sessionId?: string | null;
   sessionNumber?: number | null;
   sessionTitle?: string | null;
+  term?: number;
   targets: Array<{
     id: string;
     studentId: string;
@@ -140,6 +146,7 @@ export type StudentAssignment = {
   courseTitle: string | null;
   sessionId?: string | null;
   sessionNumber?: number | null;
+  term?: number;
 };
 
 export type PracticeSeries = {
@@ -224,8 +231,12 @@ export const studioApi = {
     }),
   classes: () => studentHttp.requestData<StudioClass[]>("/studio/classes"),
   students: () => studentHttp.requestData<StudioStudent[]>("/studio/students"),
-  student: (id: string) =>
-    studentHttp.requestData<StudioStudent>(`/studio/students/${id}`),
+  student: (id: string, term?: number) => {
+    const params = term != null ? `?term=${term}` : "";
+    return studentHttp.requestData<StudioStudent>(
+      `/studio/students/${id}${params}`,
+    );
+  },
   schedule: () =>
     studentHttp.requestData<{
       today: string;
@@ -258,6 +269,7 @@ export const studioApi = {
     dueLabel?: string;
     score?: number;
     forNextSession?: boolean;
+    term?: number;
   }) =>
     studentHttp.requestData<StudioAssignment>("/studio/assignments", {
       method: "POST",
@@ -269,6 +281,7 @@ export const studioApi = {
     sessionId?: string;
     dueLabel?: string;
     forNextSession?: boolean;
+    term?: number;
     items: Array<{
       category: string;
       title: string;
@@ -334,6 +347,7 @@ export const studioApi = {
     homeworkTitle?: string;
     homeworkSource?: string;
     homeworkNote?: string;
+    term?: number;
   }) =>
     studentHttp.requestData<{
       sessionId: string;
@@ -351,6 +365,7 @@ export const studioApi = {
     meetingKey: string;
     studentId: string;
     status: string;
+    term?: number;
   }) =>
     studentHttp.requestData<{
       courseId: string;

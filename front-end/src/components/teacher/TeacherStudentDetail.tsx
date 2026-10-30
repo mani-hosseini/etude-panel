@@ -17,6 +17,7 @@ import { TeacherStudentLevel } from "@/components/teacher/TeacherStudentLevel";
 import { TeacherStudentStars } from "@/components/teacher/TeacherStudentStars";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TermPills } from "@/components/ui/term-pills";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { audienceError } from "@/lib/api/errors";
 import { type StudioAssignment } from "@/lib/api/studio";
@@ -42,14 +43,16 @@ export function TeacherStudentDetail({
   requestedSession?: string;
   from?: string;
 }) {
-  const query = useStudioStudentQuery(id);
-  const sessions = query.data?.sessions;
   const [studentKey, setStudentKey] = useState(id);
+  const [term, setTerm] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState("");
+  const query = useStudioStudentQuery(id, term ?? undefined);
+  const sessions = query.data?.sessions;
   const fromClass = from === "class";
 
   if (studentKey !== id) {
     setStudentKey(id);
+    setTerm(null);
     setSessionId("");
   }
 
@@ -74,25 +77,40 @@ export function TeacherStudentDetail({
   }
 
   const student = query.data;
+  const currentTerm = student.currentTerm ?? 1;
+  const selectedTerm = student.selectedTerm ?? term ?? currentTerm;
   const name = studentDisplayName(student);
   const classLabel =
     student.classDays && student.classDays.length > 0
       ? `${student.classTitle ?? student.classId} · ${formatDays(student.classDays)}`
       : (student.classTitle ?? student.classId);
   const sessionList = sessions ?? [];
+  const termAssignments = (student.assignments ?? []).filter(
+    (item) => item.term == null || item.term === selectedTerm,
+  );
   const resolvedSessionId =
     sessionId && sessionList.some((item) => item.id === sessionId)
       ? sessionId
-      : defaultTeacherSessionId(sessionList, student.assignments ?? []);
+      : defaultTeacherSessionId(sessionList, termAssignments);
   if (resolvedSessionId && resolvedSessionId !== sessionId) {
     setSessionId(resolvedSessionId);
   }
   const session =
     sessionList.find((item) => item.id === resolvedSessionId) ?? null;
-  const reviewSession = previousSessionForReview(sessionList, session);
+  const reviewSession = previousSessionForReview(
+    sessionList,
+    session,
+    student.currentTerm != null ? selectedTerm : 2,
+  );
+  const reviewTerm =
+    session?.reviewTerm ??
+    (session?.number === 1 && selectedTerm > 1
+      ? selectedTerm - 1
+      : selectedTerm);
   const reviewAssignments = assignmentsForSession(
     student.assignments ?? [],
     reviewSession,
+    reviewTerm,
   );
   const reviewingWrappedLast =
     Boolean(session && reviewSession && session.number === 1 && reviewSession.number > 1);
@@ -134,7 +152,23 @@ export function TeacherStudentDetail({
                     <CalendarDays className="size-3.5" />
                     {classLabel}
                   </span>
+                  <span>
+                    ترم {toFa(selectedTerm)}
+                    {student.sessionsTotal
+                      ? ` · ${toFa(student.sessionsTotal)} جلسه`
+                      : ""}
+                  </span>
                 </p>
+                <TermPills
+                  className="mt-3"
+                  tone="onDark"
+                  currentTerm={currentTerm}
+                  selectedTerm={selectedTerm}
+                  onChange={(next) => {
+                    setTerm(next);
+                    setSessionId("");
+                  }}
+                />
               </div>
             </div>
             <div className="shrink-0 sm:pt-1">
@@ -184,12 +218,19 @@ export function TeacherStudentDetail({
             </div>
           </div>
           <TeacherSessionWork
-            key={student.id}
+            key={`${student.id}-${selectedTerm}`}
             studentId={student.id}
             sessions={sessionList}
-            assignments={student.assignments ?? []}
+            assignments={termAssignments}
             sessionId={resolvedSessionId}
+            term={student.currentTerm != null ? selectedTerm : undefined}
             onSessionIdChange={setSessionId}
+            onLastSessionSaved={() => {
+              if (selectedTerm >= currentTerm) {
+                setTerm(null);
+                setSessionId("");
+              }
+            }}
           />
         </article>
 
@@ -202,7 +243,11 @@ export function TeacherStudentDetail({
               <div>
                 <h2 className="text-sm font-semibold text-navy">
                   {showReview && reviewSession
-                    ? `امتیاز تمرین جلسه ${toFa(reviewSession.number)}`
+                    ? `امتیاز تمرین جلسه ${toFa(reviewSession.number)}${
+                        reviewTerm !== selectedTerm
+                          ? ` ترم ${toFa(reviewTerm)}`
+                          : ""
+                      }`
                     : "امتیاز تمرین جلسه قبل"}
                 </h2>
                 <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
@@ -217,6 +262,7 @@ export function TeacherStudentDetail({
               session={session}
               sessions={sessionList}
               assignments={student.assignments ?? []}
+              term={student.currentTerm != null ? selectedTerm : 2}
               disabled={absent}
             />
           </article>

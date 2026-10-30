@@ -2,11 +2,30 @@
 
 export type SessionPlayViewKind = "slides" | "attachments" | "exercises";
 
-function withSessionView(path: string, view?: SessionPlayViewKind) {
-  if (view === "attachments" || view === "exercises") {
-    return `${path}?view=${view}`;
+function withSearch(
+  path: string,
+  params: Record<string, string | number | undefined>,
+) {
+  const [base, existing] = path.split("?");
+  const search = new URLSearchParams(existing);
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || value === "") continue;
+    search.set(key, String(value));
   }
-  return path;
+  const query = search.toString();
+  return query ? `${base}?${query}` : base;
+}
+
+function withSessionView(
+  path: string,
+  view?: SessionPlayViewKind,
+  term?: number,
+) {
+  return withSearch(path, {
+    view:
+      view === "attachments" || view === "exercises" ? view : undefined,
+    term: term && term >= 1 ? term : undefined,
+  });
 }
 
 export const routes = {
@@ -14,27 +33,35 @@ export const routes = {
   path: "/dashboard/path",
   courses: "/dashboard/courses",
   course: (courseId: string) => `/dashboard/courses/${courseId}`,
-  courseSessions: (courseId: string, opts?: { list?: boolean }) =>
-    opts?.list
-      ? `/dashboard/courses/${courseId}/sessions?list=1`
-      : `/dashboard/courses/${courseId}/sessions`,
+  courseSessions: (
+    courseId: string,
+    opts?: { list?: boolean; term?: number },
+  ) =>
+    withSearch(`/dashboard/courses/${courseId}/sessions`, {
+      list: opts?.list ? "1" : undefined,
+      term: opts?.term,
+    }),
   courseSession: (
     courseId: string,
     sessionId: string,
     view?: SessionPlayViewKind,
+    term?: number,
   ) =>
     withSessionView(
       `/dashboard/courses/${courseId}/sessions/${sessionId}`,
       view,
+      term,
     ),
   courseSessionPlay: (
     courseId: string,
     sessionId: string,
     view?: SessionPlayViewKind,
+    term?: number,
   ) =>
     withSessionView(
       `/dashboard/courses/${courseId}/sessions/${sessionId}/play`,
       view,
+      term,
     ),
   /** Nav default: primary enrolled course */
   sessions: "/dashboard/sessions",
