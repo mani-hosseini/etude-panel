@@ -127,7 +127,7 @@ model Course {
   instrument       String       @db.VarChar(64)
   teacher          String       @db.VarChar(120)
   teacherShort     String       @db.VarChar(80)
-  day              String       @db.VarChar(64)
+  day              String       @db.VarChar(128)
   days             String[]     @default([])
   time             String       @db.VarChar(64)
   timeShort        String       @db.VarChar(32)
