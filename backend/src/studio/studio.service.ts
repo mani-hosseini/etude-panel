@@ -14,7 +14,10 @@ import {
   joinDays,
   normalizeDays,
 } from '../common/utils/weekdays';
-import { isPieceCategory } from './assignment-categories';
+import {
+  isPieceCategory,
+  joinAssignmentSource,
+} from './assignment-categories';
 import {
   classWasHeld,
   previousSessionForReview,
@@ -573,7 +576,7 @@ export class StudioService {
         title: dto.title.trim(),
         source: isPieceCategory(dto.category)
           ? ''
-          : dto.source?.trim() ?? '',
+          : joinAssignmentSource(dto.source, dto.sources),
         note: dto.note?.trim() ?? '',
         dueLabel:
           dto.dueLabel?.trim() ||
@@ -648,6 +651,7 @@ export class StudioService {
           category: item.category,
           title: item.title,
           source: item.source,
+          sources: item.sources,
           note: item.note,
         }),
       );

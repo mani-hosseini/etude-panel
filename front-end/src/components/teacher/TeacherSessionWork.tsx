@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,11 @@ const CLASS_MARKS = [
 
 const AXES = ["تکنیک", "تئوری موسیقی", "قطعه", "سلفژ"] as const;
 type Axis = (typeof AXES)[number];
-type Draft = { title: string; source: string };
-type Drafts = Record<Axis, Draft>;
+type LessonField = { id: string; value: string };
+type Draft = { id: string; title: string; lessons: LessonField[] };
+type Drafts = Record<Axis, Draft[]>;
+const MAX_ROWS = 6;
+const MAX_LESSONS = 8;
 
 const TITLES_STORAGE_KEY = "etude-exercise-titles-v1";
 const LAST_TITLES_KEY = "etude-last-exercise-titles-v1";
@@ -125,40 +128,91 @@ function defaultTitleFor(
   return options[0] ?? "";
 }
 
+function newRowId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function makeLesson(value = ""): LessonField {
+  return { id: newRowId(), value };
+}
+
+function makeDraft(title = "", lessons?: string[]): Draft {
+  const values = lessons && lessons.length > 0 ? lessons : [""];
+  return {
+    id: newRowId(),
+    title,
+    lessons: values.map((value) => makeLesson(value)),
+  };
+}
+
 function initialDrafts(): Drafts {
   const last = readLastTitles();
   const custom = readCustomTitles();
-  const drafts = emptyLastTitles() as unknown as Drafts;
+  const drafts = emptyCustomTitles() as unknown as Drafts;
   for (const axis of AXES) {
     const options = uniqueTitles(DEFAULT_TITLES[axis], custom[axis]);
-    drafts[axis] = {
-      title: defaultTitleFor(axis, last, options),
-      source: "",
-    };
+    drafts[axis] = [
+      makeDraft(defaultTitleFor(axis, last, options)),
+    ];
   }
   return drafts;
 }
 
-function formatLessonSource(raw: string) {
+function lessonToken(raw: string) {
   const trimmed = raw.trim();
-  if (!trimmed) return undefined;
+  if (!trimmed) return "";
   const latin = toLatinDigits(trimmed).replace(/\s/g, "");
-  if (/^\d+$/.test(latin)) return `درس ${latin}`;
+  if (/^\d+$/.test(latin)) return latin;
   const prefixed = latin.match(/^(?:درس|lesson)\s*(\d+)$/i);
-  if (prefixed?.[1]) return `درس ${prefixed[1]}`;
+  if (prefixed?.[1]) return prefixed[1];
   return trimmed;
 }
 
+function formatLessons(values: string[]) {
+  const numbers: string[] = [];
+  const texts: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const token = lessonToken(value);
+    if (!token || seen.has(token)) continue;
+    seen.add(token);
+    if (/^\d+$/.test(token)) numbers.push(token);
+    else texts.push(token);
+  }
+  const lesson = numbers.length > 0 ? `درس ${numbers.join("، ")}` : "";
+  const source = [lesson, ...texts].filter(Boolean).join(" · ");
+  return {
+    source: source || undefined,
+    sources: [...numbers, ...texts],
+  };
+}
+
 function collectItems(drafts: Drafts) {
-  const items: Array<{ category: Axis; title: string; source?: string }> = [];
+  const items: Array<{
+    category: Axis;
+    title: string;
+    source?: string;
+    sources?: string[];
+  }> = [];
   for (const axis of AXES) {
-    const title = drafts[axis].title.trim();
-    if (axis === "قطعه") {
-      if (title) items.push({ category: axis, title });
-      continue;
+    for (const row of drafts[axis]) {
+      const title = row.title.trim();
+      if (axis === "قطعه") {
+        if (title) items.push({ category: axis, title });
+        continue;
+      }
+      const formatted = formatLessons(
+        Array.isArray(row.lessons) ? row.lessons.map((item) => item.value) : [],
+      );
+      if (title && formatted.source) {
+        items.push({
+          category: axis,
+          title,
+          source: formatted.source,
+          sources: formatted.sources,
+        });
+      }
     }
-    const source = formatLessonSource(drafts[axis].source);
-    if (title && source) items.push({ category: axis, title, source });
   }
   return items;
 }
@@ -196,7 +250,10 @@ export function TeacherSessionWork({
 
   const [drafts, setDrafts] = useState<Drafts>(initialDrafts);
   const [customTitles, setCustomTitles] = useState(readCustomTitles);
-  const [addingAxis, setAddingAxis] = useState<Axis | null>(null);
+  const [addingBook, setAddingBook] = useState<{
+    axis: Axis;
+    rowId: string;
+  } | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -229,11 +286,86 @@ export function TeacherSessionWork({
         .map((item) => item.title),
     );
 
-  const patchDraft = (axis: Axis, patch: Partial<Draft>) => {
+  const patchDraft = (axis: Axis, rowId: string, patch: Partial<Draft>) => {
     setDrafts((current) => ({
       ...current,
-      [axis]: { ...current[axis], ...patch },
+      [axis]: current[axis].map((row) =>
+        row.id === rowId ? { ...row, ...patch } : row,
+      ),
     }));
+  };
+
+  const addDraft = (axis: Axis) => {
+    setDrafts((current) => {
+      if (current[axis].length >= MAX_ROWS) return current;
+      return {
+        ...current,
+        [axis]: [...current[axis], makeDraft("")],
+      };
+    });
+  };
+
+  const addLesson = (axis: Axis, rowId: string) => {
+    setDrafts((current) => ({
+      ...current,
+      [axis]: current[axis].map((row) =>
+        row.id === rowId && row.lessons.length < MAX_LESSONS
+          ? { ...row, lessons: [...row.lessons, makeLesson()] }
+          : row,
+      ),
+    }));
+  };
+
+  const patchLesson = (axis: Axis, rowId: string, lessonId: string, value: string) => {
+    setDrafts((current) => ({
+      ...current,
+      [axis]: current[axis].map((row) =>
+        row.id !== rowId
+          ? row
+          : {
+              ...row,
+              lessons: row.lessons.map((lesson) =>
+                lesson.id === lessonId ? { ...lesson, value } : lesson,
+              ),
+            },
+      ),
+    }));
+  };
+
+  const removeLesson = (axis: Axis, rowId: string, lessonId: string) => {
+    setDrafts((current) => ({
+      ...current,
+      [axis]: current[axis].map((row) => {
+        if (row.id !== rowId) return row;
+        if (row.lessons.length <= 1) {
+          return { ...row, lessons: [makeLesson()] };
+        }
+        return {
+          ...row,
+          lessons: row.lessons.filter((lesson) => lesson.id !== lessonId),
+        };
+      }),
+    }));
+  };
+
+  const removeDraft = (axis: Axis, rowId: string) => {
+    setDrafts((current) => {
+      if (current[axis].length <= 1) {
+        return {
+          ...current,
+          [axis]: [
+            makeDraft(axis === "قطعه" ? "" : current[axis][0]?.title ?? ""),
+          ],
+        };
+      }
+      return {
+        ...current,
+        [axis]: current[axis].filter((row) => row.id !== rowId),
+      };
+    });
+    setAddingBook((current) =>
+      current?.axis === axis && current.rowId === rowId ? null : current,
+    );
   };
 
   const rememberTitle = (axis: Axis, value: string) => {
@@ -245,7 +377,7 @@ export function TeacherSessionWork({
     }
   };
 
-  const persistCustomTitle = (axis: Axis, value: string) => {
+  const persistCustomTitle = (axis: Axis, rowId: string, value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
     setCustomTitles((current) => {
@@ -258,9 +390,9 @@ export function TeacherSessionWork({
       }
       return next;
     });
-    patchDraft(axis, { title: trimmed });
+    patchDraft(axis, rowId, { title: trimmed });
     rememberTitle(axis, trimmed);
-    setAddingAxis(null);
+    setAddingBook(null);
     setNewTitle("");
   };
 
@@ -316,8 +448,16 @@ export function TeacherSessionWork({
         dueLabel: session ? `جلسه ${session.number}` : "کلاس بعد",
         forNextSession: false,
         ...(term != null ? { term } : {}),
-        items,
+        items: items.map(({ category, title, source, sources }) => ({
+          category,
+          title,
+          source,
+          sources,
+        })),
       };
+      const sourceOnlyItems = payload.items.map(
+        ({ sources: _sources, ...item }) => item,
+      );
       let created: { saved: number; assignments: unknown[] };
       try {
         created = await studioApi.createAssignments(payload);
@@ -328,23 +468,38 @@ export function TeacherSessionWork({
         ) {
           throw err;
         }
-        const assignments = [];
-        for (const item of items) {
-          assignments.push(
-            await studioApi.createAssignment({
-              courseId: payload.courseId,
-              sessionId: payload.sessionId,
-              studentIds: payload.studentIds,
-              dueLabel: payload.dueLabel,
-              forNextSession: payload.forNextSession,
-              term: payload.term,
-              category: item.category,
-              title: item.title,
-              source: item.source,
-            }),
-          );
+        try {
+          created = await studioApi.createAssignments({
+            ...payload,
+            items: sourceOnlyItems,
+          });
+        } catch (retryErr) {
+          if (
+            !(retryErr instanceof ApiError) ||
+            (retryErr.status !== 404 &&
+              retryErr.status !== 405 &&
+              retryErr.status !== 400)
+          ) {
+            throw retryErr;
+          }
+          const assignments = [];
+          for (const item of sourceOnlyItems) {
+            assignments.push(
+              await studioApi.createAssignment({
+                courseId: payload.courseId,
+                sessionId: payload.sessionId,
+                studentIds: payload.studentIds,
+                dueLabel: payload.dueLabel,
+                forNextSession: payload.forNextSession,
+                term: payload.term,
+                category: item.category,
+                title: item.title,
+                source: item.source,
+              }),
+            );
+          }
+          created = { saved: assignments.length, assignments };
         }
-        created = { saved: assignments.length, assignments };
       }
       try {
         await studioApi.confirmSession(studentId, session.id);
@@ -356,19 +511,22 @@ export function TeacherSessionWork({
     onSuccess: async (result) => {
       if (session && !isLastSession) onSessionIdChange(session.id);
       for (const axis of AXES) {
-        if (axis !== "قطعه") rememberTitle(axis, drafts[axis].title);
+        if (axis === "قطعه") continue;
+        const kept = drafts[axis].find((row) => row.title.trim())?.title;
+        if (kept) rememberTitle(axis, kept);
       }
       setDrafts((current) => {
         const next = { ...current };
         for (const axis of AXES) {
-          next[axis] =
+          const keptTitle =
             axis === "قطعه"
-              ? { title: "", source: "" }
-              : { ...current[axis], source: "" };
+              ? ""
+              : current[axis].find((row) => row.title.trim())?.title ?? "";
+          next[axis] = [makeDraft(keptTitle)];
         }
         return next;
       });
-      setAddingAxis(null);
+      setAddingBook(null);
       setNewTitle("");
       const targetNumber = homeworkSession?.number ?? session?.number ?? 0;
       stay(
@@ -506,8 +664,8 @@ export function TeacherSessionWork({
           }
           hint={
             isLastSession
-              ? "محورها را پر کنید. با ثبت تکلیف آخرین جلسه، ترم بعد با همین تعداد جلسه باز می‌شود."
-              : "محورها را پر کنید و یک‌بار ثبت بزنید. نمره این تمرین‌ها در جلسه بعد گرفته می‌شود."
+              ? "برای هر محور چند تمرین یا قطعه بدهید و یک‌بار ثبت کنید. با ثبت تکلیف آخرین جلسه، ترم بعد باز می‌شود."
+              : "کنار درس + بزنید تا شماره درس همان کتاب اضافه شود. + تمرین یک عنوان تازه باز می‌کند. یک‌بار ثبت کافی است."
           }
         >
           {sessionAssignments.length > 0 ? (
@@ -552,8 +710,9 @@ export function TeacherSessionWork({
           >
             <div className="grid gap-3 sm:grid-cols-2">
               {AXES.map((axis) => {
-                const draft = drafts[axis];
+                const rows = drafts[axis];
                 const options = titleOptionsFor(axis);
+                const canAdd = rows.length < MAX_ROWS;
                 return (
                   <div
                     key={axis}
@@ -563,96 +722,193 @@ export function TeacherSessionWork({
                     )}
                   >
                     <p className="text-xs font-semibold text-navy">{axis}</p>
-                    {axis === "قطعه" ? (
-                      <Input
-                        value={draft.title}
-                        onChange={(event) =>
-                          patchDraft(axis, { title: event.target.value })
-                        }
-                        placeholder="نام قطعه"
-                      />
-                    ) : (
-                      <>
-                        <div className="flex flex-wrap gap-1.5">
-                          {options.map((item) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => {
-                                patchDraft(axis, { title: item });
-                                rememberTitle(axis, item);
-                                setAddingAxis(null);
-                              }}
-                              className={cn(
-                                "rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition",
-                                draft.title === item
-                                  ? "bg-brand-50 text-navy ring-brand"
-                                  : "bg-white text-muted-foreground ring-border hover:text-navy",
-                              )}
-                            >
-                              {item}
-                            </button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAddingAxis((current) =>
-                                current === axis ? null : axis,
-                              )
-                            }
-                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-dashed ring-border hover:text-navy"
-                          >
-                            <Plus className="size-3" />
-                            جدید
-                          </button>
-                        </div>
-                        {addingAxis === axis ? (
-                          <div className="flex gap-2">
-                            <Input
-                              value={newTitle}
-                              onChange={(event) =>
-                                setNewTitle(event.target.value)
-                              }
-                              placeholder="عنوان جدید"
-                              autoFocus
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  persistCustomTitle(axis, newTitle);
+                    <div className="space-y-3">
+                      {rows.map((row, index) => {
+                        const lessons =
+                          Array.isArray(row.lessons) && row.lessons.length > 0
+                            ? row.lessons
+                            : [{ id: `${row.id}-lesson`, value: "" }];
+                        return (
+                        <div
+                          key={row.id}
+                          className={cn(
+                            "space-y-2",
+                            index > 0 && "border-t border-dashed border-border/80 pt-3",
+                          )}
+                        >
+                          {axis === "قطعه" ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={row.title}
+                                onChange={(event) =>
+                                  patchDraft(axis, row.id, {
+                                    title: event.target.value,
+                                  })
                                 }
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="shrink-0"
-                              disabled={!newTitle.trim()}
-                              onClick={() =>
-                                persistCustomTitle(axis, newTitle)
-                              }
-                            >
-                              افزودن
-                            </Button>
-                          </div>
-                        ) : null}
-                        <div className="flex items-center gap-2">
-                          <span className="shrink-0 text-sm font-medium text-navy">
-                            درس
-                          </span>
-                          <Input
-                            value={draft.source}
-                            onChange={(event) =>
-                              patchDraft(axis, { source: event.target.value })
-                            }
-                            inputMode="numeric"
-                            placeholder="۴"
-                            className="h-11 max-w-28 text-center text-base"
-                            autoComplete="off"
-                          />
+                                placeholder={
+                                  index === 0 ? "نام قطعه" : "قطعه بعدی"
+                                }
+                              />
+                              {rows.length > 1 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => removeDraft(axis, row.id)}
+                                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground ring-1 ring-border hover:text-destructive"
+                                  aria-label="حذف قطعه"
+                                >
+                                  <Minus className="size-4" />
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap gap-1.5">
+                                {options.map((item) => (
+                                  <button
+                                    key={item}
+                                    type="button"
+                                    onClick={() => {
+                                      patchDraft(axis, row.id, { title: item });
+                                      rememberTitle(axis, item);
+                                      setAddingBook(null);
+                                    }}
+                                    className={cn(
+                                      "rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition",
+                                      row.title === item
+                                        ? "bg-brand-50 text-navy ring-brand"
+                                        : "bg-white text-muted-foreground ring-border hover:text-navy",
+                                    )}
+                                  >
+                                    {item}
+                                  </button>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAddingBook((current) =>
+                                      current?.axis === axis &&
+                                      current.rowId === row.id
+                                        ? null
+                                        : { axis, rowId: row.id },
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-dashed ring-border hover:text-navy"
+                                >
+                                  <Plus className="size-3" />
+                                  جدید
+                                </button>
+                              </div>
+                              {addingBook?.axis === axis &&
+                              addingBook.rowId === row.id ? (
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={newTitle}
+                                    onChange={(event) =>
+                                      setNewTitle(event.target.value)
+                                    }
+                                    placeholder="عنوان جدید"
+                                    autoFocus
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        persistCustomTitle(
+                                          axis,
+                                          row.id,
+                                          newTitle,
+                                        );
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="shrink-0"
+                                    disabled={!newTitle.trim()}
+                                    onClick={() =>
+                                      persistCustomTitle(
+                                        axis,
+                                        row.id,
+                                        newTitle,
+                                      )
+                                    }
+                                  >
+                                    افزودن
+                                  </Button>
+                                </div>
+                              ) : null}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="shrink-0 text-sm font-medium text-navy">
+                                  درس
+                                </span>
+                                {lessons.map((lesson, lessonIndex) => (
+                                  <div
+                                    key={lesson.id}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Input
+                                      value={lesson.value}
+                                      onChange={(event) =>
+                                        patchLesson(
+                                          axis,
+                                          row.id,
+                                          lesson.id,
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="numeric"
+                                      placeholder={lessonIndex === 0 ? "۴" : ""}
+                                      className="h-11 w-16 text-center text-base"
+                                      autoComplete="off"
+                                    />
+                                    {lessons.length > 1 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeLesson(axis, row.id, lesson.id)
+                                        }
+                                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground ring-1 ring-border hover:text-destructive"
+                                        aria-label="حذف درس"
+                                      >
+                                        <Minus className="size-4" />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                                <button
+                                  type="button"
+                                  disabled={lessons.length >= MAX_LESSONS}
+                                  onClick={() => addLesson(axis, row.id)}
+                                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-navy ring-1 ring-border hover:bg-brand-50 disabled:opacity-40"
+                                  aria-label="افزودن درس"
+                                >
+                                  <Plus className="size-4" />
+                                </button>
+                                {rows.length > 1 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeDraft(axis, row.id)}
+                                    className="text-[11px] text-muted-foreground hover:text-destructive"
+                                  >
+                                    حذف تمرین
+                                  </button>
+                                ) : null}
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </>
-                    )}
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!canAdd}
+                      onClick={() => addDraft(axis)}
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium text-navy ring-1 ring-dashed ring-brand/40 hover:bg-brand-50 disabled:opacity-40"
+                    >
+                      <Plus className="size-3" />
+                      {axis === "قطعه" ? "قطعه" : "تمرین"}
+                    </button>
                   </div>
                 );
               })}

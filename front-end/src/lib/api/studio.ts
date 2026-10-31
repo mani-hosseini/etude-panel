@@ -265,6 +265,7 @@ export const studioApi = {
     category: string;
     title: string;
     source?: string;
+    sources?: string[];
     note?: string;
     dueLabel?: string;
     score?: number;
@@ -286,6 +287,7 @@ export const studioApi = {
       category: string;
       title: string;
       source?: string;
+      sources?: string[];
       note?: string;
     }>;
   }) =>

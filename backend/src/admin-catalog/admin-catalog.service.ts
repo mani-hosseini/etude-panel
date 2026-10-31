@@ -45,6 +45,17 @@ import {
   UpsertSlideDto,
 } from './dto/admin-catalog.dto';
 
+function isVarcharOverflow(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === 'P2000' || error.code === 'P2020')
+  ) {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /too long|value too long|varchar/i.test(message);
+}
+
 @Injectable()
 export class AdminCatalogService {
   constructor(
@@ -230,40 +241,45 @@ export class AdminCatalogService {
       : undefined;
 
     const days = this.resolveCourseDays(dto);
+    const label = joinDays(days);
+    const data: Prisma.CourseUpdateInput = {
+      ...(nextSlug ? { slug: nextSlug } : {}),
+      title: dto.title.trim(),
+      subtitle: dto.subtitle,
+      instrument: dto.instrument,
+      teacher: instructor?.displayName ?? dto.teacher,
+      teacherShort: instructor?.lastName ?? dto.teacherShort,
+      day: label,
+      days,
+      time: dto.time,
+      timeShort: dto.timeShort,
+      duration: dto.duration,
+      room: dto.room,
+      level: dto.level,
+      focus: dto.focus,
+      sessionsTotal: dto.sessionsTotal,
+      ...(dto.weeklyHours !== undefined
+        ? { weeklyHours: dto.weeklyHours }
+        : {}),
+      ...(dto.status !== undefined ? { status: dto.status } : {}),
+      ...(dto.certificateReady !== undefined
+        ? { certificateReady: dto.certificateReady }
+        : {}),
+      ...(dto.accessNote !== undefined ? { accessNote: dto.accessNote } : {}),
+      ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+      ...(instructor !== undefined
+        ? { teacherId: instructor?.id ?? null }
+        : {}),
+    };
 
-    await this.prisma.course.update({
-      where: { id },
-      data: {
-        ...(nextSlug ? { slug: nextSlug } : {}),
-        title: dto.title.trim(),
-        subtitle: dto.subtitle,
-        instrument: dto.instrument,
-        teacher: instructor?.displayName ?? dto.teacher,
-        teacherShort: instructor?.lastName ?? dto.teacherShort,
-        day: joinDays(days),
-        days,
-        time: dto.time,
-        timeShort: dto.timeShort,
-        duration: dto.duration,
-        room: dto.room,
-        level: dto.level,
-        focus: dto.focus,
-        sessionsTotal: dto.sessionsTotal,
-        ...(dto.weeklyHours !== undefined
-          ? { weeklyHours: dto.weeklyHours }
-          : {}),
-        ...(dto.status !== undefined ? { status: dto.status } : {}),
-        ...(dto.certificateReady !== undefined
-          ? { certificateReady: dto.certificateReady }
-          : {}),
-        ...(dto.accessNote !== undefined ? { accessNote: dto.accessNote } : {}),
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
-        ...(instructor !== undefined
-          ? { teacherId: instructor?.id ?? null }
-          : {}),
-      },
-    });
+    try {
+      await this.prisma.course.update({ where: { id }, data });
+    } catch (error) {
+      if (!isVarcharOverflow(error)) throw error;
+      const { day: _day, ...withoutDay } = data;
+      await this.prisma.course.update({ where: { id }, data: withoutDay });
+    }
 
     await this.syncEnrollmentDays(id, days);
 

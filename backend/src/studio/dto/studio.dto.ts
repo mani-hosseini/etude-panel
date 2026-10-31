@@ -66,11 +66,27 @@ export class CreateAssignmentDto {
     example: 'درس ۴',
     description: 'برای تکنیک، تئوری و سلفژ اجباری است؛ برای قطعه لازم نیست',
   })
-  @ValidateIf((dto: CreateAssignmentDto) => dto.category !== PIECE_CATEGORY)
+  @ValidateIf(
+    (dto: CreateAssignmentDto) =>
+      dto.category !== PIECE_CATEGORY &&
+      !(dto.sources ?? []).some((item) => String(item ?? '').trim()),
+  )
   @IsString()
   @MinLength(1, { message: 'منبع تمرین را وارد کنید، مثلاً درس ۴.' })
   @MaxLength(200)
   source?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['4', '5', '12'],
+    description: 'چند شماره درس برای همان عنوان، مثلاً چهار درس چرنی',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsString({ each: true })
+  @MaxLength(200, { each: true })
+  sources?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -115,11 +131,27 @@ export class AssignmentItemDto {
   title!: string;
 
   @ApiPropertyOptional({ example: 'درس ۴' })
-  @ValidateIf((dto: AssignmentItemDto) => dto.category !== PIECE_CATEGORY)
+  @ValidateIf(
+    (dto: AssignmentItemDto) =>
+      dto.category !== PIECE_CATEGORY &&
+      !(dto.sources ?? []).some((item) => String(item ?? '').trim()),
+  )
   @IsString()
   @MinLength(1, { message: 'منبع تمرین را وارد کنید، مثلاً درس ۴.' })
   @MaxLength(200)
   source?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['4', '5', '12'],
+    description: 'چند شماره درس برای همان عنوان',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsString({ each: true })
+  @MaxLength(200, { each: true })
+  sources?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -167,7 +199,7 @@ export class CreateAssignmentsBatchDto {
   @ApiProperty({ type: [AssignmentItemDto] })
   @IsArray()
   @ArrayMinSize(1, { message: 'حداقل یک تمرین را وارد کنید.' })
-  @ArrayMaxSize(8)
+  @ArrayMaxSize(24)
   @ValidateNested({ each: true })
   @Type(() => AssignmentItemDto)
   items!: AssignmentItemDto[];
