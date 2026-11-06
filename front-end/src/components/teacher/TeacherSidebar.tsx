@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
-import { teacherNavItems } from "@/constants/teacher-nav";
+import { teacherSidebarItems } from "@/constants/teacher-nav";
 import { useStudioProfileQuery } from "@/lib/api/studio-queries";
 import { logoutWithApi } from "@/lib/auth";
 import { isNavActive, routes } from "@/lib/routes";
@@ -47,7 +47,7 @@ export function TeacherSidebar({
         <p className="px-3 pb-2 pt-1 text-[11px] font-medium tracking-wide text-white/45">
           استودیو
         </p>
-        {teacherNavItems.map((item) => {
+        {teacherSidebarItems.map((item) => {
           const Icon = item.icon;
           const active = isNavActive(pathname, item.href);
 

@@ -1,28 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock3, MapPin, Music2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Clock3, GripVertical, MapPin, Music2 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { audienceError } from "@/lib/api/errors";
-import { useStudioTodayQuery } from "@/lib/api/studio-queries";
+import { studioApi, type StudioTodayStudent } from "@/lib/api/studio";
+import { studioKeys, useStudioTodayQuery } from "@/lib/api/studio-queries";
 import { toFa } from "@/lib/format";
 import { teacherRoutes } from "@/lib/routes";
 import { studentDisplayName } from "@/lib/teacher-studio";
+import { cn } from "@/lib/utils";
 
-type RollStudent = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  level: number;
-  piece: string;
-  avatarUrl?: string | null;
-  sessionId: string | null;
-  sessionNumber: number | null;
-  nextHomework: Array<{ category: string; title: string }>;
-};
+type RollStudent = StudioTodayStudent;
 
 function dossierHref(student: RollStudent) {
   const path = teacherRoutes.student(
@@ -30,6 +23,17 @@ function dossierHref(student: RollStudent) {
     student.sessionId ?? undefined,
   );
   return path.includes("?") ? `${path}&from=class` : `${path}?from=class`;
+}
+
+function moveStudent(list: RollStudent[], fromId: string, toId: string) {
+  if (fromId === toId) return list;
+  const from = list.findIndex((item) => item.id === fromId);
+  const to = list.findIndex((item) => item.id === toId);
+  if (from < 0 || to < 0) return list;
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item!);
+  return next;
 }
 
 export function TeacherTodayClass() {
@@ -93,52 +97,114 @@ export function TeacherTodayClass() {
   return (
     <div className="space-y-5">
       {slots.map((slot) => (
-        <section
+        <TodaySlot
           key={slot.id}
-          className="overflow-hidden rounded-[28px] border border-border/80 bg-card shadow-soft"
-        >
-          <header className="relative overflow-hidden navy-gradient px-5 py-6 text-white sm:px-8 sm:py-8">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 piano-stripe opacity-70" />
-            <div className="pointer-events-none absolute -left-20 -top-16 size-56 rounded-full bg-brand/25 blur-3xl" />
-            <div className="pointer-events-none absolute -right-10 bottom-0 size-40 rounded-full bg-white/5 blur-2xl" />
-            <div className="relative">
-              <p className="text-[11px] font-medium tracking-[0.18em] text-brand-300">
-                رول کلاس امروز
-              </p>
-              <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-                <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                  {weekday}
-                </h1>
-                <p className="rounded-full bg-white/10 px-3 py-1 font-sans text-xs tabular-nums text-white/80 ring-1 ring-white/10">
-                  {toFa(slot.students.length)} هنرجو
-                </p>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <MetaChip icon={Music2}>{slot.title}</MetaChip>
-                {slot.start ? (
-                  <MetaChip icon={Clock3}>
-                    {toFa(slot.start)}
-                    {slot.end ? ` تا ${toFa(slot.end)}` : ""}
-                  </MetaChip>
-                ) : null}
-                {slot.room ? (
-                  <MetaChip icon={MapPin}>{slot.room}</MetaChip>
-                ) : null}
-              </div>
-              <p className="mt-4 max-w-md text-sm leading-6 text-white/55">
-                برای ثبت تکلیف جلسه بعد، روی نام هنرجو بزنید.
-              </p>
-            </div>
-          </header>
-
-          <ul className="grid gap-1.5 p-2.5 sm:p-3.5">
-            {slot.students.map((student, index) => (
-              <RollRow key={student.id} student={student} index={index} />
-            ))}
-          </ul>
-        </section>
+          weekday={weekday}
+          courseId={slot.courseId}
+          title={slot.title}
+          start={slot.start}
+          end={slot.end}
+          room={slot.room}
+          students={slot.students}
+        />
       ))}
     </div>
+  );
+}
+
+function TodaySlot({
+  weekday,
+  courseId,
+  title,
+  start,
+  end,
+  room,
+  students,
+}: {
+  weekday: string;
+  courseId: string;
+  title: string;
+  start: string;
+  end: string;
+  room: string;
+  students: RollStudent[];
+}) {
+  const queryClient = useQueryClient();
+  const [rows, setRows] = useState(students);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRows(students);
+  }, [students]);
+
+  const reorder = useMutation({
+    mutationFn: (studentIds: string[]) =>
+      studioApi.reorderToday(courseId, studentIds),
+    onSuccess: (data) => {
+      queryClient.setQueryData(studioKeys.today, data);
+    },
+    onError: () => {
+      setRows(students);
+      void queryClient.invalidateQueries({ queryKey: studioKeys.today });
+    },
+  });
+
+  const dropOn = (fromId: string, targetId: string) => {
+    const next = moveStudent(rows, fromId, targetId);
+    setDraggingId(null);
+    if (next === rows) return;
+    setRows(next);
+    reorder.mutate(next.map((item) => item.id));
+  };
+
+  return (
+    <section className="overflow-hidden rounded-[28px] border border-border/80 bg-card shadow-soft">
+      <header className="relative overflow-hidden navy-gradient px-5 py-6 text-white sm:px-8 sm:py-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 piano-stripe opacity-70" />
+        <div className="pointer-events-none absolute -left-20 -top-16 size-56 rounded-full bg-brand/25 blur-3xl" />
+        <div className="pointer-events-none absolute -right-10 bottom-0 size-40 rounded-full bg-white/5 blur-2xl" />
+        <div className="relative">
+          <p className="text-[11px] font-medium tracking-[0.18em] text-brand-300">
+            رول کلاس امروز
+          </p>
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+            <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              {weekday}
+            </h1>
+            <p className="rounded-full bg-white/10 px-3 py-1 font-sans text-xs tabular-nums text-white/80 ring-1 ring-white/10">
+              {toFa(rows.length)} هنرجو
+            </p>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <MetaChip icon={Music2}>{title}</MetaChip>
+            {start ? (
+              <MetaChip icon={Clock3}>
+                {toFa(start)}
+                {end ? ` تا ${toFa(end)}` : ""}
+              </MetaChip>
+            ) : null}
+            {room ? <MetaChip icon={MapPin}>{room}</MetaChip> : null}
+          </div>
+          <p className="mt-4 max-w-md text-sm leading-6 text-white/55">
+            ترتیب را با دستگیره جابه‌جا کنید. برای ثبت تکلیف، روی نام بزنید.
+          </p>
+        </div>
+      </header>
+
+      <ul className="grid gap-1.5 p-2.5 sm:p-3.5">
+        {rows.map((student, index) => (
+          <RollRow
+            key={student.id}
+            student={student}
+            index={index}
+            dragging={draggingId === student.id}
+            onDragStart={() => setDraggingId(student.id)}
+            onDragEnd={() => setDraggingId(null)}
+            onDrop={(fromId) => dropOn(fromId, student.id)}
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -160,9 +226,17 @@ function MetaChip({
 function RollRow({
   student,
   index,
+  dragging,
+  onDragStart,
+  onDragEnd,
+  onDrop,
 }: {
   student: RollStudent;
   index: number;
+  dragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDrop: (fromId: string) => void;
 }) {
   const name = studentDisplayName(student);
   const homework = student.nextHomework
@@ -171,45 +245,72 @@ function RollRow({
     .join(" · ");
 
   return (
-    <li>
-      <Link
-        href={dossierHref(student)}
-        className="group flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-brand-50/70 sm:gap-4 sm:px-4 sm:py-3.5"
-      >
-        <span className="hidden w-6 shrink-0 text-center font-sans text-[11px] tabular-nums text-muted-foreground/70 sm:block">
-          {toFa(index + 1).padStart(2, "۰")}
-        </span>
-        <UserAvatar
-          className="size-12 rounded-2xl"
-          avatarUrl={student.avatarUrl}
-          alt={name}
-        />
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="truncate text-[15px] font-semibold text-navy">
-              {name}
-            </span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              سطح {toFa(student.level)}
-            </span>
-            {student.sessionNumber ? (
-              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand">
-                جلسه {toFa(student.sessionNumber)}
+    <li
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        const fromId = event.dataTransfer.getData("text/plain");
+        if (fromId) onDrop(fromId);
+      }}
+      className={cn(dragging && "opacity-40")}
+    >
+      <div className="group flex items-center gap-1 rounded-2xl transition hover:bg-brand-50/70 sm:gap-2">
+        <button
+          type="button"
+          draggable
+          aria-label={`جابه‌جایی ${name}`}
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", student.id);
+            event.dataTransfer.effectAllowed = "move";
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+          className="flex size-10 shrink-0 cursor-grab items-center justify-center rounded-xl text-muted-foreground hover:bg-white hover:text-navy active:cursor-grabbing"
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <Link
+          href={dossierHref(student)}
+          className="flex min-w-0 flex-1 items-center gap-3 py-3 pe-3 sm:gap-4 sm:py-3.5 sm:pe-4"
+        >
+          <span className="hidden w-6 shrink-0 text-center font-sans text-[11px] tabular-nums text-muted-foreground/70 sm:block">
+            {toFa(index + 1).padStart(2, "۰")}
+          </span>
+          <UserAvatar
+            className="size-12 rounded-2xl"
+            avatarUrl={student.avatarUrl}
+            alt={name}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="truncate text-[15px] font-semibold text-navy">
+                {name}
               </span>
-            ) : null}
-          </span>
-          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-            <Music2 className="size-3 shrink-0 opacity-60" strokeWidth={1.75} />
-            <span className="truncate">
-              {homework || student.piece || "ورود به پرونده برای ثبت تکلیف"}
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                سطح {toFa(student.level)}
+              </span>
+              {student.sessionNumber ? (
+                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand">
+                  جلسه {toFa(student.sessionNumber)}
+                </span>
+              ) : null}
+            </span>
+            <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <Music2 className="size-3 shrink-0 opacity-60" strokeWidth={1.75} />
+              <span className="truncate">
+                {homework || student.piece || "ورود به پرونده برای ثبت تکلیف"}
+              </span>
             </span>
           </span>
-        </span>
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition group-hover:bg-brand group-hover:text-white">
-          <ArrowLeft className="size-4" strokeWidth={1.8} />
-          <span className="sr-only">پرونده {name}</span>
-        </span>
-      </Link>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition group-hover:bg-brand group-hover:text-white">
+            <ArrowLeft className="size-4" strokeWidth={1.8} />
+            <span className="sr-only">پرونده {name}</span>
+          </span>
+        </Link>
+      </div>
     </li>
   );
 }

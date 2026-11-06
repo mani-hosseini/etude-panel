@@ -181,7 +181,7 @@ export class UsersService {
               },
             },
           },
-          orderBy: { joinedAt: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { joinedAt: 'asc' }],
         },
         achievements: {
           include: { achievement: true },
@@ -439,24 +439,20 @@ export class UsersService {
       throw new NotFoundException('دوره یافت نشد.');
     }
 
-    const allowed = normalizeDays(course.days, course.day);
-    const requested = normalizeDays(dto.classDays);
-    const assigned =
-      requested.length > 0
-        ? requested.filter((day) => allowed.includes(day))
-        : allowed;
-    if (dto.classDays && dto.classDays.length > 0 && assigned.length === 0) {
-      throw new BadRequestException(
-        'روز کلاس هنرجو باید از روزهای برگزاری همین دوره باشد.',
-      );
-    }
-    if (assigned.length === 0) {
-      throw new BadRequestException('روز برگزاری این دوره مشخص نشده است.');
-    }
+    const assigned = this.resolveClassDays(course.days, course.day, dto.classDays);
 
     try {
+      const last = await this.prisma.enrollment.aggregate({
+        where: { courseId: course.id },
+        _max: { sortOrder: true },
+      });
       const enrollment = await this.prisma.enrollment.create({
-        data: { userId, courseId: course.id, classDays: assigned },
+        data: {
+          userId,
+          courseId: course.id,
+          classDays: assigned,
+          sortOrder: (last._max.sortOrder ?? -1) + 1,
+        },
         include: {
           course: {
             select: { slug: true, title: true },
@@ -847,5 +843,25 @@ export class UsersService {
       taughtCoursesCount: user._count?.taughtCourses ?? 0,
       avgProgress: user.avgProgress ?? 0,
     };
+  }
+
+  private resolveClassDays(
+    courseDays: string[] | null | undefined,
+    fallbackDay: string | null | undefined,
+    requested?: string[] | null,
+  ) {
+    const allowed = normalizeDays(courseDays, fallbackDay);
+    if (allowed.length === 0) {
+      throw new BadRequestException('روز برگزاری این دوره مشخص نشده است.');
+    }
+    const picked = normalizeDays(requested).filter((day) =>
+      allowed.includes(day),
+    );
+    if (picked.length === 0) {
+      throw new BadRequestException(
+        'روز کلاس این هنرجو را از روزهای برگزاری همین دوره انتخاب کنید.',
+      );
+    }
+    return picked;
   }
 }

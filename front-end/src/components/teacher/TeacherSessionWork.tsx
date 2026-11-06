@@ -25,7 +25,10 @@ import {
 import { studioKeys } from "@/lib/api/studio-queries";
 import { toFa, toLatinDigits } from "@/lib/format";
 import { teacherSessionStatus } from "@/lib/session-access";
-import { assignmentsForSession } from "@/lib/teacher-studio";
+import {
+  assignmentsForSession,
+  nextOpenTeacherSessionId,
+} from "@/lib/teacher-studio";
 import { announceSaved } from "@/lib/save-feedback";
 import { cn } from "@/lib/utils";
 
@@ -420,12 +423,18 @@ export function TeacherSessionWork({
       });
     },
     onSuccess: async (_result, attendance) => {
-      if (session) onSessionIdChange(session.id);
-      stay(
-        attendance === "absent"
-          ? "کلاس تشکیل نشد. جلسه برای هنرجو باز می‌شود و پیام غیبت را می‌بیند؛ تکلیفی داده نمی‌شود."
-          : "کلاس تشکیل شد و این جلسه برای هنرجو باز شد.",
-      );
+      if (attendance === "absent" && session) {
+        const nextId = nextOpenTeacherSessionId(sessions, session);
+        onSessionIdChange(nextId ?? session.id);
+        stay(
+          nextId
+            ? "کلاس تشکیل نشد. جلسه بعد برای همین هنرجو باز شد."
+            : "کلاس تشکیل نشد. جلسه برای هنرجو باز می‌شود و پیام غیبت را می‌بیند؛ تکلیفی داده نمی‌شود.",
+        );
+      } else {
+        if (session) onSessionIdChange(session.id);
+        stay("کلاس تشکیل شد و این جلسه برای همین هنرجو باز شد.");
+      }
       await refresh();
     },
     onError: (err) => {
@@ -570,7 +579,7 @@ export function TeacherSessionWork({
     <div className="space-y-6">
       <WorkBlock
         title="جلسه و تشکیل کلاس"
-        hint="اگر کلاس تشکیل شد همان جلسه برای همین هنرجو باز می‌شود."
+        hint="اگر کلاس تشکیل شد روی همین جلسه می‌مانی. اگر تشکیل نشد، جلسه بعد باز می‌شود."
       >
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_auto] sm:items-end">
         <div>

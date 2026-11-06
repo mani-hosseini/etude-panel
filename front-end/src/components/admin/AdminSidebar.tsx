@@ -7,7 +7,9 @@ import {
   ClipboardCheck,
   ExternalLink,
   LayoutDashboard,
+  ListTodo,
   LogOut,
+  PhoneCall,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -44,6 +46,18 @@ const navItems = [
     label: "کاربران",
     description: "هنرجو، استاد و دسترسی",
     icon: Users,
+  },
+  {
+    href: adminRoutes.registrations,
+    label: "CRM",
+    description: "تماس‌ها تا ثبت‌نام",
+    icon: PhoneCall,
+  },
+  {
+    href: adminRoutes.tasks,
+    label: "تسک‌ها",
+    description: "کارهای CRM و ثبت در سایت",
+    icon: ListTodo,
   },
 ] as const;
 

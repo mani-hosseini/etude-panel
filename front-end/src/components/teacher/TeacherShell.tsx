@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { TeacherSidebar } from "@/components/teacher/TeacherSidebar";
-import { teacherNavItems } from "@/constants/teacher-nav";
+import { teacherNavItems, teacherSidebarItems } from "@/constants/teacher-nav";
 import { copy } from "@/constants/copy";
 import { toFa } from "@/lib/format";
 import { useStudioOverviewQuery } from "@/lib/api/studio-queries";
@@ -56,8 +56,8 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
   }, [pathname]);
 
   const title =
-    teacherNavItems.find((item) => isNavActive(pathname, item.href))?.label ??
-    "صفحه اصلی";
+    teacherSidebarItems.find((item) => isNavActive(pathname, item.href))
+      ?.label ?? "صفحه اصلی";
 
   return (
     <div className="min-h-dvh bg-background">

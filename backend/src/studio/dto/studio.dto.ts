@@ -314,6 +314,19 @@ export class TodayAttendanceMarkDto {
   status!: AttendanceStatus;
 }
 
+export class ReorderTodayRosterDto {
+  @ApiProperty({ description: 'slug یا uuid دوره' })
+  @IsString()
+  courseId!: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(80)
+  @IsUUID('4', { each: true })
+  studentIds!: string[];
+}
+
 export class MarkTodayAttendanceDto {
   @ApiProperty({ type: [TodayAttendanceMarkDto] })
   @IsArray()

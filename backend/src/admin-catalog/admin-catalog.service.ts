@@ -133,7 +133,7 @@ export class AdminCatalogService {
               },
             },
           },
-          orderBy: { joinedAt: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { joinedAt: 'asc' }],
         },
       },
     });

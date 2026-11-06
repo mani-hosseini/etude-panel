@@ -17,6 +17,7 @@ import { AdminCatalogModule } from './admin-catalog/admin-catalog.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { ExamsModule } from './exams/exams.module';
 import { StudioModule } from './studio/studio.module';
+import { RegistrationModule } from './registration/registration.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { StudioModule } from './studio/studio.module';
     AdminCatalogModule,
     ExamsModule,
     StudioModule,
+    RegistrationModule,
     HealthModule,
   ],
   providers: [

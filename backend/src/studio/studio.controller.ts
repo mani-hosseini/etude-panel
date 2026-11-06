@@ -21,6 +21,7 @@ import {
   CreateAssignmentDto,
   CreateAssignmentsBatchDto,
   MarkTodayAttendanceDto,
+  ReorderTodayRosterDto,
   SaveScoresDto,
   SaveSessionWorkDto,
   UpdateAssignmentProgressDto,
@@ -116,6 +117,15 @@ export class StudioController {
   @ApiOperation({ summary: 'رول کلاس امروز' })
   today(@CurrentUser() user: AuthUser) {
     return this.studio.todayRoster(user.id);
+  }
+
+  @Patch('today/order')
+  @ApiOperation({ summary: 'جابه‌جایی ترتیب هنرجوهای رول امروز' })
+  reorderToday(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ReorderTodayRosterDto,
+  ) {
+    return this.studio.reorderTodayRoster(user.id, dto);
   }
 
   @Put('today/attendance')

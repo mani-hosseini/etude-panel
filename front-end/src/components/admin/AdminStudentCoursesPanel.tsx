@@ -19,6 +19,11 @@ import { audienceError } from "@/lib/api/errors";
 import { formatDays, parseDays, toFa } from "@/lib/format";
 import { adminRoutes } from "@/lib/routes";
 import { WeekdayPicker } from "@/components/ui/weekday-picker";
+import {
+  AdminClassDaysField,
+  courseAllowedDays,
+  resolvedEnrollDays,
+} from "@/components/admin/AdminClassDaysField";
 import { announceSaved } from "@/lib/save-feedback";
 
 type AdminStudentCoursesPanelProps = {
@@ -33,6 +38,7 @@ export function AdminStudentCoursesPanel({
   const queryClient = useQueryClient();
   const coursesQuery = useAdminCoursesQuery({ limit: 100 });
   const [search, setSearch] = useState("");
+  const [pendingDays, setPendingDays] = useState<Record<string, string[]>>({});
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -61,15 +67,26 @@ export function AdminStudentCoursesPanel({
   };
 
   const enroll = useMutation({
-    mutationFn: (courseId: string) => adminApi.enrollUser(userId, courseId),
-    onSuccess: async (_data, courseId) => {
+    mutationFn: ({
+      courseId,
+      classDays,
+    }: {
+      courseId: string;
+      classDays: string[];
+    }) => adminApi.enrollUser(userId, courseId, classDays),
+    onSuccess: async (_data, vars) => {
       const title =
-        coursesQuery.data?.courses.find((course) => course.slug === courseId)
+        coursesQuery.data?.courses.find((course) => course.slug === vars.courseId)
           ?.title ?? "دوره";
       setActionError(null);
       setActionSuccess(`«${title}» به این هنرجو اضافه شد.`);
       announceSaved(`«${title}» به این هنرجو اضافه شد.`);
       setSearch("");
+      setPendingDays((current) => {
+        const next = { ...current };
+        delete next[vars.courseId];
+        return next;
+      });
       await invalidate();
     },
     onError: (err) => {
@@ -116,8 +133,7 @@ export function AdminStudentCoursesPanel({
       <div className="border-b border-slate-100 px-5 py-4">
         <h3 className="text-sm font-bold text-slate-900">دوره‌های این هنرجو</h3>
         <p className="mt-1 text-xs text-slate-500">
-          هر دوره را اضافه کنید و بعد مشخص کنید این هنرجو در کدام روزهای همان
-          دوره کلاس دارد.
+          اول روز کلاس را از روزهای استاد انتخاب کنید، بعد دوره را اضافه کنید.
         </p>
       </div>
 
@@ -144,30 +160,55 @@ export function AdminStudentCoursesPanel({
             </p>
           ) : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
-              {availableCourses.map((course) => (
-                <li
-                  key={course.id}
-                  className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900">{course.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {course.teacher} · {course.instrument} ·{" "}
-                      {formatDays(course.days, course.day)} {course.timeShort}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="rounded-xl"
-                    disabled={enroll.isPending}
-                    onClick={() => enroll.mutate(course.slug)}
+              {availableCourses.map((course) => {
+                const allowedDays = courseAllowedDays(course);
+                const selected = pendingDays[course.slug] ?? [];
+                return (
+                  <li
+                    key={course.id}
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <Plus className="size-3.5" />
-                    افزودن
-                  </Button>
-                </li>
-              ))}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900">{course.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {course.teacher} · {course.instrument} ·{" "}
+                        {formatDays(course.days, course.day)} {course.timeShort}
+                      </p>
+                    </div>
+                    <div className="flex min-w-[12rem] flex-col gap-2 sm:items-end">
+                      <AdminClassDaysField
+                        allowedDays={allowedDays}
+                        value={selected}
+                        disabled={enroll.isPending}
+                        onChange={(classDays) =>
+                          setPendingDays((current) => ({
+                            ...current,
+                            [course.slug]: classDays,
+                          }))
+                        }
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="rounded-xl"
+                        disabled={
+                          enroll.isPending ||
+                          resolvedEnrollDays(allowedDays, selected).length === 0
+                        }
+                        onClick={() =>
+                          enroll.mutate({
+                            courseId: course.slug,
+                            classDays: resolvedEnrollDays(allowedDays, selected),
+                          })
+                        }
+                      >
+                        <Plus className="size-3.5" />
+                        افزودن
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -210,10 +251,7 @@ export function AdminStudentCoursesPanel({
                       <WeekdayPicker
                         size="sm"
                         options={parseDays(item.course.days, item.course.day)}
-                        value={parseDays(
-                          item.classDays,
-                          parseDays(item.course.days, item.course.day).join("، "),
-                        )}
+                        value={parseDays(item.classDays)}
                         disabled={updateDays.isPending}
                         onChange={(classDays) =>
                           updateDays.mutate({

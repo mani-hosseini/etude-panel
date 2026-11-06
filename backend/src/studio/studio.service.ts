@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -158,7 +159,7 @@ export class StudioService {
         user: true,
         course: true,
       },
-      orderBy: { joinedAt: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { joinedAt: 'asc' }],
     });
 
     const unique = new Map<string, (typeof enrollments)[number]>();
@@ -401,6 +402,17 @@ export class StudioService {
         Math.max(cursorByStudentCourse.get(key) ?? 0, session.number),
       );
     }
+    const sessionById = new Map(sessions.map((item) => [item.id, item]));
+    for (const mark of marks) {
+      if (mark.status !== AttendanceStatus.ABSENT) continue;
+      const session = sessionById.get(mark.meetingKey);
+      if (!session) continue;
+      const key = `${mark.studentId}:${session.courseId}`;
+      cursorByStudentCourse.set(
+        key,
+        Math.max(cursorByStudentCourse.get(key) ?? 0, session.number),
+      );
+    }
 
     const classes = todaySlots.map((slot) => {
       const courseSessions = sessionsBySlug.get(slot.courseId) ?? [];
@@ -471,6 +483,42 @@ export class StudioService {
       classes,
       nextClass: this.nextClass(this.expandClasses(schedule.classes)),
     };
+  }
+
+  async reorderTodayRoster(
+    teacherId: string,
+    dto: { courseId: string; studentIds: string[] },
+  ) {
+    const course = await this.requireTaughtCourse(teacherId, dto.courseId);
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { courseId: course.id },
+      orderBy: [{ sortOrder: 'asc' }, { joinedAt: 'asc' }],
+    });
+    const byUser = new Map(enrollments.map((item) => [item.userId, item]));
+    const incoming = [...new Set(dto.studentIds)];
+    if (incoming.length === 0) {
+      throw new BadRequestException('ترتیب هنرجوها خالی است.');
+    }
+    if (incoming.some((id) => !byUser.has(id))) {
+      throw new BadRequestException('یکی از هنرجوها در این کلاس نیست.');
+    }
+
+    const incomingSet = new Set(incoming);
+    const queue = [...incoming];
+    const nextOrder = enrollments.map((item) =>
+      incomingSet.has(item.userId) ? queue.shift()! : item.userId,
+    );
+
+    await this.prisma.$transaction(
+      nextOrder.map((userId, index) =>
+        this.prisma.enrollment.update({
+          where: { id: byUser.get(userId)!.id },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
+
+    return this.todayRoster(teacherId);
   }
 
   async markTodayAttendance(teacherId: string, dto: MarkTodayAttendanceDto) {
@@ -793,8 +841,11 @@ export class StudioService {
           dto.studentId,
           term,
         );
-        await this.syncEnrollmentCursor(dto.studentId, session.courseId, term);
-      } else if (classWasHeld(dto.attendance)) {
+      }
+      if (
+        dto.attendance === AttendanceStatus.ABSENT ||
+        classWasHeld(dto.attendance)
+      ) {
         await this.prisma.enrollment.updateMany({
           where: {
             courseId: session.courseId,
@@ -1461,15 +1512,24 @@ export class StudioService {
       cursorByStudentCourse.get(`${studentId}:${courseId}`) ?? 0,
       1,
     );
-    const cursorSession =
+    let cursorSession =
       sessions.find((item) => item.number === cursor) ?? sessions[0]!;
     const prev = sessions.find((item) => item.number === cursor - 1);
-    const cursorMark = marks.get(`${studentId}:${cursorSession.id}`);
+    let cursorMark = marks.get(`${studentId}:${cursorSession.id}`);
     if (!cursorMark && prev) {
       const prevMark = marks.get(`${studentId}:${prev.id}`);
       if (!prevMark || this.isSameLocalDay(prevMark.updatedAt)) {
-        return prev;
+        cursorSession = prev;
+        cursorMark = prevMark;
       }
+    }
+    while (cursorMark?.status === AttendanceStatus.ABSENT) {
+      const next = sessions.find(
+        (item) => item.number === cursorSession.number + 1,
+      );
+      if (!next) break;
+      cursorSession = next;
+      cursorMark = marks.get(`${studentId}:${cursorSession.id}`);
     }
     return cursorSession;
   }
@@ -1592,6 +1652,15 @@ export class StudioService {
     const cursorByCourse = new Map<string, number>();
     for (const row of homeworkRows) {
       const session = row.assignment.session;
+      if (!session) continue;
+      cursorByCourse.set(
+        session.courseId,
+        Math.max(cursorByCourse.get(session.courseId) ?? 0, session.number),
+      );
+    }
+    for (const mark of marks) {
+      if (mark.status !== AttendanceStatus.ABSENT) continue;
+      const session = sessions.find((item) => item.id === mark.meetingKey);
       if (!session) continue;
       cursorByCourse.set(
         session.courseId,

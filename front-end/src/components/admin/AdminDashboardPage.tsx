@@ -5,6 +5,8 @@ import {
   BookOpen,
   ClipboardCheck,
   GraduationCap,
+  ListTodo,
+  PhoneCall,
   UserCheck,
   UserCog,
   Users,
@@ -71,6 +73,39 @@ export function AdminDashboardPage() {
         <p className="mt-1 text-sm text-slate-500">
           داده‌های پنل هنرجو و استاد از همین‌جا مدیریت می‌شود. ورود هر دو با کد ملی است.
         </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href={adminRoutes.registrations}
+          className="flex items-start justify-between gap-4 rounded-3xl border border-brand/15 bg-white p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md sm:p-6"
+        >
+          <div>
+            <p className="text-xs font-medium text-brand">CRM</p>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">فرایند ثبت‌نام</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              تماس را ثبت کن و وضعیت را تا ثبت‌نام جلو ببر.
+            </p>
+          </div>
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white">
+            <PhoneCall className="size-5" strokeWidth={1.75} />
+          </span>
+        </Link>
+        <Link
+          href={adminRoutes.tasks}
+          className="flex items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md sm:p-6"
+        >
+          <div>
+            <p className="text-xs font-medium text-slate-500">CRM</p>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">تسک‌ها</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              مدیر کار می‌سازد؛ ثبت‌نام‌شده‌ها خودشان اینجا می‌آیند.
+            </p>
+          </div>
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+            <ListTodo className="size-5" strokeWidth={1.75} />
+          </span>
+        </Link>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

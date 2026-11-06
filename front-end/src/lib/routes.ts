@@ -101,6 +101,11 @@ export const adminRoutes = {
   exams: "/admin/exams",
   examNew: "/admin/exams/new",
   exam: (id: string) => `/admin/exams/${id}`,
+  registrations: "/admin/registrations",
+  registrationLead: (leadId: string) => `/admin/registrations/${leadId}`,
+  tasks: "/admin/tasks",
+  taskForLead: (leadId: string) =>
+    `/admin/tasks?lead=${encodeURIComponent(leadId)}`,
 } as const;
 
 export function isNavActive(pathname: string, href: string): boolean {

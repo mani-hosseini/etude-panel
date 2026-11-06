@@ -1,6 +1,10 @@
 import type { PaginationMeta } from "@/lib/api/http";
 import { adminHttp } from "@/lib/api/admin-tokens";
 import { fileUploadFormData } from "@/lib/api/upload-form";
+import type {
+  LeadDraft,
+  RegistrationLead,
+} from "@/lib/registration-pipeline";
 
 export type AdminUserEnrollment = {
   id: string;
@@ -493,7 +497,7 @@ export const adminApi = {
       method: "DELETE",
     }),
 
-  enrollUser: (userId: string, courseId: string, classDays?: string[]) =>
+  enrollUser: (userId: string, courseId: string, classDays: string[]) =>
     adminHttp.requestData<{
       id: string;
       joinedAt: string;
@@ -907,4 +911,72 @@ export const adminApi = {
       score: number | null;
       gradedAt: string | null;
     }>(`/admin/exams/${examId}/grades`, { method: "PATCH", body }),
+
+  leads: () => adminHttp.requestData<{ leads: RegistrationLead[] }>("/admin/leads"),
+
+  lead: (id: string) =>
+    adminHttp.requestData<RegistrationLead>(`/admin/leads/${id}`),
+
+  createLead: (body: LeadDraft & { note?: string }) =>
+    adminHttp.requestData<RegistrationLead>("/admin/leads", {
+      method: "POST",
+      body,
+    }),
+
+  updateLead: (id: string, body: Partial<LeadDraft>) =>
+    adminHttp.requestData<RegistrationLead>(`/admin/leads/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  deleteLead: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/admin/leads/${id}`, {
+      method: "DELETE",
+    }),
+
+  addLeadNote: (id: string, text: string) =>
+    adminHttp.requestData<RegistrationLead>(`/admin/leads/${id}/notes`, {
+      method: "POST",
+      body: { text },
+    }),
+
+  tasks: () => adminHttp.requestData<{ tasks: AdminPanelTask[] }>("/admin/tasks"),
+
+  createTask: (body: { title: string; body?: string; dueDate?: string }) =>
+    adminHttp.requestData<AdminPanelTask>("/admin/tasks", {
+      method: "POST",
+      body,
+    }),
+
+  updateTask: (
+    id: string,
+    body: {
+      status?: "open" | "done";
+      title?: string;
+      body?: string;
+      dueDate?: string | null;
+    },
+  ) =>
+    adminHttp.requestData<AdminPanelTask>(`/admin/tasks/${id}`, {
+      method: "PATCH",
+      body,
+    }),
+
+  deleteTask: (id: string) =>
+    adminHttp.requestData<{ deleted: boolean }>(`/admin/tasks/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export type AdminPanelTask = {
+  id: string;
+  kind: "manual" | "enrollment";
+  status: "open" | "done";
+  title: string;
+  body: string;
+  dueDate: string;
+  phone?: string;
+  leadId?: string;
+  createdAt: string;
+  doneAt?: string;
 };

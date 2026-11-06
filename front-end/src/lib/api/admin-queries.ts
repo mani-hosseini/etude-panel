@@ -8,6 +8,7 @@ import {
   type ListExamsParams,
   type ListUsersParams,
 } from "@/lib/api/admin-client";
+import { clearLocalRegistrationMocks } from "@/lib/registration-pipeline";
 
 export const adminQueryKeys = {
   stats: ["admin", "users-stats"] as const,
@@ -25,6 +26,9 @@ export const adminQueryKeys = {
   tips: (courseId: string) => ["admin", "tips", courseId] as const,
   exams: (params: ListExamsParams) => ["admin", "exams", params] as const,
   exam: (id: string) => ["admin", "exam", id] as const,
+  leads: ["admin", "leads"] as const,
+  lead: (id: string) => ["admin", "lead", id] as const,
+  tasks: ["admin", "tasks"] as const,
 };
 
 export function useAdminUsersStatsQuery() {
@@ -108,5 +112,33 @@ export function useAdminExamQuery(id: string) {
     queryKey: adminQueryKeys.exam(id),
     queryFn: () => adminApi.exam(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useAdminLeadsQuery() {
+  return useQuery({
+    queryKey: adminQueryKeys.leads,
+    queryFn: async () => {
+      clearLocalRegistrationMocks();
+      return adminApi.leads();
+    },
+  });
+}
+
+export function useAdminLeadQuery(id: string) {
+  return useQuery({
+    queryKey: adminQueryKeys.lead(id),
+    queryFn: () => adminApi.lead(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAdminTasksQuery() {
+  return useQuery({
+    queryKey: adminQueryKeys.tasks,
+    queryFn: async () => {
+      clearLocalRegistrationMocks();
+      return adminApi.tasks();
+    },
   });
 }

@@ -58,7 +58,7 @@ export function assignmentsForSession<
   });
 }
 
-/** Stay on the last held class until its homework is saved; then open the next. */
+/** Stay on the last held class until its homework is saved; then open the next. Absent sessions count as done and are skipped. */
 export function defaultTeacherSessionId(
   sessions: Array<{
     id: string;
@@ -69,9 +69,10 @@ export function defaultTeacherSessionId(
   assignments: Array<{ sessionId?: string | null; sessionNumber?: number | null }> = [],
 ): string {
   if (sessions.length === 0) return "";
-  const lastHeld = sessions
-    .filter((item) => item.attendance && item.attendance !== "absent")
-    .sort((a, b) => b.number - a.number)[0];
+  const byNumber = [...sessions].sort((a, b) => a.number - b.number);
+  const lastHeld = [...byNumber]
+    .reverse()
+    .find((item) => item.attendance && item.attendance !== "absent");
   if (lastHeld) {
     const savedOnHeld = assignments.some(
       (item) =>
@@ -79,14 +80,33 @@ export function defaultTeacherSessionId(
         item.sessionNumber === lastHeld.number,
     );
     if (savedOnHeld) {
-      const next = sessions.find((item) => item.number === lastHeld.number + 1);
-      return next?.id ?? lastHeld.id;
+      let next = byNumber.find((item) => item.number === lastHeld.number + 1);
+      let lastAbsent = next?.attendance === "absent" ? next : undefined;
+      while (next?.attendance === "absent") {
+        lastAbsent = next;
+        next = byNumber.find((item) => item.number === next!.number + 1);
+      }
+      return next?.id ?? lastAbsent?.id ?? lastHeld.id;
     }
     return lastHeld.id;
   }
-  const current = sessions
+  const firstOpen = byNumber.find((item) => item.attendance !== "absent");
+  if (firstOpen) return firstOpen.id;
+  const current = [...sessions]
     .filter((item) => item.current)
     .sort((a, b) => b.number - a.number)[0];
   if (current) return current.id;
-  return [...sessions].sort((a, b) => a.number - b.number)[0]!.id;
+  return byNumber[0]!.id;
+}
+
+export function nextOpenTeacherSessionId<
+  T extends { id: string; number: number; attendance: string | null },
+>(sessions: T[], from: T | null | undefined): string | undefined {
+  if (!from) return undefined;
+  const byNumber = [...sessions].sort((a, b) => a.number - b.number);
+  let next = byNumber.find((item) => item.number === from.number + 1);
+  while (next?.attendance === "absent") {
+    next = byNumber.find((item) => item.number === next!.number + 1);
+  }
+  return next?.id;
 }

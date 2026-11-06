@@ -336,6 +336,11 @@ export const studioApi = {
     ),
   today: () =>
     studentHttp.requestData<StudioTodayRoster>("/studio/today"),
+  reorderToday: (courseId: string, studentIds: string[]) =>
+    studentHttp.requestData<StudioTodayRoster>("/studio/today/order", {
+      method: "PATCH",
+      body: { courseId, studentIds },
+    }),
   markTodayAttendance: (
     marks: Array<{ studentId: string; sessionId: string; status: string }>,
   ) =>

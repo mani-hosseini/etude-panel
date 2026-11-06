@@ -14,6 +14,11 @@ import {
   adminQueryKeys,
   useAdminCoursesQuery,
 } from "@/lib/api/admin-queries";
+import {
+  AdminClassDaysField,
+  courseAllowedDays,
+  resolvedEnrollDays,
+} from "@/components/admin/AdminClassDaysField";
 import { audienceError } from "@/lib/api/errors";
 import { announceSaved } from "@/lib/save-feedback";
 import { cn } from "@/lib/utils";
@@ -30,15 +35,28 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
   const [nationalId, setNationalId] = useState("");
   const [level, setLevel] = useState("1");
   const [courseSlugs, setCourseSlugs] = useState<string[]>([]);
+  const [courseDays, setCourseDays] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const courses = coursesQuery.data?.courses ?? [];
 
   const toggleCourse = (slug: string) => {
-    setCourseSlugs((current) =>
-      current.includes(slug)
-        ? current.filter((item) => item !== slug)
-        : [...current, slug],
-    );
+    const course = courses.find((item) => item.slug === slug);
+    const allowed = course ? courseAllowedDays(course) : [];
+    setCourseSlugs((current) => {
+      if (current.includes(slug)) {
+        setCourseDays((days) => {
+          const next = { ...days };
+          delete next[slug];
+          return next;
+        });
+        return current.filter((item) => item !== slug);
+      }
+      setCourseDays((days) => ({
+        ...days,
+        [slug]: allowed.length === 1 ? allowed : [],
+      }));
+      return [...current, slug];
+    });
   };
 
   const create = useMutation({
@@ -50,7 +68,12 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
         level,
       });
       for (const slug of courseSlugs) {
-        await adminApi.enrollUser(user.id, slug);
+        const course = courses.find((item) => item.slug === slug);
+        const classDays = resolvedEnrollDays(
+          course ? courseAllowedDays(course) : [],
+          courseDays[slug] ?? [],
+        );
+        await adminApi.enrollUser(user.id, slug, classDays);
       }
       return user;
     },
@@ -69,6 +92,19 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const missing = courseSlugs.find((slug) => {
+      const course = courses.find((item) => item.slug === slug);
+      return (
+        resolvedEnrollDays(
+          course ? courseAllowedDays(course) : [],
+          courseDays[slug] ?? [],
+        ).length === 0
+      );
+    });
+    if (missing) {
+      setError("برای هر دوره، روز کلاس این هنرجو را انتخاب کنید.");
+      return;
+    }
     create.mutate();
   };
 
@@ -137,28 +173,46 @@ export function AdminCreateUserForm({ onClose }: AdminCreateUserFormProps) {
           <div className="space-y-2 sm:col-span-2">
             <Label>دوره‌های شروع</Label>
             <p className="text-xs text-slate-500">
-              همین حالا هر دوره‌ای که این هنرجو باید ببیند را انتخاب کنید.
+              دوره را انتخاب کنید و اگر چند روزه است، روز کلاس این هنرجو را مشخص کنید.
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {courses.map((course) => {
                 const checked = courseSlugs.includes(course.slug);
+                const allowedDays = courseAllowedDays(course);
                 return (
-                  <button
+                  <div
                     key={course.id}
-                    type="button"
-                    onClick={() => toggleCourse(course.slug)}
                     className={cn(
-                      "rounded-xl border px-3 py-2 text-right transition",
+                      "space-y-2 rounded-xl border px-3 py-2 text-right transition",
                       checked
                         ? "border-brand bg-brand/5 text-slate-900"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
+                        : "border-slate-200 bg-white text-slate-700",
                     )}
                   >
-                    <p className="text-sm font-semibold">{course.title}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      {course.teacher} · {course.instrument}
-                    </p>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleCourse(course.slug)}
+                      className="w-full text-right"
+                    >
+                      <p className="text-sm font-semibold">{course.title}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {course.teacher} · {course.instrument}
+                      </p>
+                    </button>
+                    {checked ? (
+                      <AdminClassDaysField
+                        allowedDays={allowedDays}
+                        value={courseDays[course.slug] ?? []}
+                        disabled={create.isPending}
+                        onChange={(classDays) =>
+                          setCourseDays((current) => ({
+                            ...current,
+                            [course.slug]: classDays,
+                          }))
+                        }
+                      />
+                    ) : null}
+                  </div>
                 );
               })}
             </div>

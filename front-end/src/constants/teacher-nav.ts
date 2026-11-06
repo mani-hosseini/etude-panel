@@ -13,5 +13,12 @@ export const teacherNavItems = [
   { href: teacherRoutes.class, label: "کلاس امروز", icon: ClipboardList },
   { href: teacherRoutes.students, label: "هنرجویان", icon: Users },
   { href: teacherRoutes.schedule, label: "برنامه کلاس", icon: CalendarDays },
-  { href: teacherRoutes.profile, label: "پروفایل", icon: UserRound },
 ] as const;
+
+export const teacherProfileNav = {
+  href: teacherRoutes.profile,
+  label: "پروفایل",
+  icon: UserRound,
+} as const;
+
+export const teacherSidebarItems = [...teacherNavItems, teacherProfileNav];
