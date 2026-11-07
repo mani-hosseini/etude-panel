@@ -17,6 +17,7 @@ import type {
   PathProgress,
 } from "@/lib/api/types";
 import { decodeCourseParam } from "@/lib/slug";
+import type { SupportTicket, SupportUnitId } from "@/lib/support-tickets";
 
 export { ApiError };
 
@@ -292,4 +293,31 @@ export const api = {
     studentHttp.download(
       `/courses/${encodeURIComponent(courseSlug(courseId) ?? courseId)}/certificate/download`,
     ),
+
+  supportTickets: () =>
+    studentHttp.requestData<{ tickets: SupportTicket[] }>("/support/tickets"),
+
+  supportTicket: (id: string) =>
+    studentHttp.requestData<SupportTicket>(`/support/tickets/${id}`),
+
+  createSupportTicket: (body: {
+    unitId: SupportUnitId;
+    title: string;
+    body: string;
+  }) =>
+    studentHttp.requestData<SupportTicket>("/support/tickets", {
+      method: "POST",
+      body,
+    }),
+
+  replySupportTicket: (id: string, body: string) =>
+    studentHttp.requestData<SupportTicket>(`/support/tickets/${id}/messages`, {
+      method: "POST",
+      body: { body },
+    }),
+
+  markSupportTicketSeen: (id: string) =>
+    studentHttp.requestData<SupportTicket>(`/support/tickets/${id}/seen`, {
+      method: "POST",
+    }),
 };

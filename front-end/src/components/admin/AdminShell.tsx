@@ -16,6 +16,8 @@ import { useEffect, useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
+import { toFa } from "@/lib/format";
+import { useAdminSupportStatsQuery } from "@/lib/api/admin-queries";
 import { adminRoutes, isNavActive } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +47,10 @@ function resolveTitle(pathname: string) {
     return "CRM";
   }
   if (pathname.startsWith(adminRoutes.tasks)) return "تسک‌ها";
+  if (pathname.startsWith(adminRoutes.support)) {
+    if (pathname !== adminRoutes.support) return "تیکت پشتیبانی";
+    return "پشتیبانی";
+  }
   return (
     mobileNav.find((item) => isNavActive(pathname, item.href))?.label ??
     "صفحه اصلی"
@@ -76,6 +82,7 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
   }, [open]);
 
   const title = resolveTitle(pathname);
+  const pendingSupport = useAdminSupportStatsQuery().data?.pending ?? 0;
 
   return (
     <div dir="rtl" className="min-h-dvh bg-[#eef1f8] text-slate-900">
@@ -114,9 +121,19 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
                   </h1>
                 </div>
               </div>
-              <div className="hidden items-center gap-2 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-xs font-medium text-brand sm:flex">
-                <span className="size-1.5 rounded-full bg-brand" />
-                آنلاین
+              <div className="flex items-center gap-2">
+                {pendingSupport > 0 ? (
+                  <Link
+                    href={adminRoutes.support}
+                    className="hidden items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 ring-1 ring-amber-100 sm:flex"
+                  >
+                    {toFa(pendingSupport)} تیکت منتظر پاسخ
+                  </Link>
+                ) : null}
+                <div className="hidden items-center gap-2 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-xs font-medium text-brand sm:flex">
+                  <span className="size-1.5 rounded-full bg-brand" />
+                  آنلاین
+                </div>
               </div>
             </div>
           </header>

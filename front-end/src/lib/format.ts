@@ -128,6 +128,37 @@ export function formatDateTimeFa(value: string | null | undefined): string {
   }).format(date);
 }
 
+function minutesSince(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+}
+
+export function formatRelativeFa(value: string | null | undefined): string {
+  if (!value) return "—";
+  const min = minutesSince(value);
+  if (min == null) return "—";
+  if (min < 1) return "همین الان";
+  if (min < 60) return `${toFa(min)} دقیقه پیش`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${toFa(hour)} ساعت پیش`;
+  const day = Math.floor(hour / 24);
+  if (day === 1) return "دیروز";
+  if (day < 7) return `${toFa(day)} روز پیش`;
+  return formatDateTimeFa(value);
+}
+
+export function formatWaitFa(value: string | null | undefined): string {
+  if (!value) return "—";
+  const min = minutesSince(value);
+  if (min == null) return "—";
+  if (min < 1) return "همین الان";
+  if (min < 60) return `${toFa(min)} دقیقه در انتظار`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${toFa(hour)} ساعت در انتظار`;
+  return `${toFa(Math.floor(hour / 24))} روز در انتظار`;
+}
+
 export function hasExecutionScore(score?: number | null): boolean {
   return (score ?? 0) > 0;
 }

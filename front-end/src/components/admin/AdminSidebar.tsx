@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ListTodo,
   LogOut,
+  Headset,
   PhoneCall,
   Sparkles,
   Users,
@@ -19,6 +20,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { adminLogoutWithApi } from "@/lib/auth/admin-auth";
+import { toFa } from "@/lib/format";
+import { useAdminSupportStatsQuery } from "@/lib/api/admin-queries";
 import { adminRoutes, isNavActive, teacherRoutes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +62,12 @@ const navItems = [
     description: "کارهای CRM و ثبت در سایت",
     icon: ListTodo,
   },
+  {
+    href: adminRoutes.support,
+    label: "پشتیبانی",
+    description: "تیکت هنرجو بر اساس واحد",
+    icon: Headset,
+  },
 ] as const;
 
 type AdminSidebarProps = {
@@ -81,6 +90,7 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const pendingSupport = useAdminSupportStatsQuery().data?.pending ?? 0;
 
   const logout = () => {
     void adminLogoutWithApi().then(() => {
@@ -165,8 +175,22 @@ export function AdminSidebar({
               >
                 <Icon className="size-4" strokeWidth={1.85} />
               </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{item.label}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="block text-sm font-semibold">{item.label}</span>
+                  {item.href === adminRoutes.support && pendingSupport > 0 ? (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                        active
+                          ? "bg-white/15 text-white"
+                          : "bg-amber-50 text-amber-800",
+                      )}
+                    >
+                      {toFa(pendingSupport)}
+                    </span>
+                  ) : null}
+                </span>
                 <span
                   className={cn(
                     "block truncate text-[11px]",

@@ -47,6 +47,7 @@ export const copy = {
     sessions: "جلسات",
     exams: "آزمون‌ها",
     certificates: "مدارک",
+    support: "پشتیبانی",
     schedule: "برنامه کلاس",
     profile: "پروفایل",
     logout: "خروج",

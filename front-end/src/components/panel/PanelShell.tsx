@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { PanelSidebar } from "@/components/panel/PanelSidebar";
+import { SupportBell } from "@/components/panel/support/SupportBell";
 import { copy } from "@/constants/copy";
 import { mobileNavItems, panelNavItems } from "@/constants/panel-nav";
 import { useDashboardQuery } from "@/lib/api/queries";
@@ -78,14 +79,17 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                   <h1 className="text-lg font-bold text-navy">{title}</h1>
                 </div>
               </div>
-              {nextLesson ? (
-                <div className="hidden max-w-[min(100%,22rem)] items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
-                  <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
-                  <span className="truncate">
-                    {`جلسه بعدی: ${nextLesson.title}`}
-                  </span>
-                </div>
-              ) : null}
+              <div className="flex items-center gap-2">
+                {nextLesson ? (
+                  <div className="hidden max-w-[min(100%,18rem)] items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
+                    <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
+                    <span className="truncate">
+                      {`جلسه بعدی: ${nextLesson.title}`}
+                    </span>
+                  </div>
+                ) : null}
+                <SupportBell />
+              </div>
             </div>
           </header>
 

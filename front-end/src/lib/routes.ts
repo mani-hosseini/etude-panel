@@ -69,6 +69,10 @@ export const routes = {
   exams: "/dashboard/exams",
   exam: (id: string) => `/dashboard/exams/${id}`,
   profile: "/dashboard/profile",
+  support: "/dashboard/support",
+  supportNew: (unit?: string) =>
+    withSearch("/dashboard/support/new", { unit }),
+  supportTicket: (id: string) => `/dashboard/support/${id}`,
   login: "/login",
   register: "/login",
 } as const;
@@ -106,6 +110,8 @@ export const adminRoutes = {
   tasks: "/admin/tasks",
   taskForLead: (leadId: string) =>
     `/admin/tasks?lead=${encodeURIComponent(leadId)}`,
+  support: "/admin/support",
+  supportTicket: (id: string) => `/admin/support/${id}`,
 } as const;
 
 export function isNavActive(pathname: string, href: string): boolean {
@@ -124,6 +130,11 @@ export function isNavActive(pathname: string, href: string): boolean {
   }
   if (href === routes.courses) {
     return pathname === routes.courses;
+  }
+  if (href === routes.support) {
+    return (
+      pathname === routes.support || pathname.startsWith(`${routes.support}/`)
+    );
   }
   if (href === adminRoutes.root) {
     return pathname === adminRoutes.root;

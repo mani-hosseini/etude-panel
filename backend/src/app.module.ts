@@ -18,6 +18,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { ExamsModule } from './exams/exams.module';
 import { StudioModule } from './studio/studio.module';
 import { RegistrationModule } from './registration/registration.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { RegistrationModule } from './registration/registration.module';
     ExamsModule,
     StudioModule,
     RegistrationModule,
+    SupportModule,
     HealthModule,
   ],
   providers: [

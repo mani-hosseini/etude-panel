@@ -5,6 +5,12 @@ import type {
   LeadDraft,
   RegistrationLead,
 } from "@/lib/registration-pipeline";
+import type {
+  AdminSupportListParams,
+  AdminSupportStats,
+  SupportTicket,
+  TicketStatus,
+} from "@/lib/support-tickets";
 
 export type AdminUserEnrollment = {
   id: string;
@@ -965,6 +971,33 @@ export const adminApi = {
   deleteTask: (id: string) =>
     adminHttp.requestData<{ deleted: boolean }>(`/admin/tasks/${id}`, {
       method: "DELETE",
+    }),
+
+  supportTickets: (params: AdminSupportListParams = {}) =>
+    adminHttp.requestData<{ tickets: SupportTicket[] }>(
+      `/admin/support/tickets${qs({
+        unit: params.unit,
+        status: params.status,
+        search: params.search,
+      })}`,
+    ),
+
+  supportStats: () =>
+    adminHttp.requestData<AdminSupportStats>("/admin/support/stats"),
+
+  supportTicket: (id: string) =>
+    adminHttp.requestData<SupportTicket>(`/admin/support/tickets/${id}`),
+
+  replySupportTicket: (id: string, body: string) =>
+    adminHttp.requestData<SupportTicket>(
+      `/admin/support/tickets/${id}/messages`,
+      { method: "POST", body: { body } },
+    ),
+
+  updateSupportTicket: (id: string, status: TicketStatus) =>
+    adminHttp.requestData<SupportTicket>(`/admin/support/tickets/${id}`, {
+      method: "PATCH",
+      body: { status },
     }),
 };
 

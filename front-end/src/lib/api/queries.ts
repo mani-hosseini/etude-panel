@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { audienceError } from "@/lib/api/errors";
 import { api } from "@/lib/api/client";
 import { decodeCourseParam } from "@/lib/slug";
+import { clearLocalSupportMocks } from "@/lib/support-tickets";
 
 function courseKey(courseId?: string) {
   return decodeCourseParam(courseId) ?? courseId;
@@ -47,6 +48,8 @@ export const queryKeys = {
   assignments: ["assignments"] as const,
   practiceSeries: (range: string) => ["practice-series", range] as const,
   path: ["path"] as const,
+  supportTickets: ["support", "tickets"] as const,
+  supportTicket: (id: string) => ["support", "ticket", id] as const,
 };
 
 function queryErrorMessage(error: unknown) {
@@ -186,6 +189,29 @@ export function usePathProgressQuery() {
   return useQuery({
     queryKey: queryKeys.path,
     queryFn: () => api.pathProgress(),
+  });
+}
+
+export function useSupportTicketsQuery() {
+  return useQuery({
+    queryKey: queryKeys.supportTickets,
+    queryFn: async () => {
+      clearLocalSupportMocks();
+      const { tickets } = await api.supportTickets();
+      return tickets;
+    },
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useSupportTicketQuery(id: string) {
+  return useQuery({
+    queryKey: queryKeys.supportTicket(id),
+    queryFn: () => api.supportTicket(id),
+    enabled: Boolean(id),
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 

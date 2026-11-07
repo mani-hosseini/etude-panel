@@ -97,6 +97,7 @@ model User {
   givenStars         StudentStarRating[]         @relation("StudentStarTeacher")
   receivedStars      StudentStarRating[]         @relation("StudentStarStudent")
   practiceLogs       PracticeLog[]
+  supportTickets     SupportTicket[]
 
   @@unique([firstName, lastName])
   @@index([role])
@@ -605,4 +606,53 @@ model AdminTask {
   @@unique([leadId, kind])
   @@index([status, createdAt])
   @@index([kind, status])
+}
+
+enum SupportUnit {
+  EDUCATION
+  FINANCE
+  RECEPTION
+  TECH
+}
+
+enum SupportTicketStatus {
+  PENDING
+  REPLIED
+  CLOSED
+}
+
+enum SupportMessageAuthor {
+  STUDENT
+  STAFF
+}
+
+model SupportTicket {
+  id               String              @id @default(uuid()) @db.Uuid
+  studentId        String              @db.Uuid
+  unit             SupportUnit
+  title            String              @db.VarChar(200)
+  status           SupportTicketStatus @default(PENDING)
+  unreadForStudent Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  student  User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([studentId, updatedAt])
+  @@index([status, updatedAt])
+  @@index([unit, status])
+  @@index([unreadForStudent])
+}
+
+model SupportMessage {
+  id        String                @id @default(uuid()) @db.Uuid
+  ticketId  String                @db.Uuid
+  author    SupportMessageAuthor
+  body      String                @db.VarChar(4000)
+  createdAt DateTime              @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }

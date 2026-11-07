@@ -9,6 +9,10 @@ import {
   type ListUsersParams,
 } from "@/lib/api/admin-client";
 import { clearLocalRegistrationMocks } from "@/lib/registration-pipeline";
+import {
+  clearLocalSupportMocks,
+  type AdminSupportListParams,
+} from "@/lib/support-tickets";
 
 export const adminQueryKeys = {
   stats: ["admin", "users-stats"] as const,
@@ -29,6 +33,10 @@ export const adminQueryKeys = {
   leads: ["admin", "leads"] as const,
   lead: (id: string) => ["admin", "lead", id] as const,
   tasks: ["admin", "tasks"] as const,
+  supportTickets: (params: AdminSupportListParams = {}) =>
+    ["admin", "support", "tickets", params] as const,
+  supportTicket: (id: string) => ["admin", "support", "ticket", id] as const,
+  supportStats: ["admin", "support", "stats"] as const,
 };
 
 export function useAdminUsersStatsQuery() {
@@ -140,5 +148,37 @@ export function useAdminTasksQuery() {
       clearLocalRegistrationMocks();
       return adminApi.tasks();
     },
+  });
+}
+
+export function useAdminSupportTicketsQuery(
+  params: AdminSupportListParams = {},
+) {
+  return useQuery({
+    queryKey: adminQueryKeys.supportTickets(params),
+    queryFn: async () => {
+      clearLocalSupportMocks();
+      const { tickets } = await adminApi.supportTickets(params);
+      return tickets;
+    },
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAdminSupportTicketQuery(id: string) {
+  return useQuery({
+    queryKey: adminQueryKeys.supportTicket(id),
+    queryFn: () => adminApi.supportTicket(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAdminSupportStatsQuery() {
+  return useQuery({
+    queryKey: adminQueryKeys.supportStats,
+    queryFn: () => adminApi.supportStats(),
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
 }

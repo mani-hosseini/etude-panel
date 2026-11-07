@@ -8,7 +8,9 @@ import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { StudentLevelBadge } from "@/components/ui/student-level-badge";
 import { copy } from "@/constants/copy";
 import { panelNavItems } from "@/constants/panel-nav";
-import { useDashboardQuery } from "@/lib/api/queries";
+import { toFa } from "@/lib/format";
+import { useDashboardQuery, useSupportTicketsQuery } from "@/lib/api/queries";
+import { unreadStudentTickets } from "@/lib/support-tickets";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import { parseStudentLevel, STUDENT_LEVEL_STYLE, studentLevelEdgeGlow } from "@/lib/student-level";
 import { logoutWithApi } from "@/lib/auth";
@@ -29,6 +31,9 @@ export function PanelSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const dashboard = useDashboardQuery();
+  const unreadSupport = unreadStudentTickets(
+    useSupportTicketsQuery().data ?? [],
+  ).length;
   const avatarUrl = resolveAvatarUrl(dashboard.data?.student.avatarUrl);
   const level = parseStudentLevel(dashboard.data?.student.level);
   const levelStyle = STUDENT_LEVEL_STYLE[level];
@@ -73,7 +78,19 @@ export function PanelSidebar({
               )}
             >
               <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-              <span>{item.label}</span>
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              {item.href === routes.support && unreadSupport > 0 ? (
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                    active
+                      ? "bg-brand/10 text-brand"
+                      : "bg-white/15 text-white",
+                  )}
+                >
+                  {toFa(unreadSupport)}
+                </span>
+              ) : null}
             </Link>
           );
         })}

@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, CalendarClock, Presentation } from "lucide-react";
 
 import { LevelJourney } from "@/components/panel/LevelJourney";
+import { SupportReplyBanner } from "@/components/panel/support/SupportBell";
 import {
   AssignmentBarChart,
   PracticeAreaChart,
@@ -57,6 +58,7 @@ export function DashboardHome() {
 
   return (
     <div className="space-y-6">
+      <SupportReplyBanner />
       <motion.section
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
