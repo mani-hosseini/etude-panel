@@ -367,7 +367,10 @@ export class UsersService {
       select: userDetailSelect,
     });
 
-    if (dto.password) {
+    if (
+      dto.password ||
+      (nationalId && nationalId !== existing.nationalId && existing.role !== Role.ADMIN)
+    ) {
       await this.prisma.refreshToken.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
