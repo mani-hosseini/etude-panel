@@ -3,17 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Clock3, GripVertical, MapPin, Music2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Clock3,
+  MapPin,
+  Music2,
+} from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { audienceError } from "@/lib/api/errors";
 import { studioApi, type StudioTodayStudent } from "@/lib/api/studio";
 import { studioKeys, useStudioTodayQuery } from "@/lib/api/studio-queries";
-import { toFa } from "@/lib/format";
+import { toFa, toLatinDigits } from "@/lib/format";
 import { teacherRoutes } from "@/lib/routes";
 import { studentDisplayName } from "@/lib/teacher-studio";
-import { cn } from "@/lib/utils";
 
 type RollStudent = StudioTodayStudent;
 
@@ -25,15 +33,34 @@ function dossierHref(student: RollStudent) {
   return path.includes("?") ? `${path}&from=class` : `${path}?from=class`;
 }
 
-function moveStudent(list: RollStudent[], fromId: string, toId: string) {
-  if (fromId === toId) return list;
-  const from = list.findIndex((item) => item.id === fromId);
-  const to = list.findIndex((item) => item.id === toId);
-  if (from < 0 || to < 0) return list;
+function swapByRow(list: RollStudent[], fromRow: number, toRow: number) {
+  const from = fromRow - 1;
+  const to = toRow - 1;
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= list.length ||
+    to >= list.length
+  ) {
+    return null;
+  }
   const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item!);
+  const a = next[from]!;
+  next[from] = next[to]!;
+  next[to] = a;
   return next;
+}
+
+function moveByStep(list: RollStudent[], index: number, direction: -1 | 1) {
+  const to = index + direction;
+  if (to < 0 || to >= list.length) return list;
+  return swapByRow(list, index + 1, to + 1) ?? list;
+}
+
+function parseRow(value: string) {
+  const n = Number(toLatinDigits(value).trim());
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 export function TeacherTodayClass() {
@@ -131,7 +158,9 @@ function TodaySlot({
 }) {
   const queryClient = useQueryClient();
   const [rows, setRows] = useState(students);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [fromRow, setFromRow] = useState("");
+  const [toRow, setToRow] = useState("");
+  const [swapError, setSwapError] = useState<string | null>(null);
 
   useEffect(() => {
     setRows(students);
@@ -149,12 +178,27 @@ function TodaySlot({
     },
   });
 
-  const dropOn = (fromId: string, targetId: string) => {
-    const next = moveStudent(rows, fromId, targetId);
-    setDraggingId(null);
-    if (next === rows) return;
+  const commit = (next: RollStudent[] | null) => {
+    if (!next) return;
     setRows(next);
     reorder.mutate(next.map((item) => item.id));
+  };
+
+  const swapRows = (event: React.FormEvent) => {
+    event.preventDefault();
+    const from = parseRow(fromRow);
+    const to = parseRow(toRow);
+    if (from == null || to == null) {
+      setSwapError("هر دو ردیف را بنویسید.");
+      return;
+    }
+    const next = swapByRow(rows, from, to);
+    if (!next) {
+      setSwapError(`ردیف باید بین ۱ و ${toFa(rows.length)} باشد.`);
+      return;
+    }
+    setSwapError(null);
+    commit(next);
   };
 
   return (
@@ -185,11 +229,54 @@ function TodaySlot({
             ) : null}
             {room ? <MetaChip icon={MapPin}>{room}</MetaChip> : null}
           </div>
-          <p className="mt-4 max-w-md text-sm leading-6 text-white/55">
-            ترتیب را با دستگیره جابه‌جا کنید. برای ثبت تکلیف، روی نام بزنید.
+          <p className="mt-4 max-w-lg text-sm leading-6 text-white/55">
+            با فلش بالا و پایین جابه‌جا کنید، یا دو شماره ردیف را عوض کنید. برای
+            ثبت تکلیف روی نام بزنید.
           </p>
         </div>
       </header>
+
+      <form
+        onSubmit={swapRows}
+        className="flex flex-wrap items-end gap-2 border-b border-border bg-slate-50/80 px-3 py-3 sm:px-4"
+      >
+        <label className="min-w-24 flex-1 space-y-1 sm:flex-none">
+          <span className="block text-[11px] text-muted-foreground">از ردیف</span>
+          <Input
+            value={fromRow}
+            onChange={(event) => setFromRow(event.target.value)}
+            inputMode="numeric"
+            placeholder="۱۲"
+            className="h-10 w-full tabular-nums sm:w-24"
+          />
+        </label>
+        <label className="min-w-24 flex-1 space-y-1 sm:flex-none">
+          <span className="block text-[11px] text-muted-foreground">با ردیف</span>
+          <Input
+            value={toRow}
+            onChange={(event) => setToRow(event.target.value)}
+            inputMode="numeric"
+            placeholder="۲۰"
+            className="h-10 w-full tabular-nums sm:w-24"
+          />
+        </label>
+        <Button
+          type="submit"
+          size="sm"
+          variant="outline"
+          disabled={reorder.isPending}
+          className="h-10"
+        >
+          جابه‌جا کن
+        </Button>
+        {swapError ? (
+          <p className="w-full text-xs text-rose-600">{swapError}</p>
+        ) : (
+          <p className="w-full text-[11px] text-muted-foreground sm:w-auto sm:flex-1">
+            مثلاً ۱۲ را با ۲۰ عوض می‌کند.
+          </p>
+        )}
+      </form>
 
       <ul className="grid gap-1.5 p-2.5 sm:p-3.5">
         {rows.map((student, index) => (
@@ -197,10 +284,9 @@ function TodaySlot({
             key={student.id}
             student={student}
             index={index}
-            dragging={draggingId === student.id}
-            onDragStart={() => setDraggingId(student.id)}
-            onDragEnd={() => setDraggingId(null)}
-            onDrop={(fromId) => dropOn(fromId, student.id)}
+            pending={reorder.isPending}
+            isLast={index === rows.length - 1}
+            onMove={(direction) => commit(moveByStep(rows, index, direction))}
           />
         ))}
       </ul>
@@ -226,17 +312,15 @@ function MetaChip({
 function RollRow({
   student,
   index,
-  dragging,
-  onDragStart,
-  onDragEnd,
-  onDrop,
+  pending,
+  isLast,
+  onMove,
 }: {
   student: RollStudent;
   index: number;
-  dragging: boolean;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  onDrop: (fromId: string) => void;
+  pending: boolean;
+  isLast: boolean;
+  onMove: (direction: -1 | 1) => void;
 }) {
   const name = studentDisplayName(student);
   const homework = student.nextHomework
@@ -245,40 +329,35 @@ function RollRow({
     .join(" · ");
 
   return (
-    <li
-      onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        const fromId = event.dataTransfer.getData("text/plain");
-        if (fromId) onDrop(fromId);
-      }}
-      className={cn(dragging && "opacity-40")}
-    >
+    <li>
       <div className="group flex items-center gap-1 rounded-2xl transition hover:bg-brand-50/70 sm:gap-2">
-        <button
-          type="button"
-          draggable
-          aria-label={`جابه‌جایی ${name}`}
-          onDragStart={(event) => {
-            event.dataTransfer.setData("text/plain", student.id);
-            event.dataTransfer.effectAllowed = "move";
-            onDragStart();
-          }}
-          onDragEnd={onDragEnd}
-          className="flex size-10 shrink-0 cursor-grab items-center justify-center rounded-xl text-muted-foreground hover:bg-white hover:text-navy active:cursor-grabbing"
-        >
-          <GripVertical className="size-4" />
-        </button>
+        <span className="w-7 shrink-0 text-center font-sans text-[11px] tabular-nums text-muted-foreground/80">
+          {toFa(index + 1).padStart(2, "۰")}
+        </span>
+        <div className="flex shrink-0 flex-col">
+          <button
+            type="button"
+            aria-label={`بردن ${name} یک ردیف بالاتر`}
+            disabled={pending || index === 0}
+            onClick={() => onMove(-1)}
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-white hover:text-navy disabled:opacity-30"
+          >
+            <ArrowUp className="size-3.5" strokeWidth={2.2} />
+          </button>
+          <button
+            type="button"
+            aria-label={`بردن ${name} یک ردیف پایین‌تر`}
+            disabled={pending || isLast}
+            onClick={() => onMove(1)}
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-white hover:text-navy disabled:opacity-30"
+          >
+            <ArrowDown className="size-3.5" strokeWidth={2.2} />
+          </button>
+        </div>
         <Link
           href={dossierHref(student)}
           className="flex min-w-0 flex-1 items-center gap-3 py-3 pe-3 sm:gap-4 sm:py-3.5 sm:pe-4"
         >
-          <span className="hidden w-6 shrink-0 text-center font-sans text-[11px] tabular-nums text-muted-foreground/70 sm:block">
-            {toFa(index + 1).padStart(2, "۰")}
-          </span>
           <UserAvatar
             className="size-12 rounded-2xl"
             avatarUrl={student.avatarUrl}
