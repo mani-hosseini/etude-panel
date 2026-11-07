@@ -56,10 +56,7 @@ const userPublicSelect = {
   },
 } satisfies Prisma.UserSelect;
 
-const userDetailSelect = {
-  ...userPublicSelect,
-  passwordPlain: true,
-} satisfies Prisma.UserSelect;
+const userDetailSelect = userPublicSelect;
 
 @Injectable()
 export class UsersService {
@@ -352,14 +349,12 @@ export class UsersService {
         ...(dto.password
           ? {
               passwordHash: await argon2.hash(dto.password),
-              passwordPlain: dto.password,
             }
           : nationalId &&
               nationalId !== existing.nationalId &&
               existing.role !== Role.ADMIN
             ? {
                 passwordHash: await argon2.hash(nationalId),
-                passwordPlain: nationalId,
               }
             : {}),
         ...(dto.title !== undefined ? { title: dto.title.trim() || null } : {}),
@@ -372,7 +367,10 @@ export class UsersService {
       select: userDetailSelect,
     });
 
-    if (dto.password) {
+    if (
+      dto.password ||
+      (nationalId && nationalId !== existing.nationalId && existing.role !== Role.ADMIN)
+    ) {
       await this.prisma.refreshToken.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -391,7 +389,7 @@ export class UsersService {
     const passwordHash = await argon2.hash(dto.password);
     await this.prisma.user.update({
       where: { id },
-      data: { passwordHash, passwordPlain: dto.password },
+      data: { passwordHash },
     });
 
     await this.prisma.refreshToken.updateMany({
@@ -399,7 +397,7 @@ export class UsersService {
       data: { revokedAt: new Date() },
     });
 
-    return { reset: true, password: dto.password };
+    return { reset: true };
   }
 
   async deactivate(id: string) {
@@ -806,7 +804,6 @@ export class UsersService {
     instrument?: string | null;
     room?: string | null;
     bio?: string | null;
-    passwordPlain?: string | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -834,7 +831,6 @@ export class UsersService {
       instrument: user.instrument ?? null,
       room: user.room ?? null,
       bio: user.bio ?? null,
-      password: user.passwordPlain ?? null,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
