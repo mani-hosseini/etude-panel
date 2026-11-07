@@ -44,7 +44,7 @@ export function MusicAssistant() {
     {
       role: "assistant",
       content:
-        "سلام، دستیار موسیقی اتود هستم. فقط درباره پیانو، تمرین و تئوری می‌پرسم.",
+        "سلام به دستیار موسیقی اتود خوش آمدید.",
     },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
