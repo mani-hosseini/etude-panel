@@ -52,7 +52,7 @@ function AdminUserEditForm({
   const [phone, setPhone] = useState(user.phone ?? "");
   const [nationalId, setNationalId] = useState(user.nationalId ?? "");
   const [address, setAddress] = useState(user.address ?? "");
-  const [password, setPassword] = useState(user.password ?? "");
+  const [password, setPassword] = useState("");
   const [title, setTitle] = useState(user.title ?? "");
   const [instrument, setInstrument] = useState(user.instrument ?? "");
   const [room, setRoom] = useState(user.room ?? "");
@@ -92,7 +92,7 @@ function AdminUserEditForm({
       setActionError(null);
       setActionSuccess("اطلاعات کاربر ذخیره شد.");
       announceSaved("اطلاعات کاربر ذخیره شد.");
-      if (updated.password) setPassword(updated.password);
+      setPassword("");
       await onSaved();
     },
     onError: (err) => {
@@ -108,7 +108,7 @@ function AdminUserEditForm({
         <p className="mt-1 text-xs text-slate-500">
           {isStudent || isTeacher
             ? "نام کاربری و رمز ورود هر دو کد ملی است"
-            : "اطلاعات و رمز عبور کاربر را ببینید و تغییر دهید"}
+            : "اطلاعات کاربر را ویرایش کنید؛ رمز فعلی قابل مشاهده نیست"}
         </p>
       </div>
       <form
@@ -249,10 +249,8 @@ function AdminUserEditForm({
                 dir={isStudent || isTeacher ? "ltr" : undefined}
                 placeholder={
                   isStudent || isTeacher
-                    ? "همان کد ملی"
-                    : user.password
-                      ? "رمز فعلی نمایش داده شده — برای تغییر ویرایش کنید"
-                      : "رمز عبور جدید (حداقل ۸ کاراکتر)"
+                    ? "برای حفظ رمز فعلی خالی بگذارید"
+                    : "رمز عبور جدید (برای حفظ رمز فعلی خالی بگذارید)"
                 }
                 autoComplete="new-password"
               />
@@ -270,11 +268,9 @@ function AdminUserEditForm({
                 )}
               </Button>
             </div>
-            {!user.password ? (
-              <p className="text-[11px] text-slate-500">
-                رمز قبلی در سیستم ذخیره نشده؛ با ذخیره، رمز جدید ثبت می‌شود.
-              </p>
-            ) : null}
+            <p className="text-[11px] text-slate-500">
+              رمز فعلی به دلایل امنیتی نمایش داده نمی‌شود. برای تغییر رمز، مقدار جدید را وارد کنید.
+            </p>
           </div>
         </div>
         {actionError ? (
