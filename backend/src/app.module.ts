@@ -25,6 +25,7 @@ import { AssistantModule } from './assistant/assistant.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', 'backend/.env'],
       load: [configuration],
       validate: validateEnv,
     }),

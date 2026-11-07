@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -23,7 +24,12 @@ const GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
 ];
 
-const GAPGPT_MODELS = ['gapgpt-qwen-3.5', 'gpt-4o-mini', 'gpt-4o'];
+const GAPGPT_MODELS = ['gapgpt-qwen-3.5'];
+const GAPGPT_HOSTS = [
+  'https://api.gapapi.com/v1',
+  'https://api.gapgpt.app/v1',
+] as const;
+const PROVIDER_TIMEOUT_MS = 12_000;
 
 type GeminiPart = { text?: string };
 type GeminiContent = { role?: string; parts?: GeminiPart[] };
@@ -50,10 +56,18 @@ type OpenAiChatResponse = {
 };
 
 @Injectable()
-export class AssistantService {
+export class AssistantService implements OnModuleInit {
   private readonly logger = new Logger(AssistantService.name);
 
   constructor(private readonly config: ConfigService) {}
+
+  onModuleInit() {
+    const gapgpt = Boolean(this.config.get<string>('gapgpt.apiKey'));
+    const gemini = Boolean(this.config.get<string>('gemini.apiKey'));
+    this.logger.log(
+      `Assistant providers: GapGPT ${gapgpt ? 'configured' : 'missing'}, Gemini ${gemini ? 'configured' : 'missing'}`,
+    );
+  }
 
   async chat(dto: AssistantChatDto) {
     const history = dto.messages
@@ -86,16 +100,18 @@ export class AssistantService {
     const apiKey = this.config.get<string>('gapgpt.apiKey') ?? '';
     if (!apiKey) return null;
 
-    const baseUrl =
-      this.config.get<string>('gapgpt.baseUrl') || 'https://api.gapapi.com/v1';
-    const preferred =
+    const preferredBase =
+      this.config.get<string>('gapgpt.baseUrl') || GAPGPT_HOSTS[0];
+    const hosts = [
+      ...new Set([preferredBase.replace(/\/$/, ''), ...GAPGPT_HOSTS]),
+    ];
+    const model =
       this.config.get<string>('gapgpt.model') || GAPGPT_MODELS[0];
-    const models = [...new Set([preferred, ...GAPGPT_MODELS])];
 
-    for (const model of models) {
+    for (const host of hosts) {
       const text = await this.openaiChat({
-        name: `GapGPT ${model}`,
-        url: `${baseUrl}/chat/completions`,
+        name: `GapGPT ${model} @ ${host}`,
+        url: `${host}/chat/completions`,
         apiKey,
         model,
         history,
@@ -120,9 +136,9 @@ export class AssistantService {
       })),
     ];
     let combined = '';
-    for (let turn = 0; turn < 3; turn += 1) {
+    for (let turn = 0; turn < 2; turn += 1) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 35000);
+      const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
       try {
         const response = await fetch(opts.url, {
           method: 'POST',
@@ -190,12 +206,21 @@ export class AssistantService {
 
     for (const model of models) {
       for (const useSystem of [true, false]) {
-        const { response, payload } = await this.generateGemini(
-          apiKey,
-          model,
-          contents,
-          useSystem,
-        );
+        let generated: Awaited<ReturnType<typeof this.generateGemini>>;
+        try {
+          generated = await this.generateGemini(
+            apiKey,
+            model,
+            contents,
+            useSystem,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Gemini ${model} error ${error instanceof Error ? error.name : 'unknown'}`,
+          );
+          return null;
+        }
+        const { response, payload } = generated;
         if (response.ok) {
           if (payload.promptFeedback?.blockReason) return REFUSAL;
           const text = payload.candidates?.[0]?.content?.parts
@@ -235,16 +260,23 @@ export class AssistantService {
     if (useSystem) {
       body.system_instruction = { parts: [{ text: SYSTEM_PROMPT }] };
     }
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      },
-    );
-    const payload = (await response.json()) as GeminiResponse;
-    return { response, payload };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify(body),
+        },
+      );
+      const payload = (await response.json()) as GeminiResponse;
+      return { response, payload };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private withFoldedPrompt(contents: GeminiContents): GeminiContents {
