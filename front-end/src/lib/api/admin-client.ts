@@ -87,7 +87,6 @@ export type AdminUser = {
   phone?: string | null;
   nationalId?: string | null;
   address?: string | null;
-  password?: string | null;
   title?: string | null;
   instrument?: string | null;
   room?: string | null;
@@ -481,7 +480,7 @@ export const adminApi = {
     }),
 
   resetPassword: (id: string, password: string) =>
-    adminHttp.requestData<{ reset: boolean; password: string }>(
+    adminHttp.requestData<{ reset: boolean }>(
       `/users/${id}/reset-password`,
       { method: "POST", body: { password } },
     ),
