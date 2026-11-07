@@ -22,7 +22,7 @@ import {
   queryErrorMessage,
   useDashboardQuery,
 } from "@/lib/api/queries";
-import { resolveAvatarUrl } from "@/lib/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { toFa, cleanCourseTitle } from "@/lib/format";
 import { parseStudentLevel } from "@/lib/student-level";
 import { useStudentSession } from "@/hooks/useStudentSession";
@@ -66,14 +66,11 @@ export function DashboardHome() {
         className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
       >
         <div className="flex items-center gap-3.5">
-          <div className="size-12 overflow-hidden rounded-full border border-border bg-muted sm:size-14">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={resolveAvatarUrl(data.student.avatarUrl)}
-              alt={session.displayName}
-              className="size-full object-cover"
-            />
-          </div>
+          <UserAvatar
+            avatarUrl={data.student.avatarUrl}
+            alt={session.displayName}
+            className="size-12 sm:size-14"
+          />
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-navy sm:text-xl">
               {session.displayName} عزیز، خوش آمدید

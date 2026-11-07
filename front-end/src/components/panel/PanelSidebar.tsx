@@ -11,7 +11,7 @@ import { panelNavItems } from "@/constants/panel-nav";
 import { toFa } from "@/lib/format";
 import { useDashboardQuery, useSupportTicketsQuery } from "@/lib/api/queries";
 import { unreadStudentTickets } from "@/lib/support-tickets";
-import { resolveAvatarUrl } from "@/lib/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { parseStudentLevel, STUDENT_LEVEL_STYLE, studentLevelEdgeGlow } from "@/lib/student-level";
 import { logoutWithApi } from "@/lib/auth";
 import { isNavActive, routes } from "@/lib/routes";
@@ -34,7 +34,6 @@ export function PanelSidebar({
   const unreadSupport = unreadStudentTickets(
     useSupportTicketsQuery().data ?? [],
   ).length;
-  const avatarUrl = resolveAvatarUrl(dashboard.data?.student.avatarUrl);
   const level = parseStudentLevel(dashboard.data?.student.level);
   const levelStyle = STUDENT_LEVEL_STYLE[level];
   const glowReady = Boolean(dashboard.data);
@@ -48,7 +47,11 @@ export function PanelSidebar({
   return (
     <aside className={cn("flex h-full flex-col navy-gradient text-white", className)}>
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
-        <EtudeLogo size={48} className="rounded-full bg-white p-0.5 shadow-sm" />
+        <EtudeLogo
+          size={48}
+          priority
+          className="rounded-full bg-white p-0.5 shadow-sm"
+        />
         <div className="min-w-0">
           <p className="font-display text-lg font-bold tracking-[0.2em]">
             {copy.brand}
@@ -107,14 +110,11 @@ export function PanelSidebar({
                   : undefined
               }
             >
-              <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-bold text-brand">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={avatarUrl}
-                  alt={studentName}
-                  className="size-full object-cover"
-                />
-              </div>
+              <UserAvatar
+                avatarUrl={dashboard.data?.student.avatarUrl}
+                alt={studentName}
+                className="size-full ring-0"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] text-slate-500">هنرجو</p>

@@ -95,6 +95,26 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   UPLOAD_DIR?: string;
+
+  @IsOptional()
+  @IsString()
+  GEMINI_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  GEMINI_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  GAPGPT_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  GAPGPT_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  GAPGPT_BASE_URL?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -140,4 +160,15 @@ export default () => ({
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),
   },
   uploadDir: process.env.UPLOAD_DIR?.trim() || undefined,
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY?.trim() || '',
+    model: process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash',
+  },
+  gapgpt: {
+    apiKey: process.env.GAPGPT_API_KEY?.trim() || '',
+    model: process.env.GAPGPT_MODEL?.trim() || 'gapgpt-qwen-3.5',
+    baseUrl:
+      process.env.GAPGPT_BASE_URL?.trim().replace(/\/$/, '') ||
+      'https://api.gapapi.com/v1',
+  },
 });

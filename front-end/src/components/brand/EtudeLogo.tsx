@@ -25,6 +25,7 @@ export function EtudeLogo({
       width={size}
       height={size}
       priority={priority}
+      loading={priority ? "eager" : "lazy"}
       sizes={`${size}px`}
       className={cn(
         "select-none object-contain bg-transparent",

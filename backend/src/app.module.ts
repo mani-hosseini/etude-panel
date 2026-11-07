@@ -19,6 +19,7 @@ import { ExamsModule } from './exams/exams.module';
 import { StudioModule } from './studio/studio.module';
 import { RegistrationModule } from './registration/registration.module';
 import { SupportModule } from './support/support.module';
+import { AssistantModule } from './assistant/assistant.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { SupportModule } from './support/support.module';
     StudioModule,
     RegistrationModule,
     SupportModule,
+    AssistantModule,
     HealthModule,
   ],
   providers: [

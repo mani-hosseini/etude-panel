@@ -45,7 +45,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <EtudeLogo size={72} />
+          <EtudeLogo size={72} priority />
           <p className="text-sm text-muted-foreground">در حال بارگذاری پنل…</p>
         </div>
       </div>

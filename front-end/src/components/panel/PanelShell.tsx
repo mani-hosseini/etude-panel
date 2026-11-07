@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
+import { MusicAssistant } from "@/components/panel/MusicAssistant";
 import { PanelSidebar } from "@/components/panel/PanelSidebar";
 import { SupportBell } from "@/components/panel/support/SupportBell";
 import { copy } from "@/constants/copy";
@@ -64,7 +65,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
                   <Menu className="size-5" strokeWidth={1.75} />
                 </button>
                 <div className="flex min-w-0 items-center gap-2 lg:hidden">
-                  <EtudeLogo size={34} />
+                  <EtudeLogo size={34} priority />
                   <div className="min-w-0">
                     <p className="font-display text-xs font-bold tracking-[0.18em] text-brand">
                       {copy.brand}
@@ -124,6 +125,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
           </nav>
         </div>
       </div>
+      <MusicAssistant />
 
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">

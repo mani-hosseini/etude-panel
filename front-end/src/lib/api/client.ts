@@ -320,4 +320,12 @@ export const api = {
     studentHttp.requestData<SupportTicket>(`/support/tickets/${id}/seen`, {
       method: "POST",
     }),
+
+  assistantChat: (
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
+  ) =>
+    studentHttp.requestData<{ reply: string }>("/assistant/chat", {
+      method: "POST",
+      body: { messages },
+    }),
 };
