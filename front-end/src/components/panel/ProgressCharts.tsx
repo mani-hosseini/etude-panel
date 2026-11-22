@@ -121,29 +121,29 @@ export function PracticeAreaChart() {
   });
 
   if (query.isPending) {
-    return <Skeleton className="h-[360px] rounded-2xl" />;
+    return <Skeleton className="h-[280px] rounded-2xl sm:h-[360px]" />;
   }
 
   return (
-    <div className="flex min-h-[360px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-navy text-white shadow-lift">
-      <div className="px-5 pt-5">
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-navy text-white shadow-lift">
+      <div className="px-4 pt-4 sm:px-5 sm:pt-5">
         <h3 className="text-sm font-semibold tracking-tight">میانگین چهار محور</h3>
         <p className="mt-1 text-xs text-white/50">
           نمرهٔ هر محور در هر جلسه؛ محور بدون نمره در آن جلسه خالی می‌ماند
         </p>
       </div>
-      <div className="grid grid-cols-4 gap-2 px-5 pt-4">
+      <div className="grid grid-cols-2 gap-2 px-4 pt-3 sm:grid-cols-4 sm:px-5 sm:pt-4">
         {stats.map((track) => (
           <div
             key={track.key}
             className="rounded-xl bg-white/6 px-2 py-2 text-center ring-1 ring-white/8"
           >
-            <p className="flex items-center justify-center gap-1 text-[10px] text-white/55">
+            <p className="flex items-center justify-center gap-1 truncate text-[10px] text-white/55">
               <span
-                className="size-1.5 rounded-full"
+                className="size-1.5 shrink-0 rounded-full"
                 style={{ background: TRACK_COLORS[track.key] }}
               />
-              {track.label}
+              <span className="truncate">{track.label}</span>
             </p>
             <p className="mt-1 font-sans text-base font-semibold tabular-nums">
               {toFa(track.average)}
@@ -156,7 +156,7 @@ export function PracticeAreaChart() {
           </div>
         ))}
       </div>
-      <div className="h-[220px] w-full px-2 pb-3 pt-2">
+      <div className="h-[180px] w-full min-w-0 px-1 pb-2 pt-2 sm:h-[220px] sm:px-2 sm:pb-3">
         {data.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-xs text-white/45">
             هنوز امتیازی از استاد ثبت نشده. با اولین نمره، نمودار جلسات پر می‌شود.
@@ -229,12 +229,12 @@ export function AssignmentBarChart() {
   }));
 
   if (query.isPending) {
-    return <Skeleton className="h-[360px] rounded-2xl" />;
+    return <Skeleton className="h-[280px] rounded-2xl sm:h-[360px]" />;
   }
 
   return (
-    <div className="flex min-h-[360px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="px-5 pt-5">
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="px-4 pt-4 sm:px-5 sm:pt-5">
         <h3 className="text-sm font-semibold tracking-tight text-navy">
           امتیاز اجرا بر محور
         </h3>
@@ -242,15 +242,17 @@ export function AssignmentBarChart() {
           میانگین نمرهٔ هر محور در تمام جلسات؛ محور بدون نمره صفر می‌ماند
         </p>
       </div>
-      <div className="h-[280px] w-full px-2 pb-3">
+      <div className="h-[200px] w-full min-w-0 px-1 pb-2 sm:h-[280px] sm:px-2 sm:pb-3">
         <ChartContainer config={barConfig} className="aspect-auto h-full w-full">
-          <BarChart data={data} margin={{ left: 8, right: 8, top: 24, bottom: 0 }}>
+          <BarChart data={data} margin={{ left: 4, right: 4, top: 24, bottom: 0 }}>
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tickMargin={10}
+              tickMargin={8}
+              interval={0}
+              tick={{ fontSize: 10 }}
             />
             <YAxis
               domain={[0, 100]}

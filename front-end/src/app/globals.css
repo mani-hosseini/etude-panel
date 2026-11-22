@@ -64,14 +64,20 @@
     color-scheme: light;
     scrollbar-width: thin;
     scrollbar-color: #c2d0ff transparent;
+    overflow-x: hidden;
   }
 
   body {
-    @apply min-h-screen bg-background font-sans text-foreground;
+    @apply min-h-dvh overflow-x-hidden bg-background font-sans text-foreground;
     background-image:
       radial-gradient(ellipse 90% 50% at 100% 0%, rgba(0, 71, 255, 0.05), transparent 55%),
       radial-gradient(ellipse 70% 40% at 0% 100%, rgba(11, 26, 61, 0.04), transparent 50%);
-    background-attachment: fixed;
+  }
+
+  @media (min-width: 1024px) {
+    body {
+      background-attachment: fixed;
+    }
   }
 
   button:not(:disabled),

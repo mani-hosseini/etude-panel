@@ -29,13 +29,15 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.05 }}
     >
-      <Card className={cn("shadow-none", className)}>
-        <CardContent className="p-4">
-          <p className="font-sans text-xs text-muted-foreground">{label}</p>
-          <p className="mt-2 font-sans text-2xl font-bold tabular-nums text-navy">
+      <Card className={cn("h-full shadow-none", className)}>
+        <CardContent className="p-3 sm:p-4">
+          <p className="truncate font-sans text-[11px] text-muted-foreground sm:text-xs">
+            {label}
+          </p>
+          <p className="mt-1.5 font-sans text-xl font-bold tabular-nums text-navy sm:mt-2 sm:text-2xl">
             {toFa(value)}
           </p>
-          <p className="mt-1 font-sans text-xs text-muted-foreground">
+          <p className="mt-1 truncate font-sans text-[11px] text-muted-foreground sm:text-xs">
             {toFa(hint)}
           </p>
         </CardContent>

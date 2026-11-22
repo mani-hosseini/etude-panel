@@ -46,15 +46,15 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
     copy.nav.dashboard;
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="min-h-dvh overflow-x-hidden bg-background">
       <div className="mx-auto flex min-h-dvh max-w-360">
         <div className="sticky top-0 hidden h-dvh w-68 shrink-0 lg:block xl:w-72">
           <PanelSidebar studentName={studentName} className="h-full" />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 border-b border-border/80 bg-white/85 backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5 lg:px-8">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-8">
               <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <button
                   type="button"
@@ -94,7 +94,7 @@ export function PanelShell({ studentName, children }: PanelShellProps) {
             </div>
           </header>
 
-          <main className="flex-1 px-3 py-5 pb-24 sm:px-5 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
+          <main className="min-w-0 flex-1 px-3 py-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
             {children}
           </main>
 
