@@ -36,4 +36,27 @@ describe('session unlock', () => {
       null,
     );
   });
+
+  it('rolls homework review past consecutive absences to the last held session', () => {
+    const sessions = [
+      { id: 's3', number: 3, courseId: 'piano', attendance: 'present' },
+      { id: 's4', number: 4, courseId: 'piano', attendance: 'present' },
+      { id: 's5', number: 5, courseId: 'piano', attendance: 'absent' },
+      { id: 's6', number: 6, courseId: 'piano', attendance: null },
+      { id: 's7', number: 7, courseId: 'piano', attendance: 'absent' },
+      { id: 's8', number: 8, courseId: 'piano', attendance: null },
+    ];
+    // On session 6 after absence on 5 → review homework from session 4
+    expect(previousSessionForReview(sessions, sessions[3], 1)?.number).toBe(4);
+    // On session 8 after absences on 7 and 5 → still lands on last held (4)
+    // when 6 was never marked held; 6 is null so it is the review candidate
+    expect(previousSessionForReview(sessions, sessions[5], 1)?.number).toBe(6);
+    // Consecutive absences 5 then 6: mark 6 absent and open 7 → review 4
+    const withAbsent6 = sessions.map((item) =>
+      item.number === 6 ? { ...item, attendance: 'absent' } : item,
+    );
+    expect(
+      previousSessionForReview(withAbsent6, withAbsent6[4], 1)?.number,
+    ).toBe(4);
+  });
 });

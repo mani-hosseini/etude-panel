@@ -252,7 +252,7 @@ export function TeacherStudentDetail({
                 </h2>
                 <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
                   {showReview && reviewSession
-                    ? `تکلیف جلسه ${toFa(reviewSession.number)} را در این کلاس نمره بدهید؛ تمرین تازه روی همین جلسه ثبت می‌شود.`
+                    ? `تکلیف آخرین جلسهٔ برگزارشده (جلسه ${toFa(reviewSession.number)}) را اینجا نمره بدهید؛ غیبت‌های میانی رد می‌شوند و تمرین تازه روی همین جلسه ثبت می‌شود.`
                     : "نمره تمرین‌ها از جلسه بعد ثبت می‌شود"}
                 </p>
               </div>
