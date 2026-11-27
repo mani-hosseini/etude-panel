@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { teacherSessionStatus } from "@/lib/session-access";
 import {
   assignmentsForSession,
   nextOpenTeacherSessionId,
+  previousSessionForReview,
 } from "@/lib/teacher-studio";
 import { announceSaved } from "@/lib/save-feedback";
 import { cn } from "@/lib/utils";
@@ -586,6 +587,98 @@ export function TeacherSessionWork({
     },
   });
 
+  const repeat = useMutation({
+    mutationFn: async () => {
+      if (!session) throw new Error("جلسه‌ای انتخاب نشده");
+      const dueLabel = heldOn ? formatJalali(heldOn) : "کلاس بعد";
+      const copyFromLoadedAssignments = async () => {
+        const previous =
+          sessions.find((item) => item.id === session.reviewSessionId) ??
+          previousSessionForReview(sessions, session, term ?? 1);
+        if (!previous || previous.id === session.id) {
+          throw new Error("جلسه‌ای برای هفته گذشته پیدا نشد.");
+        }
+        const sourceTerm = session.reviewTerm ?? term;
+        const previousItems = assignmentsForSession(
+          assignments,
+          previous,
+          sourceTerm,
+        );
+        if (previousItems.length === 0) {
+          throw new Error("برای هفته گذشته تمرینی ثبت نشده است.");
+        }
+        const currentItems = assignmentsForSession(assignments, session, term);
+        const already = new Set(
+          currentItems.map(
+            (item) =>
+              `${item.category.trim()}\0${item.title.trim()}\0${item.source.trim()}`,
+          ),
+        );
+        const items = previousItems
+          .filter(
+            (item) =>
+              !already.has(
+                `${item.category.trim()}\0${item.title.trim()}\0${item.source.trim()}`,
+              ),
+          )
+          .map((item) => ({
+            category: item.category,
+            title: item.title,
+            ...(item.source.trim() ? { source: item.source } : {}),
+          }));
+        if (items.length === 0) {
+          throw new Error(
+            "تمرین‌های هفته گذشته قبلاً برای این جلسه ثبت شده‌اند.",
+          );
+        }
+        const created = await studioApi.createAssignments({
+          courseId: session.courseId,
+          sessionId: session.id,
+          studentIds: [studentId],
+          dueLabel,
+          ...(term != null ? { term } : {}),
+          items,
+        });
+        try {
+          await studioApi.confirmSession(studentId, session.id);
+        } catch {
+          /* homework already saved */
+        }
+        return created;
+      };
+      try {
+        return await studioApi.repeatPreviousAssignments(session.id, {
+          studentId,
+          dueLabel,
+          ...(term != null ? { term } : {}),
+        });
+      } catch (err) {
+        const missingRoute =
+          err instanceof ApiError &&
+          (err.status === 404 ||
+            err.status === 405 ||
+            /cannot post/i.test(err.message));
+        if (!missingRoute) throw err;
+        return copyFromLoadedAssignments();
+      }
+    },
+    onSuccess: async (result) => {
+      if (session && !isLastSession) onSessionIdChange(session.id);
+      const when = heldOn ? formatJalali(heldOn) : "این جلسه";
+      stay(
+        result.saved > 1
+          ? `${toFa(result.saved)} تمرین هفته گذشته برای ${when} ثبت شد.`
+          : `تمرین هفته گذشته برای ${when} ثبت شد.`,
+      );
+      await refresh();
+      if (isLastSession) onLastSessionSaved?.();
+    },
+    onError: (err) => {
+      setMessage(null);
+      setError(audienceError(err, "تکرار تمرین‌های هفته گذشته انجام نشد."));
+    },
+  });
+
   const remove = useMutation({
     mutationFn: (id: string) => studioApi.deleteAssignment(id),
     onSuccess: async () => {
@@ -716,6 +809,29 @@ export function TeacherSessionWork({
               : "کنار درس + بزنید تا شماره درس همان کتاب اضافه شود. + تمرین یک عنوان تازه باز می‌کند. یک‌بار ثبت کافی است."
           }
         >
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={repeat.isPending || create.isPending}
+            onClick={() => repeat.mutate()}
+          >
+            <RotateCcw className={cn("size-4", repeat.isPending && "animate-spin")} />
+            {repeat.isPending
+              ? "در حال تکرار…"
+              : "تکرار تمرین‌های هفته گذشته"}
+          </Button>
+          {error ? (
+            <p className="rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
+              {error}
+            </p>
+          ) : null}
+          {message ? (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+              {message}
+            </p>
+          ) : null}
+
           {sessionAssignments.length > 0 ? (
             <ul className="space-y-2">
               {sessionAssignments.map((item) => (

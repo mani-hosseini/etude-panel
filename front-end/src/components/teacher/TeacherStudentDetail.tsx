@@ -222,9 +222,9 @@ export function TeacherStudentDetail({
             key={`${student.id}-${selectedTerm}`}
             studentId={student.id}
             sessions={sessionList}
-            assignments={termAssignments}
+            assignments={student.assignments ?? []}
             sessionId={resolvedSessionId}
-            term={student.currentTerm != null ? selectedTerm : undefined}
+            term={selectedTerm}
             onSessionIdChange={setSessionId}
             onLastSessionSaved={() => {
               if (selectedTerm >= currentTerm) {

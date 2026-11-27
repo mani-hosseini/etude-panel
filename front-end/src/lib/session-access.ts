@@ -54,32 +54,23 @@ function toHomeworkItem(
   };
 }
 
-/** Homework for this class session, including items saved on the next locked session. */
+/** Homework saved on this class session only. */
 export function homeworkForStudentSession(
   session: Pick<CourseSession, "id" | "uuid" | "number" | "homework">,
-  sessions: CourseSession[],
+  _sessions: CourseSession[] = [],
   assignments: StudentAssignment[] = [],
   term?: number,
 ): SessionHomeworkItem[] {
-  const next = sessions.find((item) => item.number === session.number + 1);
-  const ids = new Set(
-    [session.uuid, session.id, next?.uuid, next?.id].filter(Boolean),
-  );
+  const ids = new Set([session.uuid, session.id].filter(Boolean));
   const fromSession = session.homework ?? [];
-  const fromNext =
-    next && !isSessionOpen(next) ? (next.homework ?? []) : [];
   const fromAssignments = assignments.filter((item) => {
     if (term != null && item.term != null && item.term !== term) return false;
-    if (item.sessionId && ids.has(item.sessionId)) return true;
-    if (item.sessionNumber === session.number) return true;
-    if (next && !isSessionOpen(next) && item.sessionNumber === next.number) {
-      return true;
-    }
-    return false;
+    if (item.sessionId) return ids.has(item.sessionId);
+    return item.sessionNumber === session.number;
   });
   const list: SessionHomeworkItem[] = [];
   const indexById = new Map<string, number>();
-  for (const item of [...fromSession, ...fromNext, ...fromAssignments]) {
+  for (const item of [...fromSession, ...fromAssignments]) {
     const mapped = toHomeworkItem(item);
     const existing = indexById.get(mapped.id);
     if (existing == null) {

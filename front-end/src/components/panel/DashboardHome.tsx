@@ -223,9 +223,10 @@ export function DashboardHome() {
                       visibleAssignmentDate(
                         (assignmentsQuery.data ?? []).filter(
                           (item) =>
-                            item.sessionId === currentSession.uuid ||
-                            item.sessionId === currentSession.id ||
-                            item.sessionNumber === currentSession.number,
+                            (item.sessionId
+                              ? item.sessionId === currentSession.uuid ||
+                                item.sessionId === currentSession.id
+                              : item.sessionNumber === currentSession.number),
                         ),
                       ),
                     ) ||

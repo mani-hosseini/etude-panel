@@ -31,6 +31,7 @@ import {
   CreateAssignmentsBatchDto,
   CreatePracticeLogDto,
   MarkTodayAttendanceDto,
+  RepeatPreviousAssignmentsDto,
   SaveScoresDto,
   SaveSessionWorkDto,
   UpdateAssignmentProgressDto,
@@ -763,6 +764,117 @@ export class StudioService {
       );
     }
     return { saved: assignments.length, assignments };
+  }
+
+  async repeatPreviousAssignments(
+    teacherId: string,
+    sessionId: string,
+    dto: RepeatPreviousAssignmentsDto,
+  ) {
+    const session = await this.prisma.courseSession.findFirst({
+      where: { id: sessionId, course: { teacherId } },
+      select: { id: true, number: true, courseId: true },
+    });
+    if (!session) throw new NotFoundException('این جلسه برای شما ثبت نشده است.');
+    await this.requireStudentOfTeacher(
+      teacherId,
+      dto.studentId,
+      session.courseId,
+    );
+    const term = await this.resolveStudentTerm(
+      dto.studentId,
+      session.courseId,
+      dto.term,
+    );
+    const [courseSessions, marks] = await Promise.all([
+      this.prisma.courseSession.findMany({
+        where: { courseId: session.courseId },
+        select: { id: true, number: true },
+        orderBy: { number: 'asc' },
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          courseId: session.courseId,
+          studentId: dto.studentId,
+          term,
+        },
+        select: { meetingKey: true, status: true },
+      }),
+    ]);
+    const attendanceBySession = new Map(
+      marks.map((item) => [item.meetingKey, item.status.toLowerCase()]),
+    );
+    const listed = courseSessions.map((item) => ({
+      id: item.id,
+      number: item.number,
+      courseId: session.courseId,
+      attendance: attendanceBySession.get(item.id) ?? null,
+    }));
+    const current = listed.find((item) => item.id === session.id) ?? null;
+    const previous = previousSessionForReview(listed, current, term);
+    if (!previous) {
+      throw new BadRequestException('جلسه‌ای برای هفته گذشته پیدا نشد.');
+    }
+    const wrapped = session.number === 1 && previous.number > 1 && term > 1;
+    const sourceTerm = wrapped ? term - 1 : term;
+    const [previousRows, currentRows] = await Promise.all([
+      this.prisma.practiceAssignment.findMany({
+        where: {
+          teacherId,
+          sessionId: previous.id,
+          term: sourceTerm,
+          targets: { some: { studentId: dto.studentId } },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.practiceAssignment.findMany({
+        where: {
+          teacherId,
+          sessionId: session.id,
+          term,
+          targets: { some: { studentId: dto.studentId } },
+        },
+        select: { category: true, title: true, source: true },
+      }),
+    ]);
+    if (previousRows.length === 0) {
+      throw new BadRequestException('برای هفته گذشته تمرینی ثبت نشده است.');
+    }
+    const already = new Set(
+      currentRows.map((item) =>
+        `${item.category.trim()}\0${item.title.trim()}\0${item.source.trim()}`,
+      ),
+    );
+    const items = previousRows.filter(
+      (item) =>
+        !already.has(
+          `${item.category.trim()}\0${item.title.trim()}\0${item.source.trim()}`,
+        ),
+    );
+    if (items.length === 0) {
+      throw new BadRequestException(
+        'تمرین‌های هفته گذشته قبلاً برای این جلسه ثبت شده‌اند.',
+      );
+    }
+    const created = await this.createAssignments(teacherId, {
+      courseId: session.courseId,
+      studentIds: [dto.studentId],
+      sessionId: session.id,
+      dueLabel: dto.dueLabel?.trim() || 'کلاس بعد',
+      term,
+      items: items.map((item) => ({
+        category: item.category,
+        title: item.title,
+        source: item.source,
+        note: item.note,
+      })),
+    });
+    try {
+      await this.confirmSession(teacherId, dto.studentId, session.id);
+    } catch {
+      /* homework is already saved */
+    }
+    return created;
   }
 
   async deleteAssignment(teacherId: string, id: string) {
@@ -1770,9 +1882,11 @@ export class StudioService {
       marks.map((item) => [item.meetingKey, item]),
     );
     const cursorByCourse = new Map<string, number>();
+    const homeworkOn = new Set<string>();
     for (const row of homeworkRows) {
       const session = row.assignment.session;
       if (!session) continue;
+      homeworkOn.add(`${session.courseId}:${session.number}`);
       cursorByCourse.set(
         session.courseId,
         Math.max(cursorByCourse.get(session.courseId) ?? 0, session.number),
@@ -1812,7 +1926,7 @@ export class StudioService {
           ? attendance.heldOn.toISOString().slice(0, 10)
           : null,
         current: session.number === cursor,
-        confirmed: session.number < cursor,
+        confirmed: homeworkOn.has(`${session.courseId}:${session.number}`),
       };
     });
     return mapped.map((session) => {

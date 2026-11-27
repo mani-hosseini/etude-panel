@@ -285,6 +285,17 @@ export const studioApi = {
       method: "POST",
       body,
     }),
+  repeatPreviousAssignments: (
+    sessionId: string,
+    body: { studentId: string; term?: number; dueLabel?: string },
+  ) =>
+    studentHttp.requestData<{
+      saved: number;
+      assignments: StudioAssignment[];
+    }>(`/studio/sessions/${sessionId}/repeat-previous`, {
+      method: "POST",
+      body,
+    }),
   createAssignments: (body: {
     courseId?: string;
     studentIds?: string[];

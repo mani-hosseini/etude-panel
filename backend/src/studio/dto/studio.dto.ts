@@ -294,6 +294,25 @@ export class SaveSessionWorkDto {
   homeworkNote?: string;
 }
 
+export class RepeatPreviousAssignmentsDto {
+  @ApiProperty({ description: 'هنرجویی که تمرین هفته گذشته برایش تکرار می‌شود' })
+  @IsUUID()
+  studentId!: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'شماره ترم هنرجو' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  term?: number;
+
+  @ApiPropertyOptional({ example: '۲۷ آذر ۱۴۰۵' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  dueLabel?: string;
+}
+
 export class TodayAttendanceMarkDto {
   @ApiProperty()
   @IsUUID()

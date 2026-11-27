@@ -98,10 +98,8 @@ export function SessionPracticeBoard({
   const query = useAssignmentsQuery();
   const items = (query.data ?? []).filter((item) => {
     if (term != null && item.term != null && item.term !== term) return false;
-    return (
-      (sessionUuid && item.sessionId === sessionUuid) ||
-      item.sessionNumber === sessionNumber
-    );
+    if (item.sessionId) return Boolean(sessionUuid && item.sessionId === sessionUuid);
+    return item.sessionNumber === sessionNumber;
   });
 
   if (query.isPending) return null;

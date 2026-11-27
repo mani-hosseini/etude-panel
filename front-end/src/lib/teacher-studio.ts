@@ -78,9 +78,7 @@ export function assignmentsForSession<
   if (!session) return [];
   return assignments.filter((item) => {
     if (term != null && item.term != null && item.term !== term) return false;
-    if (item.sessionId && item.sessionId === session.id) {
-      return term == null || item.term == null || item.term === term;
-    }
+    if (item.sessionId) return item.sessionId === session.id;
     if (item.sessionNumber !== session.number) return false;
     if (!item.classId || !session.courseId) return true;
     return item.classId === session.courseId;
@@ -105,8 +103,9 @@ export function defaultTeacherSessionId(
   if (lastHeld) {
     const savedOnHeld = assignments.some(
       (item) =>
-        item.sessionId === lastHeld.id ||
-        item.sessionNumber === lastHeld.number,
+        item.sessionId
+          ? item.sessionId === lastHeld.id
+          : item.sessionNumber === lastHeld.number,
     );
     if (savedOnHeld) {
       let next = byNumber.find((item) => item.number === lastHeld.number + 1);

@@ -22,6 +22,7 @@ import {
   CreateAssignmentsBatchDto,
   MarkTodayAttendanceDto,
   ReorderTodayRosterDto,
+  RepeatPreviousAssignmentsDto,
   SaveScoresDto,
   SaveSessionWorkDto,
   UpdateAssignmentProgressDto,
@@ -199,6 +200,18 @@ export class StudioController {
     @Body() dto: UpsertAttendanceDto,
   ) {
     return this.studio.upsertAttendance(user.id, dto);
+  }
+
+  @Post('sessions/:sessionId/repeat-previous')
+  @ApiOperation({
+    summary: 'تکرار تمرین‌های هفته گذشته برای همین جلسه',
+  })
+  repeatPreviousAssignments(
+    @CurrentUser() user: AuthUser,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Body() dto: RepeatPreviousAssignmentsDto,
+  ) {
+    return this.studio.repeatPreviousAssignments(user.id, sessionId, dto);
   }
 
   @Put('sessions/:sessionId/work')

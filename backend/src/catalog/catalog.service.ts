@@ -1509,69 +1509,30 @@ export class CatalogService {
       }>
     >();
     if (sessionIds.length === 0) return result;
-    const requested = await this.prisma.courseSession.findMany({
-      where: { id: { in: sessionIds } },
-      select: { id: true, number: true, courseId: true },
+    const rows = await this.prisma.practiceAssignmentTarget.findMany({
+      where: {
+        studentId: userId,
+        assignment: { sessionId: { in: sessionIds }, term },
+      },
+      include: {
+        assignment: {
+          select: {
+            sessionId: true,
+            category: true,
+            title: true,
+            source: true,
+            note: true,
+            dueLabel: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { assignment: { createdAt: 'asc' } },
     });
-    const nextSessions = requested.length
-      ? await this.prisma.courseSession.findMany({
-          where: {
-            OR: requested.map((item) => ({
-              courseId: item.courseId,
-              number: item.number + 1,
-            })),
-          },
-          select: { id: true, number: true, courseId: true },
-        })
-      : [];
-    const lookupIds = [
-      ...new Set([...sessionIds, ...nextSessions.map((item) => item.id)]),
-    ];
-    const [rows, marks] = await Promise.all([
-      this.prisma.practiceAssignmentTarget.findMany({
-        where: {
-          studentId: userId,
-          assignment: { sessionId: { in: lookupIds }, term },
-        },
-        include: {
-          assignment: {
-            select: {
-              sessionId: true,
-              category: true,
-              title: true,
-              source: true,
-              note: true,
-              dueLabel: true,
-              createdAt: true,
-            },
-          },
-        },
-        orderBy: { assignment: { createdAt: 'asc' } },
-      }),
-      this.prisma.attendanceRecord.findMany({
-        where: { studentId: userId, meetingKey: { in: lookupIds }, term },
-      }),
-    ]);
-    const held = new Set(
-      marks.filter((item) => classWasHeld(item.status)).map((item) => item.meetingKey),
-    );
-    const previousId = new Map<string, string>();
-    for (const next of nextSessions) {
-      const prev = requested.find(
-        (item) =>
-          item.courseId === next.courseId && item.number === next.number - 1,
-      );
-      if (prev) previousId.set(next.id, prev.id);
-    }
     for (const row of rows) {
       const storedId = row.assignment.sessionId;
-      if (!storedId) continue;
-      const displayId =
-        held.has(storedId) || !previousId.has(storedId)
-          ? storedId
-          : previousId.get(storedId)!;
-      if (!sessionIds.includes(displayId)) continue;
-      const list = result.get(displayId) ?? [];
+      if (!storedId || !sessionIds.includes(storedId)) continue;
+      const list = result.get(storedId) ?? [];
       list.push({
         id: row.id,
         category: row.assignment.category,
@@ -1582,7 +1543,7 @@ export class CatalogService {
         dueLabel: row.assignment.dueLabel,
         registeredOn: tehranIsoDate(row.assignment.createdAt),
       });
-      result.set(displayId, list);
+      result.set(storedId, list);
     }
     return result;
   }
