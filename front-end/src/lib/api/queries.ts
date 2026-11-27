@@ -60,6 +60,7 @@ export function useDashboardQuery() {
   return useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: () => api.dashboard(),
+    staleTime: 120_000,
   });
 }
 

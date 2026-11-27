@@ -1,7 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "motion/react";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { toFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -18,30 +14,21 @@ export function StatCard({
   label,
   value,
   hint,
-  index = 0,
   className,
 }: StatCardProps) {
-  const reduceMotion = useReducedMotion();
-
   return (
-    <motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.05 }}
-    >
-      <Card className={cn("h-full shadow-none", className)}>
-        <CardContent className="p-3 sm:p-4">
-          <p className="truncate font-sans text-[11px] text-muted-foreground sm:text-xs">
-            {label}
-          </p>
-          <p className="mt-1.5 font-sans text-xl font-bold tabular-nums text-navy sm:mt-2 sm:text-2xl">
-            {toFa(value)}
-          </p>
-          <p className="mt-1 truncate font-sans text-[11px] text-muted-foreground sm:text-xs">
-            {toFa(hint)}
-          </p>
-        </CardContent>
-      </Card>
-    </motion.div>
+    <Card className={cn("h-full shadow-none", className)}>
+      <CardContent className="p-3 sm:p-4">
+        <p className="truncate font-sans text-[11px] text-muted-foreground sm:text-xs">
+          {label}
+        </p>
+        <p className="mt-1.5 font-sans text-xl font-bold tabular-nums text-navy sm:mt-2 sm:text-2xl">
+          {toFa(value)}
+        </p>
+        <p className="mt-1 truncate font-sans text-[11px] text-muted-foreground sm:text-xs">
+          {toFa(hint)}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

@@ -23,6 +23,7 @@ import { audienceError } from "@/lib/api/errors";
 import { type StudioAssignment } from "@/lib/api/studio";
 import { useStudioStudentQuery } from "@/lib/api/studio-queries";
 import { formatDays, toFa } from "@/lib/format";
+import { classDateLabel } from "@/lib/jalali";
 import {
   PATH_TRACKS,
   averageTracksFromItems,
@@ -243,7 +244,7 @@ export function TeacherStudentDetail({
               <div>
                 <h2 className="text-sm font-semibold text-navy">
                   {showReview && reviewSession
-                    ? `امتیاز تمرین جلسه ${toFa(reviewSession.number)}${
+                    ? `امتیاز تمرین ${classDateLabel(reviewSession.heldOn)}${
                         reviewTerm !== selectedTerm
                           ? ` ترم ${toFa(reviewTerm)}`
                           : ""
@@ -252,7 +253,7 @@ export function TeacherStudentDetail({
                 </h2>
                 <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
                   {showReview && reviewSession
-                    ? `تکلیف آخرین جلسهٔ برگزارشده (جلسه ${toFa(reviewSession.number)}) را اینجا نمره بدهید؛ غیبت‌های میانی رد می‌شوند و تمرین تازه روی همین جلسه ثبت می‌شود.`
+                    ? `تکلیف کلاس ${classDateLabel(reviewSession.heldOn)} را اینجا نمره بدهید؛ غیبت‌های میانی رد می‌شوند و تمرین تازه روی همین کلاس ثبت می‌شود.`
                     : "نمره تمرین‌ها از جلسه بعد ثبت می‌شود"}
                 </p>
               </div>

@@ -203,6 +203,7 @@ model CourseSession {
 
   @@unique([courseId, number])
   @@index([status])
+  @@index([courseId, status, number])
 }
 
 model SessionAttachment {
@@ -440,6 +441,7 @@ model AttendanceRecord {
   term       Int              @default(1)
   status     AttendanceStatus
   markedById String           @db.Uuid
+  heldOn     DateTime?        @db.Date
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
@@ -450,6 +452,7 @@ model AttendanceRecord {
   @@unique([courseId, studentId, meetingKey, term])
   @@index([courseId, meetingKey])
   @@index([studentId])
+  @@index([studentId, meetingKey])
 }
 
 model TeacherNote {
@@ -624,6 +627,18 @@ enum SupportMessageAuthor {
   STAFF
 }
 
+enum CalendarOccasionKind {
+  NATIONAL
+  RELIGIOUS
+  OFFICIAL
+}
+
+enum CalendarCoverage {
+  UNKNOWN
+  HOLIDAYS
+  COMPLETE
+}
+
 model SupportTicket {
   id               String              @id @default(uuid()) @db.Uuid
   studentId        String              @db.Uuid
@@ -641,6 +656,33 @@ model SupportTicket {
   @@index([status, updatedAt])
   @@index([unit, status])
   @@index([unreadForStudent])
+}
+
+/// Official Iranian calendar occasions. Religious dates are stored only
+/// when imported from the Geophysics Institute calendar, never estimated.
+model CalendarYearRecord {
+  year      Int                @id
+  coverage  CalendarCoverage   @default(UNKNOWN)
+  source    String             @db.VarChar(300)
+  updatedAt DateTime           @updatedAt
+}
+
+model CalendarOccasion {
+  id                String               @id @default(uuid()) @db.Uuid
+  gregorianDate     DateTime             @db.Date
+  jalaliYear        Int
+  jalaliMonth       Int
+  jalaliDay         Int
+  title             String               @db.VarChar(300)
+  kind              CalendarOccasionKind
+  isOfficialHoliday Boolean              @default(false)
+  source            String               @db.VarChar(300)
+  updatedAt         DateTime             @updatedAt
+  createdAt         DateTime             @default(now())
+
+  @@unique([gregorianDate, title])
+  @@index([jalaliYear, jalaliMonth, jalaliDay])
+  @@index([jalaliYear])
 }
 
 model SupportMessage {

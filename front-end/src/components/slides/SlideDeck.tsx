@@ -9,6 +9,12 @@ import { DeckNavArrow } from "@/components/slides/DeckNavArrow";
 import { useDeck } from "@/components/slides/useDeck";
 import { useSlideProgressSync } from "@/hooks/useSlideProgressSync";
 import { executionScoreLabel, toFa } from "@/lib/format";
+import {
+  assignmentDateText,
+  formatJalali,
+  sharedRegisteredOn,
+  visibleAssignmentDate,
+} from "@/lib/jalali";
 import type { SessionHomeworkItem } from "@/lib/api/types";
 import { slides as defaultSlides, type Slide } from "@/lib/session-1-slides";
 import { cn } from "@/lib/utils";
@@ -63,6 +69,11 @@ export function SlideDeck({
   homework = [],
   absent = false,
 }: SlideDeckProps) {
+  const registeredOn =
+    sharedRegisteredOn(homework) || visibleAssignmentDate(homework);
+  const registeredPhrase = registeredOn
+    ? `ثبت شده در ${formatJalali(registeredOn) || registeredOn}`
+    : null;
   const total = slides.length;
   const { index, direction, next, prev, goTo } = useDeck(total, true, {
     capturePageKeys: mode === "fullscreen",
@@ -103,7 +114,9 @@ export function SlideDeck({
           <div className="relative w-full max-w-3xl py-8 text-right">
             <div className="mb-4 flex items-center justify-between gap-3 px-1">
               <p className="text-[11px] font-medium tracking-wide text-brand-300">
-                تکلیف این جلسه · {toFa(homework.length)} مورد
+                تکلیف این جلسه
+                {registeredPhrase ? ` · ${registeredPhrase}` : ""} ·{" "}
+                {toFa(homework.length)} مورد
               </p>
               <span className="flex size-10 items-center justify-center rounded-2xl bg-brand/25 ring-1 ring-brand/40">
                 <NotebookPen className="size-4 text-white" />
@@ -123,6 +136,11 @@ export function SlideDeck({
                       {item.category}
                     </span>
                   </div>
+                  {assignmentDateText(item) ? (
+                    <p className="mt-2 text-xs text-white/70">
+                      ثبت شده در {assignmentDateText(item)}
+                    </p>
+                  ) : null}
                   {item.source ? (
                     <p className="mt-2 text-xs text-white/60">{item.source}</p>
                   ) : null}

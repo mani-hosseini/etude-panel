@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/studio";
 import { studioKeys } from "@/lib/api/studio-queries";
 import { toFa } from "@/lib/format";
+import { classDateLabel } from "@/lib/jalali";
 import { PATH_TRACKS, TRACK_CATEGORY_MAP } from "@/lib/piano-path";
 import { announceSaved } from "@/lib/save-feedback";
 import {
@@ -142,7 +143,7 @@ export function TeacherSessionScores({
   if (scorableCount === 0) {
     return (
       <p className="text-xs leading-6 text-muted-foreground">
-        هنوز تکلیفی برای جلسه {toFa(reviewSession.number)} ثبت نشده تا نمره
+        هنوز تکلیفی برای {classDateLabel(reviewSession.heldOn)} ثبت نشده تا نمره
         بگیرد.
       </p>
     );

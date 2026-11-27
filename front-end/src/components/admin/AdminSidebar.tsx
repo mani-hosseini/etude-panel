@@ -9,8 +9,10 @@ import {
   LayoutDashboard,
   ListTodo,
   LogOut,
+  CalendarDays,
   Headset,
   PhoneCall,
+  ScrollText,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -49,6 +51,18 @@ const navItems = [
     label: "کاربران",
     description: "هنرجو، استاد و دسترسی",
     icon: Users,
+  },
+  {
+    href: adminRoutes.logs,
+    label: "لاگ",
+    description: "درس‌های ثبت‌شده هر استاد",
+    icon: ScrollText,
+  },
+  {
+    href: adminRoutes.calendar,
+    label: "تقویم",
+    description: "ساعت تهران، مناسبت و تعطیلی",
+    icon: CalendarDays,
   },
   {
     href: adminRoutes.registrations,
@@ -156,7 +170,7 @@ export function AdminSidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all",
+                "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-[background-color,color,box-shadow,transform] duration-200 ease-out active:scale-[0.98]",
                 active
                   ? "bg-slate-900 text-white shadow-[0_12px_30px_-18px_rgba(15,23,42,0.8)]"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
@@ -167,9 +181,9 @@ export function AdminSidebar({
               ) : null}
               <span
                 className={cn(
-                  "flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                  "flex size-9 shrink-0 items-center justify-center rounded-xl transition-[background-color,color,transform] duration-200",
                   active
-                    ? "bg-white/10 text-white"
+                    ? "scale-105 bg-white/10 text-white"
                     : "bg-slate-100 text-slate-500 group-hover:bg-brand/10 group-hover:text-brand",
                 )}
               >

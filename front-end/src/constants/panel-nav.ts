@@ -4,6 +4,7 @@ import {
   Award,
   BookOpen,
   ClipboardCheck,
+  CalendarDays,
   Headset,
   LayoutDashboard,
   Route,
@@ -19,6 +20,7 @@ export const panelNavItems = [
   { href: routes.courses, label: copy.nav.courses, icon: BookOpen },
   { href: routes.exams, label: copy.nav.exams, icon: ClipboardCheck },
   { href: routes.certificates, label: copy.nav.certificates, icon: Award },
+  { href: routes.calendar, label: "تقویم", icon: CalendarDays },
   { href: routes.support, label: copy.nav.support, icon: Headset },
   { href: routes.profile, label: copy.nav.profile, icon: UserRound },
 ] as const;

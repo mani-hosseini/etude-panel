@@ -22,6 +22,7 @@ export function useStudioOverviewQuery() {
   return useQuery({
     queryKey: studioKeys.overview,
     queryFn: () => studioApi.overview(),
+    staleTime: 120_000,
   });
 }
 

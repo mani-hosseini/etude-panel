@@ -25,6 +25,8 @@ export function RemoteImg({ src, alt, className, fallback }: RemoteImgProps) {
       src={src}
       alt={alt}
       className={className}
+      decoding="async"
+      loading="lazy"
       onError={() => setFailed(true)}
     />
   );

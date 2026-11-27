@@ -13,6 +13,12 @@ import {
 } from "@/lib/api/queries";
 import type { StudentAssignment } from "@/lib/api/types";
 import { executionScoreLabel, toFa } from "@/lib/format";
+import {
+  assignmentDateText,
+  assignmentsRegisteredPhrase,
+  classDateLabel,
+  visibleAssignmentDate,
+} from "@/lib/jalali";
 import { announceSaved } from "@/lib/save-feedback";
 
 function useAssignmentProgress() {
@@ -46,11 +52,11 @@ export function AssignmentProgressCard({ item }: { item: StudentAssignment }) {
           </h4>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {item.term ? `ترم ${toFa(item.term)}` : ""}
-            {item.term && item.sessionNumber ? " · " : ""}
-            {item.sessionNumber
-              ? `جلسه ${toFa(item.sessionNumber)}`
-              : item.source}
-            {item.sessionNumber && item.source ? ` · ${item.source}` : ""}
+            {item.term ? " · " : ""}
+            {assignmentDateText(item)
+              ? `ثبت شده در ${assignmentDateText(item)}`
+              : classDateLabel(item.sessionHeldOn)}
+            {item.source ? ` · ${item.source}` : ""}
           </p>
           {item.note ? (
             <p className="mt-1 text-xs leading-6 text-muted-foreground">
@@ -108,7 +114,10 @@ export function SessionPracticeBoard({
           <p className="text-[11px] font-medium tracking-wide text-brand">
             تکلیف این جلسه
           </p>
-          <CardTitle className="mt-1">تمرین جلسه {toFa(sessionNumber)}</CardTitle>
+          <CardTitle className="mt-1">
+            {assignmentsRegisteredPhrase(visibleAssignmentDate(items)) ??
+              `تمرین ${classDateLabel(items[0]?.sessionHeldOn)}`}
+          </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             محور و تمرین این جلسه؛ نمره بعد از اجرا در کلاس ثبت می‌شود
           </p>
@@ -126,6 +135,11 @@ export function SessionPracticeBoard({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-navy">{item.title}</p>
+                {assignmentDateText(item) ? (
+                  <p className="mt-1 text-xs text-brand">
+                    ثبت شده در {assignmentDateText(item)}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs text-muted-foreground">
                   {item.source || item.note || "تمرین جلسه"}
                 </p>
@@ -177,8 +191,7 @@ export function RecentPracticeAverage() {
           </p>
           <CardTitle className="mt-1">میانگین دو جلسه اخیر</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            درصد تکالیف جلسه {toFa(lastTwo[0] ?? 1)}
-            {lastTwo[1] ? ` و ${toFa(lastTwo[1])}` : ""}
+            درصد تکالیف دو کلاس اخیر
           </p>
         </div>
         <p className="font-sans text-2xl font-semibold tabular-nums text-navy">
@@ -196,7 +209,10 @@ export function RecentPracticeAverage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium text-muted-foreground">
-                    جلسه {toFa(row.number)}
+                    {classDateLabel(
+                      items.find((item) => item.sessionNumber === row.number)
+                        ?.sessionHeldOn,
+                    )}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-navy">
                     {row.count > 0

@@ -1,15 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import dynamic from "next/dynamic";
 import { ArrowLeft, CalendarClock, Presentation } from "lucide-react";
 
 import { LevelJourney } from "@/components/panel/LevelJourney";
 import { SupportReplyBanner } from "@/components/panel/support/SupportBell";
-import {
-  AssignmentBarChart,
-  PracticeAreaChart,
-} from "@/components/panel/ProgressCharts";
 import { StatCard } from "@/components/panel/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,19 +16,41 @@ import { StarRating } from "@/components/ui/star-rating";
 import { copy } from "@/constants/copy";
 import {
   queryErrorMessage,
+  useAssignmentsQuery,
   useDashboardQuery,
 } from "@/lib/api/queries";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { toFa, cleanCourseTitle } from "@/lib/format";
+import {
+  assignmentsRegisteredPhrase,
+  classDateLabel,
+  visibleAssignmentDate,
+} from "@/lib/jalali";
 import { parseStudentLevel } from "@/lib/student-level";
 import { useStudentSession } from "@/hooks/useStudentSession";
 import { routes } from "@/lib/routes";
 import { isSessionOpen } from "@/lib/session-access";
 
+const PracticeAreaChart = dynamic(
+  () =>
+    import("@/components/panel/ProgressCharts").then(
+      (mod) => mod.PracticeAreaChart,
+    ),
+  { loading: () => <Skeleton className="h-[280px] rounded-2xl sm:h-[360px]" /> },
+);
+
+const AssignmentBarChart = dynamic(
+  () =>
+    import("@/components/panel/ProgressCharts").then(
+      (mod) => mod.AssignmentBarChart,
+    ),
+  { loading: () => <Skeleton className="h-[280px] rounded-2xl sm:h-[360px]" /> },
+);
+
 export function DashboardHome() {
-  const reduceMotion = useReducedMotion();
   const session = useStudentSession();
   const query = useDashboardQuery();
+  const assignmentsQuery = useAssignmentsQuery();
 
   if (query.isPending) {
     return (
@@ -59,12 +77,7 @@ export function DashboardHome() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <SupportReplyBanner />
-      <motion.section
-        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-5"
-      >
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-5">
         <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
           <UserAvatar
             avatarUrl={data.student.avatarUrl}
@@ -104,9 +117,9 @@ export function DashboardHome() {
             ) : null}
           </div>
         ) : null}
-      </motion.section>
+      </section>
 
-      <section className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+      <section className="rise-list grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         {data.stats.map((stat, index) => (
           <StatCard
             key={stat.id}
@@ -205,7 +218,20 @@ export function DashboardHome() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-navy">
-                  جلسه {toFa(currentSession.number)} · {currentSession.title}
+                  {assignmentsRegisteredPhrase(currentSession.registeredOn) ||
+                    assignmentsRegisteredPhrase(
+                      visibleAssignmentDate(
+                        (assignmentsQuery.data ?? []).filter(
+                          (item) =>
+                            item.sessionId === currentSession.uuid ||
+                            item.sessionId === currentSession.id ||
+                            item.sessionNumber === currentSession.number,
+                        ),
+                      ),
+                    ) ||
+                    currentSession.sessionDate ||
+                    classDateLabel(currentSession.heldOn)}
+                  {currentSession.title ? ` · ${currentSession.title}` : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {toFa(data.slideCount)} اسلاید

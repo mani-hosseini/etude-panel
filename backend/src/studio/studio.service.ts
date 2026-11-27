@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AttendanceStatus, Role } from '@prisma/client';
+import { formatIsoAsJalali, tehranIsoDate } from '../calendar/calendar.engine';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeStudentLevel } from '../common/utils/mappers';
 import { courseIdentityWhere } from '../common/utils/slug';
@@ -75,14 +76,19 @@ export class StudioService {
   constructor(private readonly prisma: PrismaService) {}
 
   async overview(teacherId: string) {
-    const [profile, classes, students, assignments, attendanceAvg] =
-      await Promise.all([
-        this.profile(teacherId),
-        this.listClasses(teacherId),
-        this.listStudents(teacherId),
-        this.listAssignments(teacherId),
-        this.averageAttendance(teacherId),
-      ]);
+    const [profile, classes, students, assignments] = await Promise.all([
+      this.profile(teacherId),
+      this.listClasses(teacherId),
+      this.listStudents(teacherId),
+      this.listAssignments(teacherId),
+    ]);
+    const attendanceAvg =
+      students.length === 0
+        ? 100
+        : Math.round(
+            students.reduce((sum, item) => sum + item.attendanceRate, 0) /
+              students.length,
+          );
     const classSlots = this.expandClasses(classes);
 
     return {
@@ -104,6 +110,19 @@ export class StudioService {
   async profile(teacherId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: teacherId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        displayName: true,
+        role: true,
+        title: true,
+        instrument: true,
+        room: true,
+        bio: true,
+        phone: true,
+        createdAt: true,
+      },
     });
     if (!user || user.role !== Role.TEACHER) {
       throw new NotFoundException('استاد یافت نشد.');
@@ -156,8 +175,27 @@ export class StudioService {
     const enrollments = await this.prisma.enrollment.findMany({
       where: { course: { teacherId }, user: { role: Role.STUDENT } },
       include: {
-        user: true,
-        course: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            level: true,
+            phone: true,
+            avatarUrl: true,
+            updatedAt: true,
+          },
+        },
+        course: {
+          select: {
+            slug: true,
+            title: true,
+            day: true,
+            days: true,
+            timeShort: true,
+          },
+        },
       },
       orderBy: [{ sortOrder: 'asc' }, { joinedAt: 'asc' }],
     });
@@ -194,7 +232,30 @@ export class StudioService {
         course: { teacherId },
         user: { role: Role.STUDENT },
       },
-      include: { user: true, course: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            level: true,
+            phone: true,
+            avatarUrl: true,
+            updatedAt: true,
+          },
+        },
+        course: {
+          select: {
+            slug: true,
+            title: true,
+            day: true,
+            days: true,
+            timeShort: true,
+            sessionsTotal: true,
+          },
+        },
+      },
     });
     if (!enrollment) {
       throw new NotFoundException('این هنرجو در کلاس‌های شما نیست.');
@@ -426,9 +487,12 @@ export class StudioService {
             markByKey,
             cursorByStudentCourse,
           );
-          const attendance = work
-            ? markByKey.get(`${student.id}:${work.id}`)?.status.toLowerCase() ??
-              null
+          const mark = work
+            ? markByKey.get(`${student.id}:${work.id}`)
+            : undefined;
+          const attendance = mark?.status.toLowerCase() ?? null;
+          const sessionHeldOn = mark?.heldOn
+            ? mark.heldOn.toISOString().slice(0, 10)
             : null;
           const next = work
             ? courseSessions.find((item) => item.number === work.number + 1)
@@ -454,6 +518,8 @@ export class StudioService {
             avatarUrl: student.avatarUrl ?? null,
             sessionId: work?.id ?? null,
             sessionNumber: work?.number ?? null,
+            sessionHeldOn,
+            sessionDate: formatIsoAsJalali(sessionHeldOn),
             sessionTitle: work?.title ?? '',
             attendance,
             nextSessionNumber: next?.number ?? null,
@@ -573,15 +639,9 @@ export class StudioService {
       course?.id ?? null,
       dto.studentIds,
     );
-    const termByStudent = new Map<string, number>();
-    if (course) {
-      for (const studentId of studentIds) {
-        termByStudent.set(
-          studentId,
-          await this.resolveStudentTerm(studentId, course.id, dto.term),
-        );
-      }
-    }
+    const termByStudent = course
+      ? await this.resolveStudentTerms(studentIds, course.id, dto.term)
+      : new Map<string, number>();
     if (classSession && studentIds.length > 0) {
       const absent = await this.prisma.attendanceRecord.findMany({
         where: {
@@ -626,9 +686,7 @@ export class StudioService {
           ? ''
           : joinAssignmentSource(dto.source, dto.sources),
         note: dto.note?.trim() ?? '',
-        dueLabel:
-          dto.dueLabel?.trim() ||
-          (homeworkSession ? `جلسه ${homeworkSession.number}` : 'کلاس بعد'),
+        dueLabel: dto.dueLabel?.trim() || 'کلاس بعد',
         targets: {
           create: studentIds.map((studentId) => ({
             studentId,
@@ -755,7 +813,9 @@ export class StudioService {
         id: session.id,
         courseId: session.course.slug,
         sessionNumber: session.number,
-        label: `جلسه ${session.number} · ${session.course.title}`,
+        label: session.title
+          ? `${session.title} · ${session.course.title}`
+          : session.course.title,
         day: session.course.day,
         title: session.title || session.course.title,
         start: time.start,
@@ -815,6 +875,12 @@ export class StudioService {
           'برای ثبت حضور باید هنرجو مشخص باشد.',
         );
       }
+      const held = classWasHeld(dto.attendance);
+      if (held && !dto.heldOn) {
+        throw new BadRequestException('تاریخ برگزاری جلسه را وارد کنید.');
+      }
+      const heldOn =
+        held && dto.heldOn ? this.parseHeldOn(dto.heldOn) : null;
       await this.prisma.attendanceRecord.upsert({
         where: {
           courseId_studentId_meetingKey_term: {
@@ -831,8 +897,13 @@ export class StudioService {
           term,
           status: dto.attendance,
           markedById: teacherId,
+          heldOn,
         },
-        update: { status: dto.attendance, markedById: teacherId },
+        update: {
+          status: dto.attendance,
+          markedById: teacherId,
+          heldOn,
+        },
       });
       if (dto.attendance === AttendanceStatus.ABSENT) {
         await this.removeSessionAssignment(
@@ -1081,6 +1152,18 @@ export class StudioService {
       }
     }
 
+    const heldMarks = await this.prisma.attendanceRecord.findMany({
+      where: { studentId, heldOn: { not: null } },
+      select: { meetingKey: true, term: true, heldOn: true },
+    });
+    const heldOnBySession = new Map(
+      heldMarks
+        .filter((mark) => mark.heldOn)
+        .map((mark) => [
+          `${mark.meetingKey}:${mark.term}`,
+          mark.heldOn!.toISOString().slice(0, 10),
+        ]),
+    );
     return rows
       .filter(
         (row) =>
@@ -1089,23 +1172,34 @@ export class StudioService {
             `${row.assignment.sessionId}:${row.assignment.term ?? 1}`,
           ),
       )
-      .map((row) => ({
-        id: row.id,
-        assignmentId: row.assignmentId,
-        category: row.assignment.category,
-        title: row.assignment.title,
-        source: row.assignment.source,
-        note: row.assignment.note,
-        dueLabel: row.assignment.dueLabel,
-        progress: row.progress,
-        score: row.score,
-        short: row.assignment.title.slice(0, 18),
-        teacher: row.assignment.teacher.displayName,
-        courseTitle: row.assignment.course?.title ?? null,
-        sessionId: row.assignment.sessionId,
-        sessionNumber: row.assignment.session?.number ?? null,
-        term: row.assignment.term ?? 1,
-      }));
+      .map((row) => {
+        const sessionHeldOn = row.assignment.sessionId
+          ? heldOnBySession.get(
+              `${row.assignment.sessionId}:${row.assignment.term ?? 1}`,
+            ) ?? null
+          : null;
+        return {
+          id: row.id,
+          assignmentId: row.assignmentId,
+          category: row.assignment.category,
+          title: row.assignment.title,
+          source: row.assignment.source,
+          note: row.assignment.note,
+          dueLabel: sessionHeldOn
+            ? formatIsoAsJalali(sessionHeldOn) ?? row.assignment.dueLabel
+            : row.assignment.dueLabel,
+          progress: row.progress,
+          score: row.score,
+          short: row.assignment.title.slice(0, 18),
+          teacher: row.assignment.teacher.displayName,
+          courseTitle: row.assignment.course?.title ?? null,
+          sessionId: row.assignment.sessionId,
+          sessionNumber: row.assignment.session?.number ?? null,
+          sessionHeldOn,
+          registeredOn: tehranIsoDate(row.assignment.createdAt),
+          term: row.assignment.term ?? 1,
+        };
+      });
   }
 
   async updateTargetProgress(
@@ -1260,7 +1354,10 @@ export class StudioService {
       this.practiceSeries(studentId, '7d'),
       this.studentStars(studentId),
     ]);
-    const sessionBuckets: Record<TrackKey, Map<number, number[]>> = {
+    const sessionBuckets: Record<
+      TrackKey,
+      Map<number, { scores: number[]; heldOn: string | null }>
+    > = {
       technique: new Map(),
       theory: new Map(),
       solfege: new Map(),
@@ -1274,9 +1371,13 @@ export class StudioService {
         item.sessionNumber && item.sessionNumber > 0
           ? item.sessionNumber
           : -(++orphan);
-      const list = sessionBuckets[key].get(sessionNumber) ?? [];
-      list.push(item.score);
-      sessionBuckets[key].set(sessionNumber, list);
+      const bucket = sessionBuckets[key].get(sessionNumber) ?? {
+        scores: [],
+        heldOn: null,
+      };
+      bucket.scores.push(item.score);
+      if (item.sessionHeldOn) bucket.heldOn = item.sessionHeldOn;
+      sessionBuckets[key].set(sessionNumber, bucket);
     }
     const avg = (values: number[]) =>
       values.length === 0
@@ -1285,9 +1386,11 @@ export class StudioService {
     const trackStats = TRACK_KEYS.map((key) => {
       const sessions = [...sessionBuckets[key].entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([sessionNumber, scores]) => ({
+        .map(([sessionNumber, bucket]) => ({
           sessionNumber: sessionNumber > 0 ? sessionNumber : null,
-          score: avg(scores),
+          heldOn: bucket.heldOn,
+          sessionDate: formatIsoAsJalali(bucket.heldOn),
+          score: avg(bucket.scores),
         }));
       return {
         key,
@@ -1581,6 +1684,23 @@ export class StudioService {
     return { start: parts[0] ?? value, end: parts[1] ?? '' };
   }
 
+  private parseHeldOn(value: string) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) throw new BadRequestException('تاریخ برگزاری نامعتبر است.');
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day
+    ) {
+      throw new BadRequestException('تاریخ برگزاری نامعتبر است.');
+    }
+    return date;
+  }
+
   private startOfDay(date: Date) {
     return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   }
@@ -1647,7 +1767,7 @@ export class StudioService {
       }),
     ]);
     const markBySession = new Map(
-      marks.map((item) => [item.meetingKey, item.status]),
+      marks.map((item) => [item.meetingKey, item]),
     );
     const cursorByCourse = new Map<string, number>();
     for (const row of homeworkRows) {
@@ -1670,7 +1790,7 @@ export class StudioService {
     const mapped = sessions.map((session) => {
       const cursor = cursorByCourse.get(session.courseId) ?? 0;
       const attendance = markBySession.get(session.id) ?? null;
-      const status = studentFacingSessionStatus(attendance);
+      const status = studentFacingSessionStatus(attendance?.status ?? null);
       return {
         id: session.id,
         courseId: session.course.slug,
@@ -1687,7 +1807,10 @@ export class StudioService {
         homeworkTitle: session.homeworkTitle,
         homeworkSource: session.homeworkSource,
         homeworkNote: session.homeworkNote,
-        attendance: attendance?.toLowerCase() ?? null,
+        attendance: attendance?.status.toLowerCase() ?? null,
+        heldOn: attendance?.heldOn
+          ? attendance.heldOn.toISOString().slice(0, 10)
+          : null,
         current: session.number === cursor,
         confirmed: session.number < cursor,
       };
@@ -1891,25 +2014,28 @@ export class StudioService {
     teacherId: string,
     term = 1,
   ) {
-    for (const studentId of studentIds) {
-      const resolved = await this.resolveStudentTerm(
-        studentId,
-        session.courseId,
-        term,
-      );
-      const existing = await this.prisma.attendanceRecord.findUnique({
-        where: {
-          courseId_studentId_meetingKey_term: {
-            courseId: session.courseId,
-            studentId,
-            meetingKey: session.id,
-            term: resolved,
-          },
-        },
-      });
-      if (existing) continue;
-      await this.prisma.attendanceRecord.create({
-        data: {
+    if (studentIds.length === 0) return;
+    const terms = await this.resolveStudentTerms(
+      studentIds,
+      session.courseId,
+      term,
+    );
+    const existing = await this.prisma.attendanceRecord.findMany({
+      where: {
+        courseId: session.courseId,
+        meetingKey: session.id,
+        studentId: { in: studentIds },
+      },
+      select: { studentId: true, term: true },
+    });
+    const existingKeys = new Set(
+      existing.map((row) => `${row.studentId}:${row.term}`),
+    );
+    const data = studentIds.flatMap((studentId) => {
+      const resolved = terms.get(studentId) ?? normalizeTerm(term);
+      if (existingKeys.has(`${studentId}:${resolved}`)) return [];
+      return [
+        {
           courseId: session.courseId,
           studentId,
           meetingKey: session.id,
@@ -1917,8 +2043,40 @@ export class StudioService {
           status: AttendanceStatus.PRESENT,
           markedById: teacherId,
         },
-      });
+      ];
+    });
+    if (data.length === 0) return;
+    await this.prisma.attendanceRecord.createMany({ data, skipDuplicates: true });
+  }
+
+  private async resolveStudentTerms(
+    studentIds: string[],
+    courseId: string,
+    requested?: number | null,
+  ) {
+    const result = new Map<string, number>();
+    if (studentIds.length === 0) return result;
+    const rows = await this.prisma.enrollment.findMany({
+      where: { courseId, userId: { in: studentIds } },
+      select: { userId: true, currentTerm: true },
+    });
+    const byUser = new Map(rows.map((row) => [row.userId, row.currentTerm]));
+    for (const studentId of studentIds) {
+      result.set(
+        studentId,
+        this.termFromCurrent(byUser.get(studentId), requested),
+      );
     }
+    return result;
+  }
+
+  private termFromCurrent(
+    currentTerm: number | null | undefined,
+    requested?: number | null,
+  ) {
+    const current = normalizeTerm(currentTerm);
+    if (requested == null) return current;
+    return Math.min(normalizeTerm(requested), current);
   }
 
   private async resolveStudentTerm(
@@ -1930,9 +2088,7 @@ export class StudioService {
       where: { userId_courseId: { userId: studentId, courseId } },
       select: { currentTerm: true },
     });
-    const current = normalizeTerm(enrollment?.currentTerm);
-    if (requested == null) return current;
-    return Math.min(normalizeTerm(requested), current);
+    return this.termFromCurrent(enrollment?.currentTerm, requested);
   }
 
   private async termLastSessionNumber(courseId: string) {
@@ -2048,6 +2204,7 @@ export class StudioService {
     if (studentIds.length === 0) return result;
     const rows = await this.prisma.attendanceRecord.findMany({
       where: { studentId: { in: studentIds }, course: { teacherId } },
+      select: { studentId: true, status: true },
     });
     const grouped = new Map<string, AttendanceStatus[]>();
     for (const row of rows) {
@@ -2076,6 +2233,7 @@ export class StudioService {
     if (studentIds.length === 0) return result;
     const rows = await this.prisma.studentStarRating.findMany({
       where: { teacherId, studentId: { in: studentIds } },
+      select: { studentId: true, stars: true },
     });
     for (const row of rows) result.set(row.studentId, row.stars);
     return result;
@@ -2089,7 +2247,10 @@ export class StudioService {
         studentId: { in: studentIds },
         assignment: { teacherId, category: 'قطعه' },
       },
-      include: { assignment: { select: { title: true, createdAt: true } } },
+      select: {
+        studentId: true,
+        assignment: { select: { title: true, createdAt: true } },
+      },
       orderBy: { assignment: { createdAt: 'desc' } },
     });
     for (const row of rows) {
@@ -2100,18 +2261,4 @@ export class StudioService {
     return result;
   }
 
-  private async averageAttendance(teacherId: string) {
-    const students = await this.prisma.enrollment.findMany({
-      where: { course: { teacherId } },
-      select: { userId: true },
-      distinct: ['userId'],
-    });
-    const rates = await this.attendanceRates(
-      teacherId,
-      students.map((item) => item.userId),
-    );
-    if (rates.size === 0) return 100;
-    const values = [...rates.values()];
-    return Math.round(values.reduce((sum, n) => sum + n, 0) / values.length);
-  }
 }

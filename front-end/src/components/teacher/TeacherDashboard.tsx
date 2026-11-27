@@ -62,7 +62,7 @@ export function TeacherDashboard() {
         description="هنرجویان، تمرین‌های هفته و روزهای کلاس از همین‌جا مدیریت می‌شود."
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="rise-list grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="هنرجویان"
           value={String(stats.students)}

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
@@ -40,6 +41,7 @@ async function bootstrap() {
     }),
   );
   app.use(cookieParser());
+  app.use(compression());
   app.use(app.get(UploadsService).middleware());
 
   const allowedOrigins = config.getOrThrow<string[]>('corsOrigin');

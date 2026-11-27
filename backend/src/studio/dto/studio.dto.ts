@@ -11,6 +11,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   IsUUID,
   Max,
   MaxLength,
@@ -268,6 +269,11 @@ export class SaveSessionWorkDto {
   )
   @IsEnum(AttendanceStatus)
   attendance?: AttendanceStatus;
+
+  @ApiPropertyOptional({ example: '2026-11-25', description: 'تاریخ برگزاری به میلادی' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'تاریخ برگزاری نامعتبر است.' })
+  heldOn?: string;
 
   @ApiPropertyOptional({ example: 'درس ۲ هانون' })
   @IsOptional()

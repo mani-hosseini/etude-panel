@@ -152,6 +152,7 @@ function LargeImage({ slideId, hint }: { slideId: string; hint: string }) {
         src={src}
         alt={hint}
         className="h-full max-h-full w-auto max-w-full object-contain"
+        decoding="async"
         onError={() => setFailed(true)}
       />
     </div>

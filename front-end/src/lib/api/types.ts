@@ -50,6 +50,10 @@ export type CourseSession = {
   homeworkNote?: string;
   homework?: SessionHomeworkItem[];
   attendanceStatus?: string | null;
+  heldOn?: string | null;
+  sessionDate?: string | null;
+  registeredOn?: string | null;
+  registeredOnLabel?: string | null;
   current?: boolean;
   term?: number;
 };
@@ -61,6 +65,8 @@ export type SessionHomeworkItem = {
   source: string;
   note: string;
   score: number;
+  registeredOn?: string | null;
+  dueLabel?: string | null;
 };
 
 export type ScheduleLesson = {
@@ -237,6 +243,8 @@ export type StudentAssignment = {
   courseTitle: string | null;
   sessionId?: string | null;
   sessionNumber?: number | null;
+  sessionHeldOn?: string | null;
+  registeredOn?: string | null;
   term?: number;
 };
 
@@ -263,7 +271,12 @@ export type PathTrackStat = {
   label: string;
   average: number;
   count: number;
-  sessions: Array<{ sessionNumber: number | null; score: number }>;
+  sessions: Array<{
+    sessionNumber: number | null;
+    heldOn?: string | null;
+    sessionDate?: string | null;
+    score: number;
+  }>;
 };
 
 export type PathProgress = {

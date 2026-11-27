@@ -69,6 +69,7 @@ export const routes = {
   exams: "/dashboard/exams",
   exam: (id: string) => `/dashboard/exams/${id}`,
   profile: "/dashboard/profile",
+  calendar: "/dashboard/calendar",
   support: "/dashboard/support",
   supportNew: (unit?: string) =>
     withSearch("/dashboard/support/new", { unit }),
@@ -86,6 +87,7 @@ export const teacherRoutes = {
       ? `/teacher/students/${id}?session=${encodeURIComponent(sessionId)}`
       : `/teacher/students/${id}`,
   schedule: "/teacher/schedule",
+  calendar: "/teacher/calendar",
   profile: "/teacher/profile",
 } as const;
 
@@ -112,6 +114,8 @@ export const adminRoutes = {
     `/admin/tasks?lead=${encodeURIComponent(leadId)}`,
   support: "/admin/support",
   supportTicket: (id: string) => `/admin/support/${id}`,
+  logs: "/admin/logs",
+  calendar: "/admin/calendar",
 } as const;
 
 export function isNavActive(pathname: string, href: string): boolean {

@@ -20,6 +20,7 @@ import { audienceError } from "@/lib/api/errors";
 import { studioApi, type StudioTodayStudent } from "@/lib/api/studio";
 import { studioKeys, useStudioTodayQuery } from "@/lib/api/studio-queries";
 import { toFa, toLatinDigits } from "@/lib/format";
+import { classDateLabel } from "@/lib/jalali";
 import { teacherRoutes } from "@/lib/routes";
 import { studentDisplayName } from "@/lib/teacher-studio";
 
@@ -371,9 +372,9 @@ function RollRow({
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 سطح {toFa(student.level)}
               </span>
-              {student.sessionNumber ? (
+              {student.sessionId ? (
                 <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand">
-                  جلسه {toFa(student.sessionNumber)}
+                  {student.sessionDate || classDateLabel(student.sessionHeldOn)}
                 </span>
               ) : null}
             </span>

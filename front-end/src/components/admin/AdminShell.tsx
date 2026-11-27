@@ -9,12 +9,14 @@ import {
   ListTodo,
   Menu,
   PhoneCall,
+  ScrollText,
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { IranClock } from "@/components/calendar/IranClock";
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
 import { toFa } from "@/lib/format";
 import { useAdminSupportStatsQuery } from "@/lib/api/admin-queries";
@@ -26,6 +28,7 @@ const mobileNav = [
   { href: adminRoutes.courses, label: "دوره‌ها", icon: BookOpen },
   { href: adminRoutes.exams, label: "آزمون‌ها", icon: ClipboardCheck },
   { href: adminRoutes.users, label: "کاربران", icon: Users },
+  { href: adminRoutes.logs, label: "لاگ", icon: ScrollText },
   { href: adminRoutes.registrations, label: "CRM", icon: PhoneCall },
   { href: adminRoutes.tasks, label: "تسک‌ها", icon: ListTodo },
 ] as const;
@@ -51,6 +54,8 @@ function resolveTitle(pathname: string) {
     if (pathname !== adminRoutes.support) return "تیکت پشتیبانی";
     return "پشتیبانی";
   }
+  if (pathname.startsWith(adminRoutes.logs)) return "لاگ";
+  if (pathname.startsWith(adminRoutes.calendar)) return "تقویم";
   return (
     mobileNav.find((item) => isNavActive(pathname, item.href))?.label ??
     "صفحه اصلی"
@@ -64,6 +69,7 @@ type AdminShellProps = {
 
 export function AdminShell({ adminName, children }: AdminShellProps) {
   const pathname = usePathname();
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [pathForMenu, setPathForMenu] = useState(pathname);
 
@@ -81,18 +87,25 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
     };
   }, [open]);
 
+  useLayoutEffect(() => {
+    scrollerRef.current?.scrollTo(0, 0);
+  }, [pathname]);
+
   const title = resolveTitle(pathname);
   const pendingSupport = useAdminSupportStatsQuery().data?.pending ?? 0;
 
   return (
-    <div dir="rtl" className="min-h-dvh bg-[#eef1f8] text-slate-900">
-      <div className="mx-auto flex min-h-dvh max-w-360 flex-row">
-        <div className="sticky top-0 hidden h-dvh w-64 shrink-0 lg:block xl:w-72">
+    <div dir="rtl" className="h-dvh overflow-hidden bg-[#eef1f8] text-slate-900">
+      <div className="mx-auto flex h-full max-w-360 flex-row">
+        <div className="hidden h-full w-64 shrink-0 lg:block xl:w-72">
           <AdminSidebar adminName={adminName} className="h-full" />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+        <div
+          ref={scrollerRef}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
+        >
+          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white">
             <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5 lg:px-8">
               <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <button
@@ -116,12 +129,16 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
                   <p className="text-xs font-medium text-slate-400">
                     پنل مدیریت
                   </p>
-                  <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                  <h1
+                    key={title}
+                    className="page-title-in text-lg font-bold tracking-tight text-slate-900"
+                  >
                     {title}
                   </h1>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <IranClock audience="admin" />
                 {pendingSupport > 0 ? (
                   <Link
                     href={adminRoutes.support}
@@ -139,11 +156,13 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
           </header>
 
           <main className="flex-1 px-3 py-5 pb-24 text-right sm:px-5 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
-            {children}
+            <div key={pathname} className="page-enter">
+              {children}
+            </div>
           </main>
 
-          <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-            <div className="mx-auto grid max-w-lg grid-cols-6 gap-1">
+          <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+            <div className="mx-auto grid max-w-lg grid-cols-7 gap-1">
               {mobileNav.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);
@@ -152,13 +171,19 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium transition-colors",
+                      "flex flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium transition-colors duration-200 active:scale-[0.98]",
                       active
                         ? "bg-brand/10 text-brand"
                         : "text-slate-500 hover:bg-slate-100",
                     )}
                   >
-                    <Icon className="size-4" strokeWidth={1.75} />
+                    <Icon
+                      className={cn(
+                        "size-4 transition-transform duration-200",
+                        active && "scale-105",
+                      )}
+                      strokeWidth={1.75}
+                    />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 );
@@ -172,11 +197,11 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+            className="fade-in absolute inset-0 bg-slate-900/40"
             aria-label="بستن منو"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-y-0 right-0 w-[min(18rem,85vw)] shadow-2xl">
+          <div className="drawer-in absolute inset-y-0 right-0 w-[min(18rem,85vw)] shadow-2xl">
             <AdminSidebar
               adminName={adminName}
               className="h-full"

@@ -49,6 +49,8 @@ function toHomeworkItem(
     source: item.source,
     note: item.note,
     score: item.score ?? 0,
+    registeredOn: "registeredOn" in item ? item.registeredOn : null,
+    dueLabel: "dueLabel" in item ? item.dueLabel : null,
   };
 }
 
@@ -75,13 +77,26 @@ export function homeworkForStudentSession(
     }
     return false;
   });
-  const seen = new Set<string>();
   const list: SessionHomeworkItem[] = [];
+  const indexById = new Map<string, number>();
   for (const item of [...fromSession, ...fromNext, ...fromAssignments]) {
     const mapped = toHomeworkItem(item);
-    if (seen.has(mapped.id)) continue;
-    seen.add(mapped.id);
-    list.push(mapped);
+    const existing = indexById.get(mapped.id);
+    if (existing == null) {
+      indexById.set(mapped.id, list.length);
+      list.push(mapped);
+      continue;
+    }
+    const prev = list[existing];
+    if (!prev) continue;
+    list[existing] = {
+      ...prev,
+      dueLabel: prev.dueLabel || mapped.dueLabel,
+      registeredOn: prev.registeredOn || mapped.registeredOn,
+      source: prev.source || mapped.source,
+      note: prev.note || mapped.note,
+      score: prev.score || mapped.score,
+    };
   }
   return list;
 }

@@ -131,6 +131,82 @@ export function todayJalali(): JalaliDate {
   return toJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
+export function classDateLabel(
+  heldOn: string | null | undefined,
+  empty = "تاریخ ثبت نشده",
+) {
+  return formatJalali(heldOn, empty);
+}
+
+export function sharedRegisteredOn(
+  items: Array<{ registeredOn?: string | null }>,
+) {
+  const dates = [
+    ...new Set(
+      items
+        .map((item) => item.registeredOn)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+  return dates.length === 1 ? dates[0] : null;
+}
+
+function jalaliText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (!JALALI_MONTHS.some((month) => trimmed.includes(month))) return null;
+  return trimmed;
+}
+
+/** One shared Jalali day for these assignments, from the stored date or the saved label. */
+export function storedDateLabel(value: string | null | undefined) {
+  return formatJalali(value, "") || jalaliText(value);
+}
+
+export function assignmentDateText(item: {
+  registeredOn?: string | null;
+  dueLabel?: string | null;
+}) {
+  return storedDateLabel(item.dueLabel) || storedDateLabel(item.registeredOn);
+}
+
+export function visibleAssignmentDate(
+  items: Array<{ registeredOn?: string | null; dueLabel?: string | null }>,
+) {
+  const labels = new Set<string>();
+  for (const item of items) {
+    const label = assignmentDateText(item);
+    if (label) labels.add(label);
+  }
+  if (labels.size !== 1) return null;
+  return [...labels][0] ?? null;
+}
+
+export function sessionEnteredDate(
+  items: Array<{
+    title?: string | null;
+    registeredOn?: string | null;
+    dueLabel?: string | null;
+  }>,
+  homeworkTitle?: string | null,
+) {
+  const dated = items.flatMap((item) => {
+    const date = assignmentDateText(item);
+    return date ? [{ title: item.title, date }] : [];
+  });
+  const titled = homeworkTitle
+    ? dated.find((item) => item.title === homeworkTitle)
+    : undefined;
+  if (titled) return titled.date;
+  const unique = [...new Set(dated.map((item) => item.date))];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+export function assignmentsRegisteredPhrase(value: string | null | undefined) {
+  const label = formatJalali(value, "") || jalaliText(value);
+  return label ? `تکالیف در ${label} ثبت شده` : null;
+}
+
 export function formatJalali(iso: string | null | undefined, empty = "—") {
   if (!iso) return empty;
   const jalali = isoToJalali(iso);

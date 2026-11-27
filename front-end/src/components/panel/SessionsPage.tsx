@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -20,11 +19,21 @@ import { TermPills } from "@/components/ui/term-pills";
 import type { SessionStatus } from "@/lib/api/types";
 import {
   queryErrorMessage,
+  useAssignmentsQuery,
   useSessionsQuery,
 } from "@/lib/api/queries";
 import { toFa, cleanCourseTitle } from "@/lib/format";
+import {
+  classDateLabel,
+  sessionEnteredDate,
+  storedDateLabel,
+} from "@/lib/jalali";
 import { routes } from "@/lib/routes";
-import { isSessionOpen, studentHomeSession } from "@/lib/session-access";
+import {
+  homeworkForStudentSession,
+  isSessionOpen,
+  studentHomeSession,
+} from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
 import { parseTerm } from "@/lib/term";
 import { cn } from "@/lib/utils";
@@ -39,7 +48,6 @@ const statusMeta: Record<
 };
 
 export function SessionsPage({ courseId }: { courseId?: string } = {}) {
-  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryCourseId = decodeCourseParam(searchParams.get("courseId"));
@@ -54,6 +62,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
     decodeCourseParam(courseId) ?? queryCourseId ?? undefined;
   const selectedTerm = parseTerm(searchParams.get("term"));
   const query = useSessionsQuery(resolvedCourseId, selectedTerm);
+  const assignmentsQuery = useAssignmentsQuery();
 
   useEffect(() => {
     if (courseId || queryCourseId) return;
@@ -133,11 +142,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
         />
       ) : null}
 
-      <motion.section
-        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-7"
-      >
+      <section className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-7">
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs text-white/70">{course.subtitle}</p>
@@ -166,10 +171,10 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
             ))}
           </div>
         </div>
-      </motion.section>
+      </section>
 
-      <div className="grid gap-4">
-        {sessions.map((session, index) => {
+      <div className="rise-list grid gap-4">
+        {sessions.map((session) => {
           const completed =
             isSessionOpen(session) &&
             session.attendanceStatus !== "absent" &&
@@ -190,11 +195,21 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
             term,
           );
 
+          const sessionWork = homeworkForStudentSession(
+            session,
+            sessions,
+            assignmentsQuery.data ?? [],
+            term,
+          );
+          const enteredDate =
+            sessionEnteredDate(sessionWork, session.homeworkTitle) ||
+            storedDateLabel(session.heldOn) ||
+            storedDateLabel(session.registeredOn) ||
+            storedDateLabel(session.sessionDate);
+          const sessionWhen = enteredDate || classDateLabel(session.heldOn);
+
           const card = (
-            <motion.article
-              initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.04 }}
+            <article
               className={cn(
                 "surface-panel group relative overflow-hidden p-5 sm:p-6",
                 clickable && "transition-colors hover:border-brand-200",
@@ -204,13 +219,13 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-lg bg-navy px-2.5 py-1 font-sans text-[11px] font-bold tabular-nums text-white">
-                      جلسه {toFa(session.number)}
+                    <span className="rounded-lg bg-navy px-2.5 py-1 font-sans text-[11px] font-bold text-white">
+                      {sessionWhen}
                     </span>
                     <Badge variant={meta.variant}>{meta.label}</Badge>
                   </div>
                   <h3 className="mt-2 text-lg font-bold text-foreground group-hover:text-brand">
-                    {session.title || `جلسه ${toFa(session.number)}`}
+                    {session.title || sessionWhen}
                   </h3>
                   <p
                     className={cn(
@@ -227,8 +242,14 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                             "محتوای این جلسه پس از برگزاری کلاس فعال می‌شود." ||
                             !session.summary)
                         ? session.homeworkTitle
-                          ? `تکلیف این جلسه: ${session.homeworkTitle}`
-                          : "این جلسه برگزار شده است."
+                          ? `تکلیف این جلسه: ${session.homeworkTitle}${
+                              enteredDate
+                                ? ` · این تکالیف در ${enteredDate} ثبت شده`
+                                : ""
+                            }`
+                          : enteredDate
+                            ? `این تکالیف در ${enteredDate} ثبت شده`
+                            : "این جلسه برگزار شده است."
                         : session.summary}
                   </p>
                   {session.topics.length > 0 ? (
@@ -290,7 +311,7 @@ export function SessionsPage({ courseId }: { courseId?: string } = {}) {
                   ) : null}
                 </div>
               </div>
-            </motion.article>
+            </article>
           );
 
           return clickable ? (

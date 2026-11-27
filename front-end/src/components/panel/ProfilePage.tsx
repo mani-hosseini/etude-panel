@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, useReducedMotion } from "motion/react";
 import { Award, BadgeCheck, Music2, Save } from "lucide-react";
 
 import { AvatarUpload } from "@/components/panel/AvatarUpload";
@@ -192,7 +191,6 @@ function ProfileEditForm({
 }
 
 export function ProfilePage() {
-  const reduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const session = useStudentSession();
   const query = useProfileQuery();
@@ -228,11 +226,7 @@ export function ProfilePage() {
         description={`اطلاعات شما و دوره‌های ثبت‌شده در ${copy.academyName}.`}
       />
 
-      <motion.section
-        initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-8"
-      >
+      <section className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-8">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-10 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"
@@ -296,7 +290,7 @@ export function ProfilePage() {
             ))}
           </div>
         </div>
-      </motion.section>
+      </section>
 
       <ProfileEditForm
         key={`${student.id}-${student.displayName}-${student.level}`}
@@ -344,19 +338,16 @@ export function ProfilePage() {
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          {achievements.map((item, index) => (
-            <motion.div
+          {achievements.map((item) => (
+            <div
               key={item.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.05 + index * 0.05 }}
               className="rounded-2xl border border-brand-100 bg-linear-to-b from-brand-50/80 to-white p-4"
             >
               <p className="text-sm font-bold text-navy">{item.title}</p>
               <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
                 {item.desc}
               </p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </section>

@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePathProgressQuery } from "@/lib/api/queries";
 import type { PathTrackStat } from "@/lib/api/types";
 import { toFa } from "@/lib/format";
+import { classDateLabel } from "@/lib/jalali";
 import { PATH_TRACKS } from "@/lib/piano-path";
 
 const BRAND = "#0047ff";
@@ -107,7 +108,17 @@ export function PracticeAreaChart() {
 
   const data = sessionNumbers.map((number) => {
     const point: Record<string, number | string> = {
-      label: number > 0 ? `جلسه ${toFa(number)}` : "سایر",
+      label:
+        number > 0
+          ? stats
+              .flatMap((item) => item.sessions)
+              .find((row) => row.sessionNumber === number)?.sessionDate ||
+            classDateLabel(
+              stats
+                .flatMap((item) => item.sessions)
+                .find((row) => row.sessionNumber === number)?.heldOn,
+            )
+          : "سایر",
     };
     for (const track of stats) {
       const hit = track.sessions.find((row) =>

@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Lock } from "lucide-react";
 
 import { PageHeader } from "@/components/panel/PageHeader";
 import { LevelJourney } from "@/components/panel/LevelJourney";
-import { LevelStudioPanel } from "@/components/panel/LevelStudioPanel";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,14 @@ import {
 } from "@/lib/piano-path";
 import { parseStudentLevel, type StudentLevel } from "@/lib/student-level";
 import { cn } from "@/lib/utils";
+
+const LevelStudioPanel = dynamic(
+  () =>
+    import("@/components/panel/LevelStudioPanel").then(
+      (mod) => mod.LevelStudioPanel,
+    ),
+  { loading: () => <Skeleton className="h-72 rounded-3xl" /> },
+);
 
 function PathRing({
   value,

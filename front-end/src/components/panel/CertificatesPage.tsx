@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Award, Presentation } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 export function CertificatesPage() {
-  const reduceMotion = useReducedMotion();
   const query = useCoursesQuery();
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -55,13 +53,10 @@ export function CertificatesPage() {
           هنوز دوره‌ای ثبت نشده است.
         </div>
       ) : (
-        <div className="grid gap-4">
-          {courses.map((course, index) => (
-            <motion.article
+        <div className="rise-list grid gap-4">
+          {courses.map((course) => (
+            <article
               key={course.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
               className="surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
             >
               <div className="flex min-w-0 items-start gap-3">
@@ -126,7 +121,7 @@ export function CertificatesPage() {
                   جلسات دوره
                 </Link>
               </div>
-            </motion.article>
+            </article>
           ))}
         </div>
       )}

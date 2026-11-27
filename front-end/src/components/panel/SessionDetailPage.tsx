@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Images, Maximize2, NotebookPen, Presentation, UserRound } from "lucide-react";
 
 import { PageHeader } from "@/components/panel/PageHeader";
@@ -26,6 +25,13 @@ import {
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { executionScoreLabel, toFa } from "@/lib/format";
+import {
+  assignmentsRegisteredPhrase,
+  classDateLabel,
+  sessionEnteredDate,
+  sharedRegisteredOn,
+  storedDateLabel,
+} from "@/lib/jalali";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { decodeCourseParam } from "@/lib/slug";
 import { homeworkForStudentSession, isSessionOpen } from "@/lib/session-access";
@@ -49,7 +55,6 @@ export function SessionDetailPage({
   sessionId: string;
   courseId?: string;
 }) {
-  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryCourseId = decodeCourseParam(searchParams.get("courseId"));
@@ -169,7 +174,6 @@ export function SessionDetailPage({
     session.courseTitle ??
     course?.title ??
     "دوره";
-  const sessionLabel = `جلسه ${toFa(session.number)}`;
   const sessions = sessionsQuery.data?.sessions ?? [];
   const term =
     selectedTerm ??
@@ -182,6 +186,17 @@ export function SessionDetailPage({
     assignmentsQuery.data ?? [],
     term,
   );
+  const enteredDate =
+    sessionEnteredDate(sessionWork, session.homeworkTitle) ||
+    storedDateLabel(session.heldOn) ||
+    storedDateLabel(session.registeredOn);
+  const registeredPhrase =
+    (enteredDate ? `تکالیف در ${enteredDate} ثبت شده` : null) ??
+    assignmentsRegisteredPhrase(sharedRegisteredOn(sessionWork));
+  const sessionLabel =
+    registeredPhrase ||
+    session.sessionDate ||
+    classDateLabel(session.heldOn);
   const assigned = sessionWork[0];
   const pager = (
     <SessionPager
@@ -228,8 +243,8 @@ export function SessionDetailPage({
           {pager}
         </div>
         <PageHeader
-          eyebrow={`جلسه ${toFa(session.number)}`}
-          title={session.title || `جلسه ${toFa(session.number)}`}
+          eyebrow={sessionLabel}
+          title={session.title || sessionLabel}
           description={
             absent
               ? "شما در این جلسه غایب بودید."
@@ -292,7 +307,7 @@ export function SessionDetailPage({
             />
           ) : null}
           <PageHeader
-            eyebrow={`${courseTitle} · ترم ${toFa(term ?? 1)} · جلسه ${toFa(session.number)}`}
+            eyebrow={`${courseTitle} · ترم ${toFa(term ?? 1)} · ${sessionLabel}`}
             title={session.title}
             description={
               session.attendanceStatus === "absent"
@@ -327,11 +342,7 @@ export function SessionDetailPage({
         ) : null}
       </div>
 
-      <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <SessionStatCards
+      <SessionStatCards
           items={[
             {
               id: "teacher",
@@ -370,8 +381,7 @@ export function SessionDetailPage({
               onSelect: () => selectView("exercises"),
             },
           ]}
-        />
-      </motion.div>
+      />
 
       <SessionWorkspace
         view={workspaceView}

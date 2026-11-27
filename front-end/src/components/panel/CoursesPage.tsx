@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Filter,
@@ -42,7 +41,6 @@ const filters = [
 ] as const;
 
 export function CoursesPage() {
-  const reduceMotion = useReducedMotion();
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("all");
   const query = useCoursesQuery();
 
@@ -80,7 +78,7 @@ export function CoursesPage() {
         description="همه دوره‌های ثبت‌شده شما — پیشرفت، مدرس و زمان هر کلاس."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rise-list grid gap-3 sm:grid-cols-3">
         {[
           {
             label: "دوره‌های ثبت‌شده",
@@ -97,14 +95,11 @@ export function CoursesPage() {
             value: `${avgProgress}٪`,
             icon: Piano,
           },
-        ].map((item, index) => {
+        ].map((item) => {
           const Icon = item.icon;
           return (
-            <motion.div
+            <div
               key={item.label}
-              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: index * 0.05 }}
               className="surface-panel flex items-center gap-3 p-4"
             >
               <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand">
@@ -116,7 +111,7 @@ export function CoursesPage() {
                   {toFa(item.value)}
                 </p>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -143,15 +138,12 @@ export function CoursesPage() {
         ))}
       </div>
 
-      <div className="grid gap-4">
-        {filtered.map((course, index) => {
+      <div className="rise-list grid gap-4">
+        {filtered.map((course) => {
           const meta = statusMeta[course.status];
           return (
-            <motion.article
+            <article
               key={course.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: index * 0.04 }}
               className="surface-panel p-5 sm:p-6"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -205,7 +197,7 @@ export function CoursesPage() {
                   </Link>
                 </div>
               </div>
-            </motion.article>
+            </article>
           );
         })}
         {filtered.length === 0 ? (

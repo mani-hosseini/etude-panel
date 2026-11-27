@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { EtudeLogo } from "@/components/brand/EtudeLogo";
+import { IranClock } from "@/components/calendar/IranClock";
 import { TeacherSidebar } from "@/components/teacher/TeacherSidebar";
 import { teacherNavItems, teacherSidebarItems } from "@/constants/teacher-nav";
 import { copy } from "@/constants/copy";
@@ -21,6 +22,7 @@ type TeacherShellProps = {
 
 export function TeacherShell({ teacherName, children }: TeacherShellProps) {
   const pathname = usePathname();
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [pathForMenu, setPathForMenu] = useState(pathname);
   const overview = useStudioOverviewQuery();
@@ -50,9 +52,7 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
   }, [open]);
 
   useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
+    scrollerRef.current?.scrollTo(0, 0);
   }, [pathname]);
 
   const title =
@@ -60,14 +60,17 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
       ?.label ?? "صفحه اصلی";
 
   return (
-    <div className="min-h-dvh bg-background">
-      <div className="mx-auto flex min-h-dvh max-w-360">
-        <div className="sticky top-0 hidden h-dvh w-68 shrink-0 lg:block xl:w-72">
+    <div className="h-dvh overflow-hidden bg-background">
+      <div className="mx-auto flex h-full max-w-360">
+        <div className="hidden h-full w-68 shrink-0 lg:block xl:w-72">
           <TeacherSidebar teacherName={teacherName} className="h-full" />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-border/80 bg-white/85 backdrop-blur-xl">
+        <div
+          ref={scrollerRef}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
+        >
+          <header className="sticky top-0 z-30 border-b border-border/80 bg-white">
             <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5 lg:px-8">
               <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <button
@@ -91,10 +94,13 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
                 </div>
                 <div className="hidden lg:block">
                   <p className="text-xs text-muted-foreground">پنل استاد</p>
-                  <h1 className="text-lg font-bold text-navy">{title}</h1>
+                  <h1 key={title} className="page-title-in text-lg font-bold text-navy">
+                    {title}
+                  </h1>
                 </div>
               </div>
-              <div className="hidden max-w-[min(100%,22rem)] items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 sm:flex">
+              <IranClock audience="panel" />
+              <div className="hidden max-w-[min(100%,22rem)] items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-brand-100 lg:flex">
                 <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
                 <span className="truncate">
                   {nextClass
@@ -106,7 +112,9 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
           </header>
 
           <main className="flex-1 px-3 py-5 pb-24 sm:px-5 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
-            {children}
+            <div key={pathname} className="page-enter">
+              {children}
+            </div>
           </main>
 
           <footer className="hidden border-t border-border/70 px-8 py-4 text-center text-xs text-muted-foreground lg:block">
@@ -114,20 +122,26 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
           </footer>
 
           <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
-            <div className="grid w-full grid-cols-4">
+            <div className="grid w-full grid-cols-5">
               {teacherNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);
                 return (
                   <Link
-                    key={item.href}
+                    key={item.label}
                     href={item.href}
                     className={cn(
-                      "flex w-full flex-col items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium",
+                      "flex w-full flex-col items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors duration-200 active:scale-[0.98]",
                       active ? "text-brand" : "text-muted-foreground",
                     )}
                   >
-                    <Icon className="size-4" strokeWidth={active ? 2 : 1.75} />
+                    <Icon
+                      className={cn(
+                        "size-4 transition-transform duration-200",
+                        active && "scale-105",
+                      )}
+                      strokeWidth={active ? 2 : 1.75}
+                    />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 );
@@ -141,11 +155,11 @@ export function TeacherShell({ teacherName, children }: TeacherShellProps) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-navy/45 backdrop-blur-[2px]"
+            className="fade-in absolute inset-0 bg-navy/45"
             aria-label="بستن منو"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-y-0 right-0 flex w-[min(88vw,300px)] flex-col overflow-hidden shadow-2xl">
+          <div className="drawer-in absolute inset-y-0 right-0 flex w-[min(88vw,300px)] flex-col overflow-hidden shadow-2xl">
             <div className="absolute left-3 top-3 z-10">
               <button
                 type="button"

@@ -13,6 +13,7 @@ export const teacherNavItems = [
   { href: teacherRoutes.class, label: "کلاس امروز", icon: ClipboardList },
   { href: teacherRoutes.students, label: "هنرجویان", icon: Users },
   { href: teacherRoutes.schedule, label: "برنامه کلاس", icon: CalendarDays },
+  { href: teacherRoutes.calendar, label: "تقویم", icon: CalendarDays },
 ] as const;
 
 export const teacherProfileNav = {

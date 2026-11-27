@@ -16,6 +16,11 @@ import {
   useSessionSlidesQuery,
 } from "@/lib/api/queries";
 import { toFa } from "@/lib/format";
+import {
+  classDateLabel,
+  sessionEnteredDate,
+  storedDateLabel,
+} from "@/lib/jalali";
 import { routes, type SessionPlayViewKind } from "@/lib/routes";
 import { homeworkForStudentSession, isSessionOpen } from "@/lib/session-access";
 import { decodeCourseParam } from "@/lib/slug";
@@ -95,12 +100,25 @@ export function SessionPlayView({
 
   const resolvedCourseId =
     paramCourseId ?? sessionQuery.data.courseId ?? undefined;
-  const sessionLabel = `جلسه ${toFa(sessionQuery.data.number)}`;
   const term =
     selectedTerm ??
     sessionQuery.data.term ??
     sessionsQuery.data?.selectedTerm ??
     sessionsQuery.data?.currentTerm;
+  const sessionWork = homeworkForStudentSession(
+    sessionQuery.data,
+    sessionsQuery.data?.sessions ?? [],
+    assignmentsQuery.data ?? [],
+    term,
+  );
+  const enteredDate =
+    sessionEnteredDate(sessionWork, sessionQuery.data.homeworkTitle) ||
+    storedDateLabel(sessionQuery.data.heldOn) ||
+    storedDateLabel(sessionQuery.data.registeredOn);
+  const sessionLabel = enteredDate
+    ? `تکالیف در ${enteredDate} ثبت شده`
+    : sessionQuery.data.sessionDate ||
+      classDateLabel(sessionQuery.data.heldOn);
   const backHref = resolvedCourseId
     ? routes.courseSession(
         resolvedCourseId,
@@ -155,12 +173,7 @@ export function SessionPlayView({
       homeworkTitle={sessionQuery.data.homeworkTitle}
       homeworkSource={sessionQuery.data.homeworkSource}
       homeworkNote={sessionQuery.data.homeworkNote}
-      homework={homeworkForStudentSession(
-        sessionQuery.data,
-        sessionsQuery.data?.sessions ?? [],
-        assignmentsQuery.data ?? [],
-        term,
-      )}
+      homework={sessionWork}
       absent={sessionQuery.data.attendanceStatus === "absent"}
     />
   );

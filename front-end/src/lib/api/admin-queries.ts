@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import {
   adminApi,
   type ListCoursesParams,
   type ListExamsParams,
+  type LessonLogParams,
   type ListUsersParams,
 } from "@/lib/api/admin-client";
 import { clearLocalRegistrationMocks } from "@/lib/registration-pipeline";
@@ -37,6 +38,8 @@ export const adminQueryKeys = {
     ["admin", "support", "tickets", params] as const,
   supportTicket: (id: string) => ["admin", "support", "ticket", id] as const,
   supportStats: ["admin", "support", "stats"] as const,
+  lessonLog: (params: LessonLogParams) =>
+    ["admin", "lesson-log", params] as const,
 };
 
 export function useAdminUsersStatsQuery() {
@@ -171,6 +174,14 @@ export function useAdminSupportTicketQuery(id: string) {
     queryKey: adminQueryKeys.supportTicket(id),
     queryFn: () => adminApi.supportTicket(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useAdminLessonLogQuery(params: LessonLogParams) {
+  return useQuery({
+    queryKey: adminQueryKeys.lessonLog(params),
+    queryFn: () => adminApi.lessonLog(params),
+    placeholderData: keepPreviousData,
   });
 }
 

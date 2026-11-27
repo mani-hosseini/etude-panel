@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import { Music2, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,6 @@ function ChatText({ text }: { text: string }) {
 }
 
 export function MusicAssistant() {
-  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -84,18 +82,10 @@ export function MusicAssistant() {
   return (
     <>
       {open ? null : (
-        <motion.button
+        <button
           type="button"
           onClick={() => setOpen(true)}
-          initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.96 }}
-          animate={
-            reduceMotion
-              ? { opacity: 1 }
-              : { opacity: 1, y: 0, scale: 1 }
-          }
-          whileHover={reduceMotion ? undefined : { y: -2 }}
-          whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-          className="fixed bottom-[4.6rem] left-2 z-40 flex items-center gap-1.5 rounded-full border border-white/15 bg-navy/95 px-1.5 py-1 pe-2.5 text-right text-white shadow-lift backdrop-blur-sm sm:bottom-8 sm:left-6 sm:gap-2.5 sm:px-2 sm:py-2 sm:pe-4"
+          className="assistant-in fixed bottom-[4.6rem] left-2 z-40 flex items-center gap-1.5 rounded-full border border-white/15 bg-navy/95 px-1.5 py-1 pe-2.5 text-right text-white shadow-lift backdrop-blur-sm transition-transform duration-200 sm:bottom-8 sm:left-6 sm:gap-2.5 sm:px-2 sm:py-2 sm:pe-4"
           aria-label="دستیار هوش مصنوعی موسیقی"
         >
           <span className="relative flex size-8 shrink-0 items-center justify-center sm:size-11">
@@ -123,7 +113,7 @@ export function MusicAssistant() {
               </span>
             </span>
           </span>
-        </motion.button>
+        </button>
       )}
 
       {open ? (

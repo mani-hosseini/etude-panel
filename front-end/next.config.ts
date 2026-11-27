@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     "@tailwindcss/oxide",
   ],
   experimental: {
+    optimizePackageImports: ["lucide-react", "recharts", "motion"],
     serverActions: {
       bodySizeLimit: "12mb",
     },

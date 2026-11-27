@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -20,7 +19,6 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 export function ExamsPage() {
-  const reduceMotion = useReducedMotion();
   const query = useExamsQuery();
 
   if (query.isPending) {
@@ -58,11 +56,7 @@ export function ExamsPage() {
         description="برگه و پاسخ‌نامه را بگیرید، اگر لازم بود PDF بفرستید، و نمره میان‌ترم را همین‌جا ببینید."
       />
 
-      <motion.section
-        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-7"
-      >
+      <section className="brand-gradient relative overflow-hidden rounded-3xl p-5 text-white shadow-lift sm:p-7">
         <div
           aria-hidden
           className="pointer-events-none absolute -left-10 top-0 h-40 w-40 rounded-full bg-white/10 blur-2xl"
@@ -103,7 +97,7 @@ export function ExamsPage() {
             ))}
           </div>
         </div>
-      </motion.section>
+      </section>
 
       {exams.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-white px-6 py-16 text-center shadow-soft">
@@ -116,14 +110,9 @@ export function ExamsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {exams.map((exam, index) => (
-            <motion.div
-              key={exam.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: index * 0.04 }}
-            >
+        <div className="rise-list grid gap-4">
+          {exams.map((exam) => (
+            <div key={exam.id}>
               <Link
                 href={routes.exam(exam.id)}
                 className="group grid overflow-hidden rounded-3xl border border-border bg-white shadow-soft transition hover:border-brand/30 hover:shadow-lift sm:grid-cols-[9rem_1fr]"
@@ -177,7 +166,7 @@ export function ExamsPage() {
                   </span>
                 </div>
               </Link>
-            </motion.div>
+            </div>
           ))}
         </div>
       )}

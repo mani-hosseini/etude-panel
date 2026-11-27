@@ -20,6 +20,8 @@ import { StudioModule } from './studio/studio.module';
 import { RegistrationModule } from './registration/registration.module';
 import { SupportModule } from './support/support.module';
 import { AssistantModule } from './assistant/assistant.module';
+import { LessonLogModule } from './lesson-log/lesson-log.module';
+import { CalendarModule } from './calendar/calendar.module';
 
 @Module({
   imports: [
@@ -70,6 +72,8 @@ import { AssistantModule } from './assistant/assistant.module';
     RegistrationModule,
     SupportModule,
     AssistantModule,
+    LessonLogModule,
+    CalendarModule,
     HealthModule,
   ],
   providers: [

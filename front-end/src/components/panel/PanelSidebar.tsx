@@ -74,13 +74,19 @@ export function PanelSidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200 ease-out active:scale-[0.98]",
                 active
                   ? "bg-white text-navy shadow-sm"
                   : "text-white/80 hover:bg-white/10 hover:text-white",
               )}
             >
-              <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+              <Icon
+                className={cn(
+                  "size-4 shrink-0 transition-transform duration-200",
+                  active && "scale-105",
+                )}
+                strokeWidth={1.75}
+              />
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
               {item.href === routes.support && unreadSupport > 0 ? (
                 <span

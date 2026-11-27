@@ -76,7 +76,7 @@ export function AdminDashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="rise-list grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Link
           href={adminRoutes.registrations}
           className="flex items-start justify-between gap-4 rounded-3xl border border-brand/15 bg-white p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md sm:p-6"
@@ -124,7 +124,7 @@ export function AdminDashboardPage() {
         </Link>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="rise-list grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
@@ -146,7 +146,7 @@ export function AdminDashboardPage() {
         })}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <section className="rise-list grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>

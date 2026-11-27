@@ -972,6 +972,18 @@ export const adminApi = {
       method: "DELETE",
     }),
 
+  lessonLog: (params: LessonLogParams = {}) =>
+    adminHttp.requestData<LessonLogResponse>(
+      `/admin/lesson-log${qs({
+        page: params.page,
+        limit: params.limit,
+        search: params.search,
+        teacherId: params.teacherId,
+        studentId: params.studentId,
+        category: params.category,
+      })}`,
+    ),
+
   supportTickets: (params: AdminSupportListParams = {}) =>
     adminHttp.requestData<{ tickets: SupportTicket[] }>(
       `/admin/support/tickets${qs({
@@ -998,6 +1010,61 @@ export const adminApi = {
       method: "PATCH",
       body: { status },
     }),
+};
+
+export type LessonLogPerson = {
+  id: string;
+  displayName: string;
+};
+
+export type LessonLogLesson = {
+  id: string;
+  category: string;
+  title: string;
+  lessons: string;
+  note: string;
+  enteredAt: string;
+  updatedAt: string;
+};
+
+export type LessonLogSession = {
+  id: string;
+  courseTitle: string | null;
+  sessionNumber: number | null;
+  heldOn?: string | null;
+  term: number;
+  lessons: LessonLogLesson[];
+};
+
+export type LessonLogStudent = {
+  id: string;
+  student: LessonLogPerson;
+  lessonCount: number;
+  latestAt: string;
+  sessions: LessonLogSession[];
+};
+
+export type LessonLogGroup = {
+  teacher: LessonLogPerson;
+  students: LessonLogStudent[];
+};
+
+export type LessonLogParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  teacherId?: string;
+  studentId?: string;
+  category?: string;
+};
+
+export type LessonLogResponse = {
+  groups: LessonLogGroup[];
+  meta: PaginationMeta;
+  lessonCount: number;
+  teachers: LessonLogPerson[];
+  students: LessonLogPerson[];
+  categories: string[];
 };
 
 export type AdminPanelTask = {

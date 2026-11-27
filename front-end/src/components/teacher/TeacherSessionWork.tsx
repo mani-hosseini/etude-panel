@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Minus, Plus } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { JalaliDateField } from "@/components/ui/jalali-date-field";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,9 @@ import {
 } from "@/lib/api/studio";
 import { studioKeys } from "@/lib/api/studio-queries";
 import { toFa, toLatinDigits } from "@/lib/format";
+import { calendarApi } from "@/lib/api/calendar";
+import { buildLocalNow } from "@/lib/calendar/local";
+import { formatJalali } from "@/lib/jalali";
 import { teacherSessionStatus } from "@/lib/session-access";
 import {
   assignmentsForSession,
@@ -261,6 +265,26 @@ export function TeacherSessionWork({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [heldOn, setHeldOn] = useState("");
+
+  useEffect(() => {
+    if (session?.heldOn) {
+      setHeldOn(session.heldOn);
+      return;
+    }
+    let cancelled = false;
+    void calendarApi
+      .now("panel")
+      .then((now) => {
+        if (!cancelled) setHeldOn(now.gregorian.text);
+      })
+      .catch(() => {
+        if (!cancelled) setHeldOn(buildLocalNow(Date.now()).gregorian.text);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.id, session?.heldOn]);
   const currentAttendance = useMemo(
     () => (session?.attendance as AttendanceStatus | null) ?? null,
     [session],
@@ -416,9 +440,13 @@ export function TeacherSessionWork({
   const mark = useMutation({
     mutationFn: (attendance: AttendanceStatus) => {
       if (!session) throw new Error("جلسه‌ای انتخاب نشده");
+      if (attendance !== "absent" && !heldOn) {
+        throw new Error("تاریخ برگزاری جلسه را وارد کنید.");
+      }
       return studioApi.saveSessionWork(session.id, {
         studentId,
         attendance,
+        ...(attendance !== "absent" ? { heldOn } : {}),
         ...(term != null ? { term } : {}),
       });
     },
@@ -439,7 +467,11 @@ export function TeacherSessionWork({
     },
     onError: (err) => {
       setMessage(null);
-      setError(audienceError(err, "ثبت حضور انجام نشد."));
+      setError(
+        err instanceof Error && err.message === "تاریخ برگزاری جلسه را وارد کنید."
+          ? err.message
+          : audienceError(err, "ثبت حضور انجام نشد."),
+      );
     },
   });
 
@@ -454,8 +486,7 @@ export function TeacherSessionWork({
         courseId: session.courseId,
         sessionId: session.id,
         studentIds: [studentId],
-        dueLabel: session ? `جلسه ${session.number}` : "کلاس بعد",
-        forNextSession: false,
+        dueLabel: heldOn ? formatJalali(heldOn) : "کلاس بعد",
         ...(term != null ? { term } : {}),
         items: items.map(({ category, title, source, sources }) => ({
           category,
@@ -537,11 +568,11 @@ export function TeacherSessionWork({
       });
       setAddingBook(null);
       setNewTitle("");
-      const targetNumber = homeworkSession?.number ?? session?.number ?? 0;
+      const when = heldOn ? formatJalali(heldOn) : "این تاریخ";
       stay(
         result.saved > 1
-          ? `${toFa(result.saved)} تمرین جلسه ${toFa(targetNumber)} ثبت شد.`
-          : `تمرین جلسه ${toFa(targetNumber)} ثبت شد.`,
+          ? `${toFa(result.saved)} تمرین برای ${when} ثبت شد.`
+          : `تمرین برای ${when} ثبت شد.`,
       );
       await refresh();
       if (isLastSession) onLastSessionSaved?.();
@@ -578,12 +609,16 @@ export function TeacherSessionWork({
   return (
     <div className="space-y-6">
       <WorkBlock
-        title="جلسه و تشکیل کلاس"
-        hint="اگر کلاس تشکیل شد روی همین جلسه می‌مانی. اگر تشکیل نشد، جلسه بعد باز می‌شود."
+        title="تاریخ برگزاری"
+        hint="به‌جای شماره جلسه، تاریخ همان روزی را بزنید که کلاس تشکیل شده است."
       >
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_auto] sm:items-end">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] sm:items-end">
         <div>
-          <Label className="mb-1.5 block">جلسه</Label>
+          <Label className="mb-1.5 block">تاریخ برگزاری</Label>
+          <JalaliDateField value={heldOn} onChange={setHeldOn} />
+        </div>
+        <div>
+          <Label className="mb-1.5 block">نوبت ثبت‌شده</Label>
           <Select
             value={session?.id}
             onValueChange={(value) => {
@@ -593,14 +628,19 @@ export function TeacherSessionWork({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="انتخاب جلسه" />
+              <SelectValue placeholder="انتخاب نوبت" />
             </SelectTrigger>
             <SelectContent>
               {sessions.map((item) => {
                 const access = teacherSessionStatus(item.attendance);
+                const when = item.heldOn
+                  ? formatJalali(item.heldOn)
+                  : item.current
+                    ? "نوبت جاری"
+                    : "بدون تاریخ";
                 return (
                   <SelectItem key={item.id} value={item.id}>
-                    {`جلسه ${toFa(item.number)}${item.title ? ` — ${item.title}` : ""}${item.current ? " · جاری" : ""}${item.confirmed ? " · تأییدشده" : ""} · ${statusLabel[access]}`}
+                    {`${when}${item.confirmed ? " · ثبت‌شده" : ""} · ${statusLabel[access]}`}
                   </SelectItem>
                 );
               })}
@@ -628,7 +668,7 @@ export function TeacherSessionWork({
               <button
                 key={status.id}
                 type="button"
-                disabled={mark.isPending}
+                disabled={mark.isPending || (status.id !== "absent" && !heldOn)}
                 onClick={() => mark.mutate(status.id)}
                 className={cn(
                   "rounded-2xl px-3 py-2.5 text-sm font-medium ring-1 transition disabled:opacity-60",
@@ -667,9 +707,9 @@ export function TeacherSessionWork({
       ) : (
         <WorkBlock
           title={
-            session
-              ? `تمرین این جلسه · جلسه ${toFa(session.number)}`
-              : "تمرین این جلسه"
+            heldOn
+              ? `تمرین این کلاس · ${formatJalali(heldOn)}`
+              : "تمرین این کلاس"
           }
           hint={
             isLastSession
@@ -940,8 +980,8 @@ export function TeacherSessionWork({
                   ? "در حال ثبت…"
                   : pendingItems.length > 1
                     ? `ثبت ${toFa(pendingItems.length)} تمرین`
-                    : session
-                      ? `ثبت تمرین جلسه ${toFa(session.number)}`
+                    : heldOn
+                      ? `ثبت تمرین ${formatJalali(heldOn)}`
                       : "ثبت تمرین"}
               </Button>
             </div>

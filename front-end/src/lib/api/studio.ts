@@ -48,6 +48,7 @@ export type StudioStudentSession = {
   homeworkSource: string;
   homeworkNote: string;
   attendance: string | null;
+  heldOn?: string | null;
   current?: boolean;
   confirmed?: boolean;
   reviewSessionId?: string | null;
@@ -146,6 +147,7 @@ export type StudentAssignment = {
   courseTitle: string | null;
   sessionId?: string | null;
   sessionNumber?: number | null;
+  registeredOn?: string | null;
   term?: number;
 };
 
@@ -160,7 +162,12 @@ export type PathTrackStat = {
   label: string;
   average: number;
   count: number;
-  sessions: Array<{ sessionNumber: number | null; score: number }>;
+  sessions: Array<{
+    sessionNumber: number | null;
+    heldOn?: string | null;
+    sessionDate?: string | null;
+    score: number;
+  }>;
 };
 
 export type StudioTodayStudent = {
@@ -174,6 +181,8 @@ export type StudioTodayStudent = {
   avatarUrl?: string | null;
   sessionId: string | null;
   sessionNumber: number | null;
+  sessionHeldOn?: string | null;
+  sessionDate?: string | null;
   sessionTitle: string;
   attendance: string | null;
   nextSessionNumber: number | null;
