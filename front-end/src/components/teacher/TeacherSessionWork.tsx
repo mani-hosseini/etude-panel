@@ -530,7 +530,6 @@ export function TeacherSessionWork({
                 sessionId: payload.sessionId,
                 studentIds: payload.studentIds,
                 dueLabel: payload.dueLabel,
-                forNextSession: payload.forNextSession,
                 term: payload.term,
                 category: item.category,
                 title: item.title,
